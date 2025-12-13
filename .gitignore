@@ -1,7 +1,6 @@
-@"
-venv/
+config.env
 .env
+venv/
 __pycache__/
 *.pyc
-"@ | Out-File -Encoding utf8 .gitignore
-"config.env" | Out-File -Append -Encoding utf8 .gitignore
+

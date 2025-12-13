@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}
+Inasistencias {{ docente.get('apellido','') }}, {{ docente.get('nombre','') }} – {{ anio }}
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Hoja tipo media A4 horizontal para imprimir */
+  .hoja-inasistencias {
+    background: #fff;
+    border: 1px solid #ccc;
+    padding: 10px 14px;
+    font-size: 11px;
+  }
+
+  .hoja-encabezado {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 4px;
+  }
+
+  .hoja-encabezado h4 {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .hoja-encabezado small {
+    font-size: 10px;
+  }
+
+  .calendario-anual {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .mes-box {
+    flex: 1 0 22%; /* 4 meses por fila aprox */
+    border: 1px solid #ddd;
+    padding: 3px;
+    min-width: 210px;
+  }
+
+  .mes-titulo {
+    text-align: center;
+    font-weight: 600;
+    font-size: 11px;
+    margin-bottom: 2px;
+  }
+
+  .tabla-mes {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .tabla-mes th,
+  .tabla-mes td {
+    border: 1px solid #ddd;
+    text-align: center;
+    padding: 1px;
+    font-size: 9px;
+  }
+
+  .tabla-mes th {
+    background: #f5f5f5;
+    font-weight: 600;
+  }
+
+  .dia-vacio {
+    background: #fafafa;
+  }
+
+  .dia-con-falta {
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .leyenda-inasistencias {
+    margin-top: 4px;
+    font-size: 9px;
+  }
+
+  .leyenda-color {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1px solid #444;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  .resumen-inferior {
+    margin-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 10px;
+  }
+
+  .resumen-inferior table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  .resumen-inferior th,
+  .resumen-inferior td {
+    border: 1px solid #000;
+    padding: 2px 3px;
+    font-size: 10px;
+  }
+
+  @media print {
+    body {
+      background: #fff;
+    }
+    .navbar,
+    .d-print-none {
+      display: none !important;
+    }
+    .container {
+      max-width: none;
+      padding: 0;
+      margin: 0;
+    }
+    .hoja-inasistencias {
+      width: 29.7cm;
+      height: 10.5cm; /* media hoja A4 horizontal */
+      margin: 0;
+      border: none;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-3">
+  <div class="d-flex justify-content-between align-items-center mb-2 d-print-none">
+    <div>
+      <a href="{{ url_for('listar_docentes') }}" class="btn btn-sm btn-outline-secondary">
+        ← Volver a docentes
+      </a>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <form method="get" class="d-flex align-items-center gap-1">
+        <label for="anio" class="form-label mb-0">Año:</label>
+        <input type="number" min="2000" max="2100"
+               class="form-control form-control-sm"
+               id="anio" name="anio" value="{{ anio }}">
+        <button class="btn btn-sm btn-outline-primary">Ver</button>
+      </form>
+      <button onclick="window.print()" class="btn btn-sm btn-primary">
+        Imprimir
+      </button>
+    </div>
+  </div>
+
+  <div class="hoja-inasistencias">
+    <div class="hoja-encabezado">
+      <div>
+        <h4>Inasistencias – {{ anio }}</h4>
+        <small>
+          Docente: <strong>{{ docente.get('apellido','') }}, {{ docente.get('nombre','') }}</strong>
+          &nbsp;·&nbsp;
+          Cargo: {{ docente.get('asignatura','') }}
+        </small>
+      </div>
+      <div>
+        <small>
+          Período: {{ periodo.desde }} a {{ periodo.hasta }}<br>
+          <span>Fecha de impresión: {{ fecha_impresion.strftime('%d/%m/%Y') }}</span>
+
+        </small>
+      </div>
+    </div>
+
+    <!-- Calendarios mensuales --> 
+    <div class="calendario-anual">
+      {% for mes in meses %}
+      <div class="mes-box">
+        <div class="mes-titulo">{{ mes.nombre }}</div>
+        <table class="tabla-mes">
+          <thead>
+            <tr>
+              <th>L</th><th>M</th><th>M</th><th>J</th><th>V</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fila in mes.filas %}
+            <tr>
+              {% for celda in fila %}
+                {% if celda %}
+                  {% if celda.color %}
+                    <td class="dia-con-falta"
+                        style="background-color: {{ celda.color }};">
+                      {{ celda.dia }}
+                    </td>
+                  {% else %}
+                    <td>{{ celda.dia }}</td>
+                  {% endif %}
+                {% else %}
+                  <td class="dia-vacio"></td>
+                {% endif %}
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="leyenda-inasistencias">
+      <span class="leyenda-color" style="background-color:#d9534f;"></span>
+      Inasistencia (enfermedad, particular, injustificada, etc.)
+      &nbsp;&nbsp;
+      <span class="leyenda-color" style="background-color:#5cb85c;"></span>
+      Citación / comisión de servicio en otro establecimiento
+    </div>
+
+    <!-- Resumen tipo punto 14 SET4 -->
+    <div class="resumen-inferior">
+      <div style="flex: 1;">
+        <table>
+          <tr>
+            <th colspan="2">14) Asistencias / Inasistencias</th>
+          </tr>
+          <tr>
+            <td>Por enfermedad personal</td>
+            <td style="width:60px; text-align:center;">
+              {{ totales.enfermedad_personal or 0 }}
+            </td>
+          </tr>
+          <tr>
+            <td>Por enfermedad de familiar a cargo</td>
+            <td style="width:60px; text-align:center;">
+              {{ totales.enfermedad_familiar or 0 }}
+            </td>
+          </tr>
+          <tr>
+            <td>Por causas particulares</td>
+            <td style="width:60px; text-align:center;">
+              {{ totales.particulares or 0 }}
+            </td>
+          </tr>
+          <tr>
+             <td>Citaciones (servicio en otro establecimiento)</td>
+             <td class="text-end">{{ totales.citacion or 0 }}</td> 
+          </tr>
+
+          <tr>
+            <td>Por otras causas</td>
+            <td style="width:60px; text-align:center;">
+              {{ totales.otras or 0 }}
+            </td>
+          </tr>
+          <tr>
+            <td>Injustificadas</td>
+            <td style="width:60px; text-align:center;">
+              {{ totales.injustificadas or 0 }}
+            </td>
+          </tr>
+          <tr>
+            <th>Total inasistencias</th>
+            <th style="text-align:center;">
+              {{ totales.suma or 0 }}
+            </th>
+          </tr>
+        </table>
+      </div>
+      <div style="flex: 1; text-align:right; padding-right:20px;">
+        <p>Firma del directivo: ________________________</p>
+        <p>Firma del docente: __________________________</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

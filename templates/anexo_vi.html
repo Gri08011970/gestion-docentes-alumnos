@@ -1,0 +1,59 @@
+<!-- templates/anexo_vi.html (Anexo VI – Autorización familiar individual) -->
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anexo VI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{ font-family: Arial, sans-serif; font-size:13px; margin:16px; }
+  .no-print{ margin-bottom:12px;}
+  h2{ font-size:18px; margin:0 0 8px; }
+  .muted{ color:#666; font-size:11px;}
+  .blk{ border:1px solid #222; padding:10px; border-radius:6px; margin-bottom:10px;}
+  .foot{ display:flex; justify-content: space-between; align-items:center; margin-top:14px; }
+  .foot img{ height:36px; }
+  [contenteditable="true"]{ outline:1px dashed #bbb; padding:2px; border-radius:4px; }
+  .page-break{ page-break-after: always; }
+  @media print{ .no-print{display:none} body{margin:8mm} }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <button onclick="window.print()">🖨️ Imprimir</button>
+</div>
+
+{% set listado = [] %}
+{% if estudiante %}
+  {% set listado = [estudiante] %}
+{% else %}
+  {% set listado = alumnos %}
+{% endif %}
+
+{% for a in listado %}
+  <div class="muted">DGCyE – Provincia de Buenos Aires</div>
+  <h2>Anexo VI – Autorización de la familia</h2>
+
+  <div class="blk">
+    <div><strong>Alumno/a:</strong> <span contenteditable="true">{{ a.apellido }}, {{ a.nombre }}</span> — DNI: <span contenteditable="true">{{ a.dni or '' }}</span></div>
+    <div><strong>Curso:</strong> <span contenteditable="true">{{ curso or a.curso or '—' }}</span></div>
+    <div><strong>Salida educativa:</strong> <span contenteditable="true">{{ salida.lugar }}</span> — <strong>Fecha/Hora:</strong> <span contenteditable="true">{{ salida.fecha }} {{ salida.hora }}</span></div>
+  </div>
+
+  <div class="blk">
+    <p>Autorizo a mi hijo/a a participar de la actividad detallada, bajo responsabilidad del establecimiento, habiendo sido informado/a de objetivos, itinerario, acompañantes y cobertura.</p>
+    <div><strong>Nombre y Apellido del padre/madre/tutor:</strong> <span contenteditable="true">__________________________</span></div>
+    <div><strong>DNI:</strong> <span contenteditable="true">________________</span> — <strong>Tel.:</strong> <span contenteditable="true">________________</span></div>
+    <div><strong>Domicilio:</strong> <span contenteditable="true">__________________________________________________________</span></div>
+    <div><strong>Firma:</strong> ____________________________</div>
+  </div>
+
+  <div class="foot">
+    <div class="muted">Fecha: {{ hoy }}</div>
+    <img src="{{ url_for('static', filename='image/logoAnexos.png') }}" alt="Logo PBA">
+  </div>
+
+  {% if not loop.last %}<div class="page-break"></div>{% endif %}
+{% endfor %}
+</body>
+</html>

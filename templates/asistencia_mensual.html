@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+{% block title %}Asistencia {{ curso }} - {{ mes_actual }}{% endblock %}
+
+{% block content %}
+<style>
+    .asistencia-cell {
+        min-width: 2.5rem;
+        max-width: 2.5rem;
+        padding: .15rem !important;
+    }
+
+    .asistencia-select {
+        width: 100%;
+        border: none;
+        background: transparent;
+        box-shadow: none;
+        padding: 0;
+        text-align: center;
+        font-weight: 700;
+        font-size: 1rem;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        cursor: pointer;
+    }
+
+    .asistencia-select:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
+    .asistencia-select option {
+        font-weight: 700;
+    }
+
+    .no-print {
+        /* Elementos que NO se imprimen (botones, etc.) */
+    }
+
+    @media print {
+        body {
+            background: #ffffff !important;
+        }
+
+        .navbar,
+        footer,
+        .no-print {
+            display: none !important;
+        }
+
+        /* Por defecto, si no hay clase especial, se imprimen ambas secciones */
+        body.print-mensual #resumen-asistencia-section {
+            display: none !important;
+        }
+
+        body.print-resumen #asistencia-mensual-section {
+            display: none !important;
+        }
+
+        body.print-mensual #asistencia-mensual-section,
+        body.print-resumen #resumen-asistencia-section {
+            display: block !important;
+        }
+
+        /* Que use todo el ancho en impresión */
+        .container-fluid {
+            margin: 0;
+            padding: 0 10mm;
+        }
+    }
+</style>
+
+<div class="container-fluid mt-4">
+
+    <!-- Encabezado: título + selector de curso + navegación de meses -->
+    <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+
+        <div class="d-flex align-items-center">
+            <h1 class="me-3 mb-0">Asistencia:</h1>
+
+            <!-- Selector de curso -->
+            <select
+                class="form-select form-select-lg d-inline-block w-auto"
+                onchange="if (this.value) window.location.href = this.value;">
+                {% for c in cursos %}
+                    <option value="{{ url_for('asistencia_mensual',
+                                              curso=c,
+                                              year=current_year,
+                                              month=current_month) }}"
+                            {% if c == curso %}selected{% endif %}>
+                        {{ c }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Navegación de mes anterior / siguiente -->
+        <div class="d-flex align-items-center gap-2">
+            <a class="btn btn-outline-secondary btn-sm"
+               href="{{ url_for('asistencia_mensual',
+                                curso=curso,
+                                year=prev_year,
+                                month=prev_month) }}">
+                &lt; Mes anterior
+            </a>
+
+            <span class="h4 mb-0">{{ mes_actual }}</span>
+
+            <a class="btn btn-outline-secondary btn-sm"
+               href="{{ url_for('asistencia_mensual',
+                                curso=curso,
+                                year=next_year,
+                                month=next_month) }}">
+                Mes siguiente &gt;
+            </a>
+        </div>
+    </div>
+
+    {% if alumnos %} 
+
+    <!-- ===================== ASISTENCIA MENSUAL (SECCIÓN A IMPRIMIR) ===================== -->
+    <div id="asistencia-mensual-section">
+
+        <!-- Formulario principal de asistencia -->
+        <form method="post"
+              action="{{ url_for('asistencia_mensual',
+                                 curso=curso,
+                                 year=current_year,
+                                 month=current_month) }}">
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-start align-middle">Alumno</th>
+
+                            {# Encabezado: una columna por cada día hábil del mes #}
+                            {% set nombres_dia = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] %}
+                            {% for dia in dias_habiles %}
+                                <th class="text-center">
+                                    {{ "%02d"|format(dia.day) }}<br>
+                                    <small>{{ nombres_dia[dia.weekday()] }}</small>
+                                </th>
+                            {% endfor %}
+
+                            <th class="bg-success text-white text-center align-middle">Total P</th>
+                            <th class="bg-danger text-white text-center align-middle">Total A</th>
+                            <th class="bg-info text-white text-center align-middle">Total Días</th>
+                        </tr>
+                    </thead> 
+
+                    <tbody>
+                        {% for alumno in alumnos %}
+                            {% set ns = namespace(total_p=0, total_a=0, total_dias=0) %}
+
+                            <tr>
+                                <td class="text-start fw-semibold">
+                                    {{ loop.index }}. {{ alumno.apellido }}, {{ alumno.nombre }}
+                                    <input type="hidden" name="alumno_id[]" value="{{ alumno._id }}">
+                                </td>
+
+                                {% for dia in dias_habiles %}
+                                    {% set fecha_iso = dia.isoformat() %}
+                                    {% set estado = alumno.asistencia_mensual.get(fecha_iso, '') %}
+
+                                    {% if estado == 'P' %}
+                                        {% set ns.total_p = ns.total_p + 1 %}
+                                        {% set ns.total_dias = ns.total_dias + 1 %}
+                                    {% elif estado == 'A' %}
+                                        {% set ns.total_a = ns.total_a + 1 %}
+                                        {% set ns.total_dias = ns.total_dias + 1 %}
+                                    {% endif %}
+
+                                    <td class="text-center asistencia-celda">
+    <select
+        name="asistencia_{{ alumno._id }}_{{ fecha_iso }}"
+        class="form-select form-select-sm asistencia-select 
+               {% if estado == 'A' %}asistencia-A{% elif estado == 'X' %}asistencia-X{% endif %}"
+        data-alumno="{{ alumno._id }}"
+        data-fecha="{{ fecha_iso }}"
+    >
+        <option value="" {% if estado == '' %}selected{% endif %}></option>
+        <option value="P" {% if estado == 'P' %}selected{% endif %}>P</option>
+        <option value="A" {% if estado == 'A' %}selected{% endif %}>A</option>
+        <option value="X" {% if estado == 'X' %}selected{% endif %}>X</option>
+    </select>
+</td>
+
+                                {% endfor %}
+
+                                <td class="text-center fw-bold total-p">{{ ns.total_p }}</td>
+                                <td class="text-center fw-bold total-a">{{ ns.total_a }}</td>
+                                <td class="text-center fw-bold total-dias">{{ ns.total_dias }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="text-end my-3 no-print">
+                <button type="submit" class="btn btn-lg btn-success">
+                    💾 Guardar Asistencia Mensual
+                </button>
+            </div>
+        </form>
+    </div>
+    <!-- ===================== FIN SECCIÓN MENSUAL ===================== -->
+
+    <!-- ===================== SECCIÓN RESÚMENES (SE PUEDE IMPRIMIR APARTE) ===================== -->
+    <div id="resumen-asistencia-section">
+
+        <hr class="my-4">
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 class="mb-0">
+                Resúmenes de asistencia – {{ mes_actual }} / Trimestre {{ numero_trimestre }} / Año {{ current_year }}
+            </h3>
+
+            <!-- Botones de impresión -->
+            <div class="d-flex justify-content-end gap-2 mb-3">
+               <button type="button"
+                       class="btn btn-outline-secondary btn-sm"
+                       onclick="imprimirSeccion('mensual')">
+                <i class="fas fa-print"></i> Imprimir asistencia mensual
+               </button>
+
+               <button type="button"
+                       class="btn btn-outline-secondary btn-sm"
+                       onclick="imprimirSeccion('resumen')">
+                <i class="fas fa-print"></i> Imprimir resumen (pestaña actual)
+               </button>
+            </div>
+
+        </div>
+
+        <!-- Pestañas de resumen -->
+        <ul class="nav nav-pills mb-3 no-print" id="resumenTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active"
+                        id="resumen-semanal-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#resumen-semanal"
+                        type="button" role="tab"
+                        aria-controls="resumen-semanal"
+                        aria-selected="true">
+                    Semanal (mes actual)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link"
+                        id="resumen-trimestral-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#resumen-trimestral"
+                        type="button" role="tab"
+                        aria-controls="resumen-trimestral"
+                        aria-selected="false">
+                    Trimestral 
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link"
+                        id="resumen-anual-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#resumen-anual"
+                        type="button" role="tab"
+                        aria-controls="resumen-anual"
+                        aria-selected="false">
+                    Anual
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="resumenTabContent">
+
+            <!-- TAB 1: RESUMEN SEMANAL -->
+            <div class="tab-pane fade show active" id="resumen-semanal" role="tabpanel"
+                 aria-labelledby="resumen-semanal-tab">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th>Alumno</th>
+                                {% for semana in range(1, max_semana + 1) %}
+                                    <th class="text-center">Semana {{ semana }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alumno in alumnos %}
+                                {% set aid = alumno._id|string %}
+                                {% set semanas = resumen_semanal.get(aid) or {} %}
+                                <tr>
+                                    <td>{{ loop.index }}. {{ alumno.apellido }}, {{ alumno.nombre }}</td>
+                                    {% for semana in range(1, max_semana + 1) %}
+                                        {% set datos = semanas.get(semana) or {'P': 0, 'A': 0, 'D': 0} %}
+                                        <td class="text-center">
+                                            <div>P: {{ datos['P'] }}</div>
+                                            <div class="text-danger">A: {{ datos['A'] }}</div>
+                                            <div><small>Días: {{ datos['D'] }}</small></div>
+                                        </td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2: RESUMEN TRIMESTRAL -->
+            <div class="tab-pane fade" id="resumen-trimestral" role="tabpanel"
+                 aria-labelledby="resumen-trimestral-tab">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th>Alumno</th>
+                                <th class="text-center">Trim {{ numero_trimestre }} – P</th>
+                                <th class="text-center">Trim {{ numero_trimestre }} – A</th>
+                                <th class="text-center">Trim {{ numero_trimestre }} – Días</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alumno in alumnos %}
+                                {% set aid = alumno._id|string %}
+                                {% set tri = resumen_trimestre.get(aid) or {'P': 0, 'A': 0, 'D': 0} %}
+                                <tr>
+                                    <td>{{ loop.index }}. {{ alumno.apellido }}, {{ alumno.nombre }}</td>
+                                    <td class="text-center fw-bold">{{ tri['P'] }}</td>
+                                    <td class="text-center fw-bold text-danger">{{ tri['A'] }}</td>
+                                    <td class="text-center fw-bold">{{ tri['D'] }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 3: RESUMEN ANUAL -->
+            <div class="tab-pane fade" id="resumen-anual" role="tabpanel"
+                 aria-labelledby="resumen-anual-tab">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th>Alumno</th>
+                                <th class="text-center">Año {{ current_year }} – P</th>
+                                <th class="text-center">Año {{ current_year }} – A</th>
+                                <th class="text-center">Año {{ current_year }} – Días</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alumno in alumnos %}
+                                {% set aid = alumno._id|string %}
+                                {% set an = resumen_anual.get(aid) or {'P': 0, 'A': 0, 'D': 0} %}
+                                <tr>
+                                    <td>{{ loop.index }}. {{ alumno.apellido }}, {{ alumno.nombre }}</td>
+                                    <td class="text-center fw-bold">{{ an['P'] }}</td>
+                                    <td class="text-center fw-bold text-danger">{{ an['A'] }}</td>
+                                    <td class="text-center fw-bold">{{ an['D'] }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>  {# fin tab-content #}
+    </div>
+    <!-- ===================== FIN SECCIÓN RESÚMENES ===================== -->
+
+    {% else %}
+        <div class="alert alert-warning">
+            No hay alumnos registrados en el curso {{ curso }}.
+            Por favor, agregue alumnos antes de registrar la asistencia.
+        </div>
+    {% endif %}
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    function actualizarTotales(row) {
+        let totalP = 0;
+        let totalA = 0;
+        let totalD = 0;
+
+        row.querySelectorAll('.asistencia-select').forEach(function(sel) {
+            if (sel.value === 'P') {
+                totalP++;
+                totalD++;
+            } else if (sel.value === 'A') {
+                totalA++;
+                totalD++;
+            }
+            // La X no cuenta como día trabajado/ausente
+        });
+
+        const celdaP = row.querySelector('.total-p');
+        const celdaA = row.querySelector('.total-a');
+        const celdaD = row.querySelector('.total-dias');
+
+        if (celdaP) celdaP.textContent = totalP;
+        if (celdaA) celdaA.textContent = totalA;
+        if (celdaD) celdaD.textContent = totalD;
+    }
+
+    function actualizarEstiloCelda(selectEl) {
+        const cell = selectEl.closest('td');
+        if (!cell) return;
+        cell.classList.remove('text-danger', 'text-success', 'asistencia-A', 'asistencia-X');
+
+        if (selectEl.value === 'A') {
+            cell.classList.add('text-danger', 'asistencia-A');   // Ausente en rojo
+        } else if (selectEl.value === 'X') {
+            cell.classList.add('text-success', 'asistencia-X');  // Día sin clases en verde
+        }
+    }
+
+    document.querySelectorAll('.asistencia-select').forEach(function(sel) {
+        actualizarEstiloCelda(sel);
+        const row = sel.closest('tr');
+        if (row) actualizarTotales(row);
+
+        sel.addEventListener('change', function () {
+            actualizarEstiloCelda(this);
+            const fila = this.closest('tr');
+            if (fila) actualizarTotales(fila);
+        });
+    });
+});
+
+/* Imprimir solo la sección que quiero */
+function imprimirSeccion(tipo) {
+    document.body.classList.remove('print-mensual', 'print-resumen');
+    if (tipo === 'mensual') {
+        document.body.classList.add('print-mensual');
+    } else if (tipo === 'resumen') {
+        document.body.classList.add('print-resumen');
+    }
+    window.print();
+    // Después de un ratito, sacamos la clase para que la vista vuelva a la normalidad
+    setTimeout(function() {
+        document.body.classList.remove('print-mensual', 'print-resumen');
+    }, 500);
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anexo VII (Exacto)</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/anexos_exact.css') }}">
+<style>
+  .sheet { --bg-url: url('{{ url_for("static", filename="backgrounds/anexo_VII.png") }}'); }
+</style>
+</head>
+<body>
+<button class="no-print" onclick="print()">🖨️ Imprimir</button>
+<div class="sheet">
+
+  <div class="abs" style="left:24mm; top:44mm; width:160mm;">
+    Establecimiento: {{ escuela.nombre }} — {{ escuela.domicilio }} — {{ escuela.distrito }}
+  </div>
+
+  <div class="abs" style="left:24mm; top:58mm; width:160mm;">
+    Destino: {{ salida.lugar }} — Fecha/Hora: {{ salida.fecha }} {{ salida.hora }}
+  </div>
+
+  <div class="abs" style="left:24mm; top:72mm; width:160mm;">
+    Responsable: {% if docente %}{{ docente.apellido }}, {{ docente.nombre }}{% else %}—{% endif %}{% if curso %} — Curso/Grupo: {{ curso }}{% endif %}
+  </div>
+
+  <!-- Participante mayor de edad -->
+  <div class="abs" style="left:24mm; top:94mm; width:160mm;" contenteditable="true">
+    Apellido y Nombre: ______________________ — DNI: ______________ — Tel: _____________
+  </div>
+
+  <div class="abs" style="left:24mm; top:116mm; width:160mm;" contenteditable="true">
+    Domicilio: ___________________________________________________________________________
+  </div>
+
+  <div class="abs" style="left:24mm; top:248mm; width:160mm;">
+    Fecha: {{ hoy }} — Firma del/la participante: ______________________
+  </div>
+
+</div>
+</body>
+</html>

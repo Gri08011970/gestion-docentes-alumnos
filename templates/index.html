@@ -1,0 +1,230 @@
+{% extends "base.html" %} 
+
+{% block title %}Inicio · Gestión Escolar EP N° 91{% endblock %}
+
+{% block content %}
+
+<div class="home-main-card card border-0 mb-4">
+  <div class="card-body">
+
+    <!-- Bloque superior tipo “jumbotron” -->
+    <section class="home-hero mb-4">
+      <div class="row align-items-center g-3">
+        <div class="col-md-9 text-center text-md-start">
+          <h1 class="fw-bold mb-2 hero-title">
+            Sistema Integral de Gestión Escolar
+          </h1>
+          <p class="mb-1 text-muted">
+            E.P. N° 91 ·"PROVINCIAS ARGENTINAS".<br> Docentes - Auxiliares - Estudiantes
+          </p>
+          <p class="text-muted hero-subtitle">
+            Matrícula, legajos, recorridos domiciliarios, resúmenes estadísticos e instrumentos oficiales
+            en un solo entorno interno y seguro.
+          </p>
+        </div>
+
+        <!-- Logo a la derecha -->
+        <div class="col-md-3 text-center">
+          <img src="{{ url_for('static', filename='image/logo_transparent.png') }}"
+               alt="Logo Argentina EP91"
+               style="height:150px; width:auto; opacity:0.92;">
+          <span class="logo-ep91">E.P. N° 91 "Provincias Argentinas"</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Primera hilera: Estudiantes / Docentes / Auxiliares -->
+    <div class="row g-4">
+
+      <!-- BLOQUE ALUMNOS -->
+      <div class="col-12 col-lg-4" id="bloque-estudiantes">
+        <div class="card card-hover card-alumnos h-100">
+          <div class="card-body">
+            <div class="badge-soft mb-2">Núcleo central: ESTUDIANTES</div>
+            <h4 class="card-title fw-bold mb-2">Estudiantes</h4>
+            <p class="card-text text-muted mb-3">
+              Matrícula, asistencia, calificaciones, legajos y datos estadísticos de estudiantes.
+            </p>
+            <ul class="list-unstyled mb-0">
+              <li class="mb-1">
+                • <a href="{{ url_for('listar_alumnos') }}" class="text-decoration-none">
+                  Matrícula · Altas y ediciones
+                </a>
+              </li>
+              <li class="mb-1">
+                • <a href="{{ url_for('seleccionar_asistencia') }}" class="text-decoration-none">
+                  Registro y resúmenes de asistencias
+                </a>
+              </li>
+              <li class="mb-1">
+                • <a href="{{ url_for('calificaciones_gestion') }}" class="text-decoration-none">
+                  Calificaciones · Fichas por estudiante
+                </a>
+              </li>
+              <li class="mb-1">
+                • <a href="{{ url_for('resumen_edades') }}" class="text-decoration-none">
+                  Cuadros resúmenes: Edades, Nacionalidades,Permanencia,Movimentos
+                </a>
+              </li>
+              <li class="mb-1">
+                • <a href="{{ url_for('legajos_cursos') }}" class="text-decoration-none">
+                  Legajos estudiantes · Documentación obligatoria
+                </a>
+              </li>
+              <li class="mb-1">
+                • <a href="{{ url_for('autorizados_cursos') }}" class="text-decoration-none">
+                  Autorizados a retirar · Control por curso
+                </a>
+              </li>
+              <li class="mb-1">
+                • <a href="{{ url_for('mapa_recorridos') }}" class="text-decoration-none">
+                  Mapa y recorridos · Visitas domiciliarias
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOQUE DOCENTES -->
+      <div class="col-12 col-lg-4">
+        <div class="card card-hover card-docentes h-100">
+          <div class="card-body">
+            <div class="badge-soft mb-2">Equipo institucional</div>
+            <h4 class="card-title fw-bold mb-2">Docentes</h4>
+            <p class="card-text text-muted mb-3">
+              Plantel docente, cargos, contactos y formatos oficiales vinculados.
+            </p>
+            <ul class="list-unstyled mb-0">
+              <li class="mb-1">
+                • <a href="{{ url_for('listar_docentes') }}" class="text-decoration-none">
+                  Listado de docentes · Cargos y contactos
+                </a>
+              </li>
+              <li class="mb-1">
+                • <a href="{{ url_for('ver_inasistencias') }}" class="text-decoration-none">
+                  Inasistencias docentes · Calendario y reportes
+                </a>
+              </li>
+              <li class="mb-1">
+                • <a href="{{ url_for('anexos_index') }}" class="text-decoration-none">
+                  Anexos y formatos oficiales · Generación automática
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOQUE AUXILIARES -->
+      <div class="col-12 col-lg-4">
+        <div class="card card-hover card-auxiliares h-100">
+          <div class="card-body">
+            <div class="badge-soft mb-2">Equipo de auxiliares</div>
+            <h4 class="card-title fw-bold mb-2">Auxiliares</h4>
+            <p class="card-text text-muted mb-3">
+              Organización del personal auxiliar: Legajos, Horarios y Sectores.
+            </p>
+            <ul class="list-unstyled mb-0">
+              <li class="mb-1">
+                • <a href="{{ url_for('listar_auxiliares') }}" class="text-decoration-none">
+                  Listado de auxiliares · Datos y recorridos
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Segunda hilera de cajas -->
+<div class="row g-4 mt-3">
+
+  <!-- Caja 1: Cuadros resúmenes y estadísticas -->
+  <div class="col-12 col-lg-4">
+    <div class="p-3 rounded-3 shadow-sm h-100"
+         style="background:#f3f9ff; font-size:0.9rem; border:2px solid #333;">
+      <div class="small text-uppercase text-muted mb-2">
+        Núcleo de análisis: ESTUDIANTES-DOCENTES-AUXILIARES
+      </div>
+      <h5 class="mb-2">Cuadros resúmenes y estadísticas</h5>
+      <p class="small text-muted mb-2">
+        Edades, nacionalidades, recursantes, movimientos, inasistencias y
+        calificaciones desaprobadas. Todo actualizado automáticamente según
+        la matrícula real.
+      </p>
+      <ul class="small mb-0">
+        <li><a href="{{ url_for('resumen_edades') }}">Cuadros por curso: edades, nacionalidades, recursantes</a></li>
+        <li><a href="{{ url_for('resumen_nacionalidades') }}">Nacionalidades por curso</a></li>
+        <li><a href="{{ url_for('resumen_movimientos') }}">Movimientos de alumnos (altas/bajas/cambios)</a></li>
+        <li><a href="{{ url_for('resumen_inasistencias') }}">Resumen de inasistencias docentes</a></li>
+        <li><a href="{{ url_for('resumen_calificaciones') }}">Desaprobados por curso y asignatura</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Caja 2: Planillas y Anexos -->
+  <div class="col-12 col-lg-4">
+    <div class="p-3 rounded-3 shadow-sm h-100"
+         style="background:#fff7f0; font-size:0.9rem; border:2px solid #333;">
+      <div class="small text-uppercase text-muted mb-2">
+        Gestión administrativa
+      </div>
+      <h5 class="mb-2">Planillas y Anexos</h5>
+      <p class="small text-muted mb-2">
+        Acceso rápido a las planillas oficiales vinculadas a proyectos, salidas
+        educativas y seguimiento institucional.
+      </p>
+      <ul class="small mb-0">
+        <li>
+          <a href="{{ url_for('salidas.listado_salidas') }}">
+            Salidas educativas — Anexos III a IX
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('listar_docentes') }}">
+            Set 4 — Generar por docente
+          </a>
+        </li>
+        <li class="text-muted">
+          Promoción — <em>En construcción</em>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Caja 3: Certificados sin entregar -->
+  <div class="col-12 col-lg-4">
+    <div class="p-3 rounded-3 shadow-sm h-100"
+         style="background:#fdf5ff; font-size:0.9rem; border:2px solid #333;">
+      <div class="small text-uppercase text-muted mb-2">
+        Archivo histórico
+      </div>
+      <h5 class="mb-2">Certificados sin entregar</h5>
+      <p class="small text-muted mb-2">
+        Registro de certificados de años anteriores aún pendientes de retiro.
+        Búsqueda rápida por apellido o DNI.
+      </p>
+      <ul class="small mb-0">
+        <li>
+          <a href="{{ url_for('certificados_pendientes') }}">
+            Ir al listado de certificados
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+
+    <!-- Leyenda inferior -->
+    <div class="text-center text-muted mt-3" style="font-size:0.8rem;">
+      Uso interno institucional. La información es confidencial y se resguarda según la normativa vigente.
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

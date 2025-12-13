@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anexo VIII (Exacto)</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/anexos_exact.css') }}">
+<style>
+  .sheet { --bg-url: url('{{ url_for("static", filename="backgrounds/anexo_VIII.png") }}'); }
+</style>
+</head>
+<body>
+<button class="no-print" onclick="print()">🖨️ Imprimir</button>
+<div class="sheet">
+
+  <div class="abs" style="left:22mm; top:46mm; width:164mm;">
+    Empresa: {{ transporte.empresa or '—' }} — Patente: {{ transporte.patente or '—' }} — Seguro: {{ transporte.seguro or '—' }}
+  </div>
+
+  <div class="abs" style="left:22mm; top:58mm; width:164mm;">
+    Chofer: {{ transporte.chofer_nombre or '—' }} — DNI: {{ transporte.chofer_dni or '—' }} — Licencia: {{ transporte.chofer_licencia or '—' }}
+  </div>
+
+  <div class="abs" style="left:22mm; top:74mm; width:164mm;">
+    Lugar: {{ salida.lugar }} — Fecha/Hora: {{ salida.fecha }} {{ salida.hora }} — Curso: {{ curso or '—' }}
+  </div>
+
+  <!-- Checklist libre si el modelo lo prevé en blanco -->
+  <div class="abs" style="left:22mm; top:92mm; width:164mm;" contenteditable="true">
+    Observaciones / Checklist: ___________________________________________________________
+  </div>
+
+  <div class="abs" style="left:22mm; top:250mm; width:164mm;">
+    Firma y sello: ______________________
+  </div>
+
+</div>
+</body>
+</html>

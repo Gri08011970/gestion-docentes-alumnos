@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Cuadros por curso — Estudiantes</h2>
+
+
+{% if not cursos %}
+  <p class="text-muted">Todavía no hay alumnos cargados.</p>
+{% else %}
+  <div class="row g-4">
+    {% for curso in cursos %}
+      {% set r = resumen[curso] %}
+      <div class="col-12">
+        <div class="card shadow-sm">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ curso }}</strong>
+              — Matrícula total: <strong>{{ r.sexo.total }}</strong>
+            </div>
+            <a class="btn btn-sm btn-outline-secondary"
+               href="{{ url_for('listar_alumnos') }}?curso={{ curso }}">
+              Ver / editar alumnos del curso
+            </a>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <!-- Sexo y matrícula -->
+              <div class="col-md-4">
+                <h6>Sexo y matrícula</h6>
+                <table class="table table-sm table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th>Sexo</th>
+                      <th>Cantidad</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Varones (M)</td>
+                      <td>{{ r.sexo.M or 0 }}</td>
+                    </tr>
+                    <tr>
+                      <td>Mujeres (F)</td>
+                      <td>{{ r.sexo.F or 0 }}</td>
+                    </tr>
+                    <tr>
+                      <td>Otro / sin dato (X)</td>
+                      <td>{{ r.sexo.X or 0 }}</td>
+                    </tr>
+                    <tr class="table-light">
+                      <td><strong>Total</strong></td>
+                      <td><strong>{{ r.sexo.total }}</strong></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Edades -->
+              <div class="col-md-8">
+                <h6>Edades (al {{ ref_fecha.strftime("%d/%m") }})</h6>
+                <table class="table table-sm table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th>Edad</th>
+                      <th>M</th>
+                      <th>F</th>
+                      <th>X/ND</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for edad, bucket in r.edades|dictsort %}
+                      <tr>
+                        <td>{{ edad }}</td>
+                        <td>{{ bucket.M or "" }}</td>
+                        <td>{{ bucket.F or "" }}</td>
+                        <td>{{ bucket.X or "" }}</td>
+                        <td><strong>{{ bucket.total }}</strong></td>
+                      </tr>
+                    {% else %}
+                      <tr>
+                        <td colspan="5" class="text-muted">
+                          Sin datos de edad para este curso.
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="row g-3 mt-3">
+              <!-- Nacionalidades -->
+              <div class="col-md-8">
+                <h6>Nacionalidades</h6>
+                <table class="table table-sm table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th>Nacionalidad</th>
+                      <th>M</th>
+                      <th>F</th>
+                      <th>X/ND</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for nac, bucket in r.nacionalidades|dictsort %}
+                      <tr>
+                        <td>{{ nac }}</td>
+                        <td>{{ bucket.M or "" }}</td>
+                        <td>{{ bucket.F or "" }}</td>
+                        <td>{{ bucket.X or "" }}</td>
+                        <td><strong>{{ bucket.total }}</strong></td>
+                      </tr>
+                    {% else %}
+                      <tr>
+                        <td colspan="5" class="text-muted">
+                          Sin nacionalidades cargadas para este curso.
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Recursantes -->
+              <div class="col-md-4">
+                <h6>Recursantes</h6>
+                <table class="table table-sm table-bordered mb-0">
+                  <thead>
+                    <tr>
+                      <th>Sexo</th>
+                      <th>Cantidad</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Varones</td>
+                      <td>{{ r.recursantes.M or 0 }}</td>
+                    </tr>
+                    <tr>
+                      <td>Mujeres</td>
+                      <td>{{ r.recursantes.F or 0 }}</td>
+                    </tr>
+                    <tr>
+                      <td>Otro / sin dato</td>
+                      <td>{{ r.recursantes.X or 0 }}</td>
+                    </tr>
+                    <tr class="table-light">
+                      <td><strong>Total</strong></td>
+                      <td><strong>{{ r.recursantes.total }}</strong></td>
+                    </tr>
+                  </tbody>
+                </table>
+                
+              </div>
+            </div>
+
+          </div> 
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

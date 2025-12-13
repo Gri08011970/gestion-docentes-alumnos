@@ -1,0 +1,599 @@
+/* ========== PALETA Y ESTILOS GLOBALES ========== */
+:root {
+  --color-primario: #0092cc;          /* navbar + footer tipo Loma Negra */
+  --color-primario-oscuro: #0092cc;
+  --color-fondo: #f4f6fb;
+  --color-texto: #2d3436;
+  --color-texto-sec: #636e72;
+
+  /* Tarjetas por entidad */
+  --verde: #16A085;
+  --verde-claro: #B7F4E6;
+
+  --celeste: #007ACC;
+  --celeste-pastel: #D7ECFF;
+  --celeste-badge: #A8D0FF;
+
+  --coral: #FF8364;
+  --coral-pastel: #FFD9CC;
+  --coral-badge: #FFE6D8;
+}
+
+/* Layout general */
+body {
+  background-color: var(--color-fondo);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Nunito Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--color-texto);
+  padding-bottom: 40px; /* ya lo tenías */
+}
+
+.main-content {
+  flex: 1;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+/* ========== NAVBAR Y FOOTER ========== */
+
+.navbar {
+  background: var(--color-primario);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.nav-link {
+  font-weight: 500;
+}
+
+.navbar .dropdown-menu {
+  font-size: 0.9rem;
+}
+
+.nav-link.active,
+.nav-link:hover,
+.dropdown-item:hover {
+  color: #ffffff !important;
+  background-color: rgba(0,0,0,0.06);
+}
+
+/* Footer del mismo color que el nav */
+.footer {
+  background: var(--color-primario-oscuro);
+  color: #e5e7eb;
+  padding: 0.7rem 0;
+  font-size: 0.85rem;
+}
+
+.footer a {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+/* ========== HOME INICIO ========== */
+
+/* Tarjeta “gran contenedor” tipo Loma Negra */
+.home-main-card {
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.08);
+}
+
+/* Tarjetas internas (Alumnos, Docentes, Auxiliares) */
+ .card-hover {
+  transition: all 0.22s ease-in-out;
+  cursor: pointer;
+  border-radius: 18px;
+  border: 1px solid #000000;   /* borde negro */
+  background-color: var(--arena);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 26px rgba(0,0,0,0.16);
+}
+
+
+/* Badges suaves */
+.badge-soft {
+  font-size: 0.65rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.18rem 0.6rem;
+}
+
+/* BLOQUE ALUMNOS */
+.card-alumnos {
+  background: #F8F3EE;
+}
+.card-alumnos .badge-soft {
+  background: var(--verde-claro);
+  color: var(--verde);
+}
+.card-alumnos h4 {
+  color: var(--verde);
+}
+
+/* BLOQUE DOCENTES */
+.card-docentes {
+  background: var(--celeste-pastel);
+}
+.card-docentes .badge-soft {
+  background: var(--celeste-badge);
+  color: var(--celeste);
+}
+.card-docentes h4 {
+  color: var(--celeste);
+}
+
+/* BLOQUE AUXILIARES */
+.card-auxiliares {
+  background: var(--coral-pastel);
+}
+.card-auxiliares .badge-soft {
+  background: var(--coral-badge);
+  color: var(--coral);
+}
+.card-auxiliares h4 {
+  color: var(--coral);
+}
+
+/* Links dentro de las cards */
+.card a {
+  font-weight: 500;
+  text-decoration: none;
+}
+.card-alumnos a { color: var(--verde); }
+.card-docentes a { color: var(--celeste); }
+.card-auxiliares a { color: var(--coral); }
+.card a:hover { text-decoration: underline; }
+
+/* Hover para links dentro de las cards */
+.card a:hover {
+  background-color: rgba(0,0,0,0.05);
+  padding: 2px 6px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+
+/* ========== BOTÓN “VOLVER ARRIBA” ========== */
+
+.scroll-top-btn {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  background-color: rgba(22,160,133,0.92);
+  color: #fff;
+  font-size: 1.3rem;
+  padding: 10px 14px;
+  border-radius: 50%;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+  text-decoration: none;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease, transform .2s ease;
+  z-index: 2000;
+}
+
+.scroll-top-btn:hover {
+  background-color: #12836d;
+  transform: translateY(-3px);
+}
+
+/* ========== LO QUE YA TENÍAS (tablas, anexos, scroll doble) ========== */
+
+#calendar { max-width: 1000px; margin: 0 auto; }
+.carga-5x5 input { min-width: 140px; }
+.table td, .table th { vertical-align: middle; }
+
+/* Estados Admin */
+.table-danger td, .table-danger th { background-color: #f8d7da !important; }
+
+/* Evitar recortes al imprimir el historial y estados admin */
+@media print {
+  .navbar, .btn, .card-header { display: none !important; }
+  .card { border: none !important; box-shadow: none !important; }
+  body { margin: 0; }
+}
+
+/* ---- Anexos ---- */
+.anexo.paper {
+  background: #fff;
+  padding: 16px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+}
+.anexo .table > :not(caption) > * > * { padding: .4rem .5rem; }
+@media print {
+  .navbar, .btn, .card-header { display: none !important; }
+  .anexo.paper { border: none !important; padding: 0; }
+  body { margin: 0; }
+}
+
+/* static/css/print_anexos.css */
+.hoja {
+  background: #fff;
+  padding: 18mm;
+  border: 1px solid #ddd;
+  margin: 12px auto;
+  max-width: 210mm; /* A4 portrait */
+  box-shadow: 0 0 0.5rem rgba(0,0,0,.08);
+  color:#000;
+  font-size: 12.5px;
+}
+.anexo label { font-weight: 600; margin-right:6px; }
+.anexo .grid-1,.grid-2,.grid-3,.grid-4{ display:grid; gap:8px; align-items:center; }
+.anexo .grid-1{ grid-template-columns: 1fr; }
+.anexo .grid-2{ grid-template-columns: 1fr 1fr; }
+.anexo .grid-3{ grid-template-columns: repeat(3,1fr); }
+.anexo .grid-4{ grid-template-columns: repeat(4,1fr); }
+.anexo .col-2{ grid-column: span 2; }
+.anexo .box {
+  min-height: 70px; padding:8px; border:1px solid #bbb; border-radius:6px;
+}
+.anexo .tabla{ width:100%; border-collapse: collapse; }
+.anexo .tabla th, .anexo .tabla td{
+  border:1px solid #bbb; padding:6px; vertical-align: top;
+}
+.firmas > div { margin-top:8px; }
+.no-print{ display:block; }
+@media print{
+  .hoja{ box-shadow:none; border:none; margin:0; max-width:auto; padding:0; }
+  .no-print{ display:none !important; }
+  a[href]:after { content:""; }
+  input[type=checkbox]{ transform: scale(1); }
+}
+
+/* --- Pie con logo Provincia (para anexos y SET4) --- */
+.footer-logo {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-end;
+  min-height: 60px;
+  margin-top: 16px;
+}
+.footer-logo img {
+  height: 48px;
+  opacity: .9;
+}
+@media print {
+  .footer-logo { page-break-inside: avoid; }
+}
+
+/* ===== Scroll doble arriba y abajo — versión visible ===== */
+
+/* Wrapper general */
+.table-scroll-wrapper {
+  position: relative;
+  margin-top: 10px;
+}
+
+/* Barras de scroll superior e inferior */
+.table-scroll {
+  overflow-x: auto;
+  height: 18px;
+  background: #f1f3f5;              /* fondo visible */
+  border: 1px solid #d0d0d0;        /* bordecito */
+  border-radius: 6px;
+}
+
+/* Scroll superior separado */
+.table-scroll-top {
+  margin-bottom: 6px;
+}
+
+/* Scroll inferior separado */
+.table-scroll-bottom {
+  margin-top: 6px;
+}
+
+/* Scrollbar estilizado */
+.table-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.table-scroll::-webkit-scrollbar-thumb {
+  background: #b5b5b5;
+  border-radius: 6px;
+}
+.table-scroll::-webkit-scrollbar-track {
+  background: #e9ecef;
+}
+
+/* Elemento interior que toma el ancho real */
+.table-scroll-inner {
+  height: 1px;       /* invisible, solo genera ancho */
+}
+
+/* Bordes suaves de tabla */
+.table tbody tr td,
+.table thead th {
+  border: 1px solid #e0e0e0 !important;
+}
+
+/* ====== Jumbotron gris tipo Loma Negra ====== */
+
+.home-hero {
+  background-color: #e9edf5;      /* gris suave */
+  border-radius: 18px;
+  padding: 2.4rem 2.6rem;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+}
+
+/* Título y subtítulo dentro del jumbotron */
+.hero-title {
+  color: #16a085;                 /* tu turquesa principal, ajustá si cambiaste el nav */
+}
+
+.hero-subtitle {
+  font-size: 0.9rem;
+}
+
+/* Logo */
+.hero-logo {
+  max-height: 110px;
+  object-fit: contain;
+}
+
+/* ======== DROPDOWN MENÚ PROFESIONAL ======== */
+
+.navbar .dropdown-menu {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 6px 0;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+
+/* Items del dropdown */
+.navbar .dropdown-item {
+  font-weight: 500;
+  padding: 8px 16px;
+  color: var(--color-primario);
+  border-radius: 6px;
+}
+
+/* Hover más visible */
+.navbar .dropdown-item:hover {
+  background-color: var(--color-primario);
+  color: #ffffff !important;
+}
+
+/* Estado activo */
+.navbar .dropdown-item:active {
+  background-color: var(--color-primario-oscuro) !important;
+  color: #ffffff !important;
+}
+
+/* Barra separadora más suave */
+.dropdown-divider {
+  border-color: rgba(0,0,0,0.07);
+}
+.header-logo {
+    width: 140px;     
+    height: auto;
+    opacity: 0.9;
+}
+.header-logo-box {
+    margin-top: 5px;
+}
+
+.logo-ep91 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-primario);
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+}
+.table thead th {
+    background-color: #7abbc4 !important;   /* azul muy suave */
+    color: #2d3436;
+    font-weight: 600;
+    border-bottom: 2px solid #0092cc !important;
+}
+/* Cabecera de la tabla de alumnos: fondo gris suave */
+.tabla-alumnos thead.thead-alumnos th {
+  background-color: #eef3fb;      /* un poquito más marcado que antes */
+  border-bottom: 2px solid #d5deed;
+}
+
+/* Tamaño de letra más chico y compacto */
+.tabla-alumnos th,
+.tabla-alumnos td {
+  font-size: 0.80rem;
+  padding: 0.35rem 0.45rem;
+  vertical-align: middle;
+}
+
+/* Botones de acción redonditos y suaves */
+.btn-accion {
+  border-radius: 999px;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+/* Editar: azul suave */
+.btn-accion-edit {
+  background-color: #e3f2fd;
+  border-color: #bbdefb;
+  color: #1565c0;
+}
+.btn-accion-edit:hover {
+  background-color: #d0e6fb;
+  border-color: #90caf9;
+}
+
+/* Eliminar: rojo muy clarito */
+.btn-accion-delete {
+  background-color: #ffebee;
+  border-color: #ffcdd2;
+  color: #c62828;
+}
+.btn-accion-delete:hover {
+  background-color: #ffcdd2;
+  border-color: #ef9a9a;
+}
+
+/* Mapa: verde suave */
+.btn-accion-map {
+  background-color: #e8f5e9;
+  border-color: #c8e6c9;
+  color: #2e7d32;
+}
+.btn-accion-map:hover {
+  background-color: #d0ebd4;
+  border-color: #a5d6a7;
+}
+/* Estilos para asistencias */
+.asistencia-celda {
+    font-weight: 600;
+    text-align: center;
+}
+
+.asistencia-A {
+    color: #d9534f !important; /* rojo suave */
+}
+
+.asistencia-X {
+    color: #28a745 !important; /* verde */
+}
+/* ====== Vista compacta para la tabla de alumnos ====== */
+
+.tabla-alumnos {
+  font-size: 0.78rem;           /* Letra un poquito más chica */
+}
+
+.tabla-alumnos thead th,
+.tabla-alumnos tbody td {
+  padding: 0.25rem 0.35rem;     /* Menos padding para que entren más columnas */
+  vertical-align: middle;
+}
+
+/* Algunas columnas largas un poco más “apretadas” */
+.col-resp,
+.col-domicilio,
+.col-escuela-proc,
+.col-obs {
+  max-width: 220px;             /* Ajustá si querés más o menos ancho */
+}
+
+/* Que los datos normales no se corten en varias líneas innecesariamente */
+.tabla-alumnos th,
+.tabla-alumnos td {
+  white-space: nowrap;
+}
+
+/* Pero sí dejamos que Observaciones pueda partirse en varias líneas */
+.col-obs {
+  white-space: normal;
+}
+.modal-dialog-scrollable {
+  max-height: calc(100vh - 3.5rem);
+}
+
+.modal-dialog-scrollable .modal-content {
+  max-height: calc(100vh - 3.5rem);
+}
+
+.modal-dialog-scrollable .modal-body {
+  overflow-y: auto;
+}
+/* Parte Diario – tabla general */
+.parte-diario-tabla {
+  table-layout: fixed;   /* respeta mejor los anchos definidos */
+}
+
+/* Parte Diario – columnas de curso más angostas y centradas */
+.parte-diario-tabla .col-curso {
+  width: 7%;             /* ajustá a gusto: 6–8% va bien */
+  white-space: nowrap;   /* que no se corte "1° A" */
+  text-align: center;
+}
+
+/* Subcolumnas de Varones - Mujeres - Total (mañana y tarde) */
+.parte-diario-tabla th.subcol,
+.parte-diario-tabla td.subcol {
+  width: 48px;           /* más angostas */
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+/* Fila Totales del Turno más baja */
+.parte-diario-tabla .totales-turno-row td {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+/* Fila de Matrícula Total más alta y bien separada */
+.parte-diario-tabla .matricula-total-row td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  border-top-width: 3px;           /* un poquito más de corte visual arriba */
+  border-top-style: solid;
+}
+.parte-diario-tabla tr.totales-turno-row > td {
+    padding-top: 0px !important;
+    padding-bottom: 0px !important;
+    height: 22px !important;
+    line-height: 1 !important;
+}
+/* Reducir tipografía en la fila TOTALES DEL TURNO */
+.parte-diario-tabla tr.totales-turno-row td {
+    font-size: 0.85rem !important;   /* más chico */
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    height: 24px !important;
+}
+/* ===== LOGO NAVBAR – MODOS DE COLOR ===== */
+
+/* Versión original (sin filtros) */
+.logo-navbar {
+  display: inline-block;
+}
+
+/* Versión BLANCA (muy prolija sobre fondo azul) */
+.logo-navbar--blanco {
+  filter: brightness(0) invert(1);
+}
+
+/* Versión NEGRA (siluelta oscura) */
+.logo-navbar--negro {
+  filter: grayscale(1) brightness(0) contrast(200%);
+}
+
+/* Versión TURQUESA (más cercana a la identidad que ya usás) */
+.logo-navbar--turquesa {
+  filter: hue-rotate(-20deg) saturate(160%);
+}
+/* Área de observaciones para visitas domiciliarias */
+.obs-visita {
+    width: 100%;
+    min-height: 60px;
+    resize: vertical;
+    font-size: 0.9rem;
+}
+
+/* Versión al imprimir */
+@media print {
+    .obs-visita {
+        border: 1px solid #000 !important;
+        height: 80px !important;
+        resize: none !important;
+        font-size: 11pt !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+

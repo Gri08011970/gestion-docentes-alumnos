@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Gestión Escolar · EP N° 91{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5 -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+
+  <!-- CSS global del proyecto -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> 
+
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='image/logo_favicon.png') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark">
+  <div class="container-fluid">
+
+    <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
+      <img src="{{ url_for('static', filename='image/logo_mini.png') }}"
+           alt="Logo EP91"
+           class="logo-navbar logo-navbar--blanco "
+           style="height:44px; width:auto; margin-right:8px;">
+      Gestión Escolar · EP N° 91
+    </a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#navbarNav" aria-controls="navbarNav"
+            aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+
+      <div class="collapse navbar-collapse justify-content-between" id="navbarNav">
+
+  <!-- BLOQUE IZQUIERDO -->
+  <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+
+    <!-- INICIO -->
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('index') }}">Inicio</a>
+    </li>
+
+    <!-- ========= ESTUDIANTES ========= -->
+    <li class="nav-item dropdown">
+      <a class="nav-link dropdown-toggle" href="#" id="alumnosDropdown"
+         role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        Estudiantes
+      </a>
+      <ul class="dropdown-menu" aria-labelledby="alumnosDropdown">
+        <li>
+          <a class="dropdown-item" href="{{ url_for('listar_alumnos') }}">
+            Matrícula · Altas y ediciones
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('seleccionar_asistencia') }}">
+            Asistencia mensual · Por curso y año
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('calificaciones_gestion') }}">
+            Calificaciones · Fichas por alumno
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('legajos_cursos') }}">
+            Legajos alumnos · Documentación
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('autorizados_cursos') }}">
+            Autorizados a retirar · Por curso
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('mapa_recorridos') }}">
+            Mapa y recorridos domiciliarios
+          </a>
+        </li>
+      </ul>
+    </li>
+
+    <!-- ========= DOCENTES ========= -->
+    <li class="nav-item dropdown">
+      <a class="nav-link dropdown-toggle" href="#" id="docentesDropdown"
+         role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        Docentes
+      </a>
+      <ul class="dropdown-menu" aria-labelledby="docentesDropdown">
+        <li>
+          <a class="dropdown-item" href="{{ url_for('listar_docentes') }}">
+            Listado de docentes · Cargos y contactos
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('ver_inasistencias') }}">
+            Inasistencias docentes · Calendario
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('historial_inasistencias') }}">
+            Historial de inasistencias docentes
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('estados_admin') }}">
+            Estados administrativos
+          </a>
+        </li>
+      </ul>
+    </li>
+
+    <!-- ========= AUXILIARES ========= -->
+    <li class="nav-item dropdown">
+      <a class="nav-link dropdown-toggle" href="#" id="auxDropdown"
+         role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        Auxiliares
+      </a>
+      <ul class="dropdown-menu" aria-labelledby="auxDropdown">
+        <li>
+          <a class="dropdown-item" href="{{ url_for('listar_auxiliares') }}">
+            Personal auxiliar · Legajos, horarios y sectores
+          </a>
+        </li>
+      </ul>
+    </li>
+  </ul>
+
+  <!-- BLOQUE CENTRO: PARTE DIARIO -->
+  <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
+    <li class="nav-item mx-lg-5">
+      <a class="nav-link active fw-bold" href="{{ url_for('parte_diario') }}">
+        PARTE DIARIO
+      </a>
+    </li>
+  </ul>
+
+  <!-- BLOQUE DERECHO -->
+  <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+
+    <!-- Cuadros / Estadísticas -->
+    <li class="nav-item dropdown">
+      <a class="nav-link dropdown-toggle" href="#" id="navCuadros" role="button"
+         data-bs-toggle="dropdown" aria-expanded="false">
+        Cuadros y estadísticas
+      </a>
+      <ul class="dropdown-menu" aria-labelledby="navCuadros">
+        <li><a class="dropdown-item" href="{{ url_for('resumen_edades') }}">
+          Edades, nacionalidades, recursantes
+        </a></li>
+        <li><a class="dropdown-item" href="{{ url_for('resumen_movimientos') }}">
+          Movimientos de alumnos
+        </a></li>
+        <li><a class="dropdown-item" href="{{ url_for('resumen_inasistencias') }}">
+          Inasistencias docentes
+        </a></li>
+        <li><a class="dropdown-item" href="{{ url_for('resumen_calificaciones') }}">
+          Desaprobados por curso y asignatura
+        </a></li>
+      </ul>
+    </li>
+
+    <!-- Planillas y Anexos -->
+    <li class="nav-item dropdown">
+      <a class="nav-link dropdown-toggle" href="#" id="navPlanillas" role="button"
+         data-bs-toggle="dropdown" aria-expanded="false">
+        Planillas y anexos
+      </a>
+      <ul class="dropdown-menu" aria-labelledby="navPlanillas">
+        <li>
+          <a class="dropdown-item" href="{{ url_for('anexos_index') }}">
+            Generar anexos – Salidas educativas
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('salidas.listado_salidas') }}">
+            Resumen de salidas y estado de anexos
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('listar_docentes') }}">
+            Set 4 — Generar por docente
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item text-muted" href="#">
+            Proyección de matrícula — En construcción
+          </a>
+        </li>
+      </ul>
+    </li>
+
+    <!-- Certificados -->
+    <li class="nav-item">
+      <a class="nav-link" href="{{ url_for('certificados_pendientes') }}">
+        Certificados sin entregar
+      </a>
+    </li>
+
+    <!-- Correo institucional -->
+    <li class="nav-item">
+      <a class="nav-link" href="mailto:ep91isidrocasa@gmail.com">
+        Correo institucional
+      </a>
+    </li>
+  </ul>
+</div>
+
+  </div>
+</nav>
+
+<main class="main-content">
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<footer class="footer mt-auto">
+  <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+    
+    <div>
+      <a class="navbar-brand d-flex align-items-center" href="{{ url_for('index') }}">
+      <img src="{{ url_for('static', filename='image/logo_mini.png') }}"
+           alt="Logo EP91"
+           class="logo-navbar logo-navbar--blanco "
+           style="height:60px; width:auto; margin-right:8px;">
+            © E.P. N° 91 "Provincias Argentinas" – La Matanza. Todos los derechos reservados.</a>
+    </div>
+    <div>
+      <a href="mailto:ep91isidros@gmail.com">Correo institucional</a>
+    </div>
+  </div>
+</footer>
+
+<!-- Axios para las peticiones AJAX -->
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+<!-- JS propio global -->
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+{% block extra_js %}{% endblock %}
+
+<!-- Botón aparecer al hacer scroll -->
+<a id="scrollTopBtn" class="scroll-top-btn" href="#">
+  ⮝
+</a>
+
+<script>
+  const scrollBtn = document.getElementById("scrollTopBtn");
+
+  window.addEventListener("scroll", () => {
+    if (window.scrollY > 200) {
+      scrollBtn.style.opacity = "1";
+      scrollBtn.style.pointerEvents = "auto";
+    } else {
+      scrollBtn.style.opacity = "0";
+      scrollBtn.style.pointerEvents = "none";
+    }
+  });
+
+  scrollBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Nacionalidades por curso</h2>
+<table class="table table-bordered table-sm">
+  <thead>
+    <tr>
+      <th>Curso</th>
+      <th>Nacionalidad</th>
+      <th>M</th>
+      <th>F</th>
+      <th>X/ND</th>
+      <th>Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for curso in cursos %}
+      {% for nac in nacs %}
+        {% set sexos = data.get(curso, {}).get(nac) %}
+        {% if sexos %}
+        {% set m = sexos.get("M",0) %}
+        {% set f = sexos.get("F",0) %}
+        {% set x = sexos.get("X",0) %}
+        <tr>
+          <td>{{ curso }}</td>
+          <td>{{ nac }}</td>
+          <td>{{ m or "" }}</td>
+          <td>{{ f or "" }}</td>
+          <td>{{ x or "" }}</td>
+          <td><b>{{ m+f+x }}</b></td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+  </tbody>
+</table>
+{% if not cursos %}
+<p class="text-muted">Aún no hay alumnos cargados.</p>
+{% endif %}
+{% endblock %}

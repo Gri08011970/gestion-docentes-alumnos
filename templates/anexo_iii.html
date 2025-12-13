@@ -1,0 +1,111 @@
+<!-- templates/anexo_3.html (Anexo III – Proyecto/Planificación de la salida) -->
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anexo III</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{ --border:#222; --muted:#666; --tiny:11px; }
+  body{ font-family: Arial, sans-serif; font-size:13px; margin:16px; }
+  .no-print{ margin-bottom:12px; }
+  .muted{ color:var(--muted); font-size: var(--tiny); }
+  .blk{ border:1px solid var(--border); padding:10px; border-radius:6px; margin-bottom:10px; }
+  h2{ font-size:18px; margin:0 0 8px; }
+  [contenteditable="true"]{ outline:1px dashed #bbb; padding:2px; border-radius:4px; }
+  table{ width:100%; border-collapse: collapse; }
+  th, td{ border:1px solid #333; padding:6px; font-size:12px; vertical-align: top; }
+  .foot{ display:flex; justify-content: space-between; align-items:center; margin-top:14px; }
+  .foot img{ height:36px; }
+  @media print{ .no-print{display:none} body{margin:8mm} .page-break{page-break-after:always} }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <button onclick="window.print()">🖨️ Imprimir</button>
+</div>
+
+<div class="muted">DGCyE – Provincia de Buenos Aires</div>
+<h2>Anexo III – Proyecto pedagógico y cronograma</h2>
+
+<div class="blk">
+  <table>
+    <tr>
+      <th style="width:35%">Establecimiento</th>
+      <td><span contenteditable="true">{{ escuela.nombre }}</span></td>
+    </tr>
+    <tr>
+      <th>Domicilio / Distrito / Tel.</th>
+      <td>
+        <div class="muted">{{ escuela.domicilio }}</div>
+        <div class="muted">Distrito: {{ escuela.distrito }} – Tel: {{ escuela.telefono or '—' }}</div>
+      </td>
+    </tr>
+    <tr>
+      <th>Docente responsable</th>
+      <td>
+        {% if docente %}
+          {{ docente.apellido }}, {{ docente.nombre }}
+        {% else %}
+          <span contenteditable="true">[Apellido, Nombre]</span>
+        {% endif %}
+        {% if curso %}<div class="muted">Curso: {{ curso }}</div>{% endif %}
+      </td>
+    </tr>
+    <tr>
+      <th>Destino / Fecha y hora</th>
+      <td>
+        Lugar: <span contenteditable="true">{{ salida.lugar }}</span><br>
+        Fecha/Hora: <span contenteditable="true">{{ salida.fecha }} {{ salida.hora }}</span> – Zona: <span contenteditable="true">{{ salida.zona or '—' }}</span>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div class="blk">
+  <strong>Fundamentación</strong>
+  <div contenteditable="true">Describir los propósitos formativos y articulación curricular…</div>
+</div>
+
+<div class="blk">
+  <strong>Objetivos</strong>
+  <ul>
+    <li contenteditable="true">Objetivo 1…</li>
+    <li contenteditable="true">Objetivo 2…</li>
+    <li contenteditable="true">Objetivo 3…</li>
+  </ul>
+</div>
+
+<div class="blk">
+  <strong>Cronograma / Itinerario</strong>
+  <table>
+    <thead><tr><th>Horario</th><th>Actividad</th><th>Responsable</th></tr></thead>
+    <tbody>
+      <tr><td contenteditable="true">08:00</td><td contenteditable="true">Salida desde la escuela</td><td contenteditable="true">Docentes acompañantes</td></tr>
+      <tr><td contenteditable="true">10:00</td><td contenteditable="true">Visita guiada</td><td contenteditable="true">Guía / Docente</td></tr>
+      <tr><td contenteditable="true">12:30</td><td contenteditable="true">Almuerzo</td><td contenteditable="true">—</td></tr>
+      <tr><td contenteditable="true">15:00</td><td contenteditable="true">Regreso</td><td contenteditable="true">—</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="blk">
+  <strong>Evaluación</strong>
+  <div contenteditable="true">Criterios e instrumentos de evaluación de los aprendizajes vinculados a la salida…</div>
+</div>
+
+<div class="blk">
+  <strong>Seguridad y acompañantes</strong>
+  <ul>
+    <li contenteditable="true">Proporción adultos/estudiantes</li>
+    <li contenteditable="true">Contactos de emergencia</li>
+    <li contenteditable="true">Coberturas y seguros</li>
+  </ul>
+</div>
+
+<div class="foot">
+  <div class="muted">Fecha: {{ hoy }} — Firma y sello autoridad: ______________________</div>
+  <img src="{{ url_for('static', filename='image/logoAnexos.png') }}" alt="Logo PBA">
+</div>
+</body>
+</html>

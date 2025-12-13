@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-3 d-flex align-items-center justify-content-between">
+  <span>Historial de Inasistencias</span>
+  <div class="d-flex gap-2">
+    <button id="btnFiltrar" class="btn btn-primary">Aplicar filtros</button>
+    <button class="btn btn-outline-secondary" onclick="imprimirDiv('historial-wrap')">Imprimir historial</button>
+  </div>
+</h2>
+<style>
+@media print {
+  /* Ocultar cosas que no queremos imprimir */
+  nav.navbar,
+  .btn,
+  .filtros-inasistencias,
+  footer {
+    display: none !important;
+  }
+
+  body {
+    margin: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    font-size: 11pt;
+  }
+
+  .print-container,
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  /* Que la tabla ocupe el ancho completo y respete bordes */
+  table.table {
+    width: 100% !important;
+    border-collapse: collapse;
+  }
+
+  table.table th,
+  table.table td {
+    border: 1px solid #000 !important;
+  }
+}
+</style>
+
+<div id="historial-wrap" class="row g-4">
+  <!-- Filtros -->
+  <div class="col-12">
+  <div class="card filtros-inasistencias">
+    <div class="card-body">
+      <form id="filtros" class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label">Docente</label>
+            <select id="docente_id" class="form-select">
+              <option value="TODOS">TODOS</option>
+              {% for d in docentes %}
+              <option value="{{ d['_id'] }}">{{ d.get('apellido','') }}, {{ d.get('nombre','') }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Desde</label>
+            <input type="date" id="desde" class="form-control">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Hasta</label>
+            <input type="date" id="hasta" class="form-control">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Causa</label>
+            <select id="causa" class="form-select">
+              <option value="TODAS">TODAS</option>
+              <option>enfermedad personal</option>
+              <option>enfermedad familiar</option>
+              <option>pre-examen</option>
+              <option>exámenes</option>
+              <option>causas particulares</option>
+              <option>citación otro establecimiento</option>
+              <option>duelo</option>
+              <option>licencia extraordinaria</option>
+              <option>ART</option>
+              <option>otros</option>
+            </select>
+          </div> 
+          
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel lateral: Resumen y Alertas -->
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header bg-light">
+        <strong>Resumen y Alertas</strong>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+          <span>Total de inasistencias</span>
+          <span id="res-total" class="badge text-bg-secondary">0</span>
+        </div>
+        <hr>
+        <div id="res-causas" class="vstack gap-2">
+          <!-- badges por causa con tope -->
+        </div>
+        <hr>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla resultados -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header bg-light">
+        <strong>Resultados</strong>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Docente</th>
+                <th>Causa</th>
+                <th>Suplente</th>
+                <th>Obs.</th>
+                <th>Acciones</th>
+
+              </tr>
+            </thead>
+            <tbody id="tablaResultados">
+              <!-- filas -->
+            </tbody>
+          </table>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const selDocente = document.getElementById('docente_id');
+  const inpDesde   = document.getElementById('desde');
+  const inpHasta   = document.getElementById('hasta');
+  const selCausa   = document.getElementById('causa');
+  const btnFiltrar = document.getElementById('btnFiltrar');
+
+  const spanTotal  = document.getElementById('res-total'); 
+  const divCausas  = document.getElementById('res-causas');
+  const tbody      = document.getElementById('tablaResultados');
+
+  async function cargarResumenYTabla() {
+    const params = {
+      // 👇 nombre de parámetro igual que en la API: docente, no docente_id
+      docente: selDocente.value || 'TODOS',
+      desde:   inpDesde.value   || '',
+      hasta:   inpHasta.value   || '',
+      causa:   selCausa.value   || 'TODAS',
+    }; 
+
+    try {
+      // ----- Resumen -----
+      const r1   = await axios.get('/api/historial_resumen', { params });
+      const data = r1.data || {};
+
+      const total     = data.total || 0;
+      const porCausa  = data.por_causa || {};
+      const topes     = data.topes || {};
+
+      spanTotal.textContent = total;
+
+      divCausas.innerHTML = '';
+      Object.keys(topes).forEach((clave) => {
+        const valor = porCausa[clave] || 0;
+        const tope  = topes[clave] || 0;
+
+        let clase = 'text-bg-success';
+        if (tope > 0) {
+          const ratio = valor / tope;
+          if (ratio > 1)      clase = 'text-bg-danger';
+          else if (ratio >= .7) clase = 'text-bg-warning';
+        }
+
+        const row = document.createElement('div');
+        row.className = 'd-flex justify-content-between align-items-center mb-1';
+        row.innerHTML = `
+          <span class="text-capitalize">${clave}</span>
+          <span>
+            <span class="badge ${clase} me-2">${valor}</span>
+            <small class="text-muted">/ tope ${tope}</small>
+          </span>
+        `;
+        divCausas.appendChild(row);
+      });
+
+      // ----- Tabla de resultados -----
+    
+    // Tabla
+    const r2 = await axios.get('/api/historial_lista', { params });
+    const filas = r2.data || [];
+    const tbody = document.getElementById('tablaResultados');
+    tbody.innerHTML = "";
+
+    // helper para mostrar DD/MM/AAAA
+    function fechaBonita(iso) {
+      if (!iso) return "";
+      const [anio, mes, dia] = iso.split("-");
+      return `${dia}/${mes}/${anio}`;
+    }
+
+    filas.forEach(f=>{
+      const sup = f.suplente_info || {};
+      const supTxt = [sup.nombre, sup.curso, sup.asignatura]
+                      .filter(Boolean)
+                      .join(" — ");
+
+      const tr = document.createElement('tr');
+
+      const dot = `<span class="badge rounded-pill"
+                          style="background:${f.color || '#dc3545'};">
+                     &nbsp;
+                   </span>`;
+
+      const accionesHtml = `
+        <button type="button"
+                class="btn btn-sm btn-outline-secondary btn-inas-edit"
+                data-id="${f._id}">
+          ✏
+        </button>
+        <button type="button"
+                class="btn btn-sm btn-outline-danger ms-1 btn-inas-del"
+                data-id="${f._id}">
+          🗑
+        </button>
+      `;
+
+      tr.innerHTML = `
+        <td class="text-nowrap">${fechaBonita(f.fecha)}</td> 
+        <td>${f.docente_nombre}</td>
+        <td>${dot} ${f.causa}</td>
+        <td>${supTxt || "—"}</td>
+        <td>${f.observaciones || ""}</td>
+        <td class="text-nowrap">${accionesHtml}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+
+
+    } catch (err) {
+      console.error('Error cargando historial:', err);
+    }
+  }
+
+  // botón principal de filtros
+  if (btnFiltrar) {
+    btnFiltrar.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      cargarResumenYTabla();
+    });
+  }
+
+  // Fecha "hasta" por defecto = hoy (solo si está vacía)
+  if (inpHasta && !inpHasta.value) {
+    inpHasta.value = new Date().toISOString().slice(0, 10);
+  }
+
+  // Carga inicial 
+  cargarResumenYTabla();
+}); 
+  // Click en acciones (editar / eliminar)
+  document.getElementById('tablaResultados').addEventListener('click', async (ev)=>{
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+
+    const id = btn.dataset.id;
+    if (!id) return;
+
+    // Eliminar
+    if (btn.classList.contains('btn-inas-del')) {
+      if (!confirm('¿Seguro que querés eliminar esta inasistencia?')) return;
+      try {
+        await axios.delete(`/api/inasistencias/${id}`);
+        await cargarResumenYTabla();
+      } catch (e) {
+        alert('No se pudo eliminar la inasistencia.');
+      }
+      return;
+    }
+
+    // Editar (por ahora solo muestra un aviso; después lo enganchamos al modal)
+    if (btn.classList.contains('btn-inas-edit')) {
+      editarInasistencia(id);
+    }
+  });
+
+async function editarInasistencia(id) {
+  try {
+    const r = await axios.get(`/api/inasistencias/${id}`);
+    if (!r.data.ok) {
+      alert(r.data.error || "No se pudo cargar la inasistencia.");
+      return;
+    }
+    const ins = r.data.data;
+
+    // Por ahora: sólo permitir cambiar causa y observaciones con prompt()
+    const nuevaCausa = prompt("Editar causa:", ins.causa || "");
+    if (nuevaCausa === null) return;  // canceló
+
+    const nuevasObs  = prompt("Editar observaciones:", ins.observaciones || "");
+    if (nuevasObs === null) return;
+
+    await axios.put(`/api/inasistencias/${id}`, {
+      causa: nuevaCausa,
+      observaciones: nuevasObs
+    });
+
+    // Recargar el historial con el filtro actual
+    await aplicarFiltros();
+  } catch (err) {
+    console.error(err);
+    alert("Error guardando cambios.");
+  }
+}
+
+async function borrarInasistencia(id) {
+  if (!confirm("¿Seguro que querés ANULAR esta inasistencia?")) return; 
+
+  try {
+    const r = await axios.delete(`/api/inasistencias/${id}`);
+    // Verificamos si la respuesta del servidor es OK
+    if (r.data.ok === false) {
+      alert(r.data.error || "No se pudo anular la inasistencia.");
+      return;
+    }
+
+    // Si fue exitoso, recargamos la lista y mostramos un mensaje de éxito
+    await aplicarFiltros();
+    alert("✅ Inasistencia anulada correctamente."); // Muestra un mensaje de éxito
+
+  } catch (err) {
+    console.error(err);
+    // Si hay un error HTTP o de red
+    alert("❌ Error de comunicación con el servidor al anular."); 
+  }
+}
+
+</script>
+
+{% endblock %}

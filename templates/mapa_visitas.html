@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}Visita domiciliaria · Registro institucional{% endblock %}
+
+{% block content %}
+<div class="container mt-4 acta-visita-wrapper">
+
+    <!-- Encabezado institucional (más angosto y vertical) -->
+    <div class="acta-header border p-3 mb-4 bg-white">
+        <div class="text-center">
+            <img src="{{ url_for('static', filename='image/logo_mini.png') }}" 
+                 style="width:70px; filter: brightness(0) invert(1);" class="mb-2">
+            <h4 class="mb-0">E.P. N.º 91 “Provincias Argentinas”</h4>
+            <p class="mb-0">Dirección General de Cultura y Educación · Buenos Aires</p>
+            <p class="mb-0 small text-muted">La Matanza – Isidro Casanova</p>
+        </div>
+    </div>
+
+    <!-- Título + botones -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <h2 class="h4 mb-1">ACTA DE VISITA DOMICILIARIA</h2>
+            <p class="text-muted mb-0">Fecha: {{ fecha }}</p>
+        </div>
+
+        <div class="d-print-none">
+            <button type="button"
+                    class="btn btn-outline-secondary btn-sm me-2"
+                    onclick="window.location.href='{{ url_for('mapa_recorridos') }}'">
+                Volver a mapa y recorridos
+            </button>
+
+            <button type="button"
+                    class="btn btn-primary btn-sm"
+                    onclick="window.print()">
+                Imprimir / Guardar PDF
+            </button>
+        </div>
+    </div>
+
+    <hr class="mt-2 mb-3">
+
+    <!-- Estudiantes involucrados (debajo de la fecha, en texto) -->
+    <div class="mb-4">
+        <h5 class="fw-bold mb-2">Estudiantes involucrados:</h5>
+
+        {% if alumnos %}
+            {% for a in alumnos %}
+            <div class="border rounded p-2 mb-2 alumno-bloque">
+                <div><strong>Curso:</strong> {{ a.curso or "" }}</div>
+                <div><strong>Apellido y nombre:</strong> {{ a.apellido }}, {{ a.nombre }}</div>
+                <div><strong>Domicilio:</strong> {{ a.domicilio or "" }}</div>
+                <div><strong>Localidad:</strong> {{ a.localidad or "" }}</div>
+                <div><strong>Teléfono:</strong> {{ a.telefono or "" }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted small">No se seleccionó ningún estudiante.</p>
+        {% endif %}
+    </div>
+
+    <!-- Motivo de la visita -->
+    <div class="mb-4">
+        <label class="fw-bold">Motivo de la visita:</label>
+        <textarea class="form-control motivo-visita"
+                  placeholder="Ej.: inasistencias reiteradas, situación familiar, acompañamiento pedagógico, seguimiento socioeducativo..."
+                  rows="2"></textarea>
+    </div>
+
+    <!-- Acta redactada -->
+<div class="mb-5">
+    <label class="fw-bold">Detalle de la entrevista con la familia:</label>
+    <div class="acta-detalle" contenteditable="true">
+    </div>
+    <p class="small text-muted mt-1 no-print ">
+        (Escribí aquí el detalle de la visita: acuerdos, compromisos, situación observada, etc.)
+    </p>
+</div>
+
+
+    <!-- Sector de firmas -->
+    <div class="row mt-4 text-center">
+        <div class="col-4">
+            <div class="firma-linea"></div>
+            <p class="small text-muted">Firma del adulto responsable</p>
+        </div>
+
+        <div class="col-4">
+            <div class="firma-linea"></div>
+            <p class="small text-muted">Firma del personal actuante</p>
+        </div>
+
+        <div class="col-4">
+            <div class="firma-linea"></div>
+            <p class="small text-muted">Firma del Equipo Directivo</p>
+        </div>
+    </div>
+
+    
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+/* ======== ESTILOS EN PANTALLA ======== */
+
+.acta-visita-wrapper {
+    max-width: 900px;
+}
+
+.acta-header {
+    max-width: 380px;
+    margin: 0 auto 0.6rem auto;
+    padding: 0.4rem 1rem;
+}
+.acta-header img {
+    width: 45px;
+}
+.acta-header h4 {
+    font-size: 1rem;
+    margin-bottom: 0.2rem;
+}
+.acta-header p {
+    font-size: 0.75rem;
+    margin-bottom: 0.15rem;
+}
+
+/* Bloque de alumno */
+.alumno-bloque {
+    font-size: 0.9rem;
+    background-color: #f9fafb;
+    padding: .45rem .6rem;
+    border-radius: 4px;
+    margin-bottom: .4rem;
+}
+.alumno-bloque div + div {
+    margin-top: 1px;
+}
+
+/* Motivo */
+.motivo-visita {
+    resize: vertical;
+    font-size: 0.9rem;
+}
+
+/* Detalle entrevista: renglones */
+.acta-detalle {
+    min-height: 170px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.9rem;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    overflow: visible;
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 22px,
+        rgba(0, 0, 0, 0.12) 22px,
+        rgba(0, 0, 0, 0.12) 23px
+    );
+}
+
+.acta-detalle:focus {
+    outline: none;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.15rem rgba(13,110,253,.25);
+}
+
+/* Firma */
+.firma-linea {
+    border-bottom: 1px solid #000;
+    width: 80%;
+    margin: 0 auto;
+    height: 34px;
+}
+
+/* ======== ESTILOS PARA IMPRESIÓN ======== */
+
+@page {
+    size: A4;
+    margin: 5mm 4mm 6mm 4mm; /* MUCHO más arriba, más abajo aprovechado */
+}
+
+@media print {
+
+    .navbar,
+    .footer,
+    #scrollTopBtn,
+    .d-print-none {
+        display: none !important;
+    }
+    .no-print {
+        display: none !important;
+    }
+    .container.acta-visita-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 4mm !important;
+    }
+
+    /* Encabezado más comprimido */
+    .acta-header {
+        max-width: 100% !important;
+        margin-top: 0 !important;
+        margin-bottom: 3mm !important;
+        padding: 0 !important;
+        border: none !important;
+    }
+    .acta-header img {
+        width: 40px !important;
+        margin-bottom: 1mm;
+    }
+    .acta-header h4 {
+        font-size: 10pt !important;
+        margin-bottom: 0mm !important;
+    }
+    .acta-header p {
+        font-size: 8pt !important;
+        margin-bottom: 0 !important;
+        line-height: 1.1;
+    }
+
+    /* Reduce espacio entre secciones */
+    h2, h5, label {
+        margin-top: 0 !important;
+        margin-bottom: 2mm !important;
+    }
+    hr {
+        margin: 2mm 0 !important;
+    }
+
+    /* Texto general un poco más chico */
+    .acta-visita-wrapper,
+    .acta-visita-wrapper * {
+        font-size: 10pt !important;
+        line-height: 1.22;
+    }
+
+    /* Motivo */
+    .motivo-visita {
+        border: 1px solid #000 !important;
+        min-height: 16mm !important; /* más chico arriba */
+        padding: 1mm 2mm !important;
+    }
+
+    /* Detalle entrevista: más ancho, empieza más arriba */
+    .acta-detalle { 
+        border: 1px solid #000 !important;
+        min-height: 70mm !important;  /* antes 90mm → AHORA MÁS CHICO */
+        padding: 2mm !important;
+        background-image: none !important; /* más formal */
+        line-height: 1.23 !important;
+    }
+
+    /* Firmas más cerca */
+    .firma-linea {
+        height: 30px !important;
+    }
+}
+</style>
+{% endblock %}

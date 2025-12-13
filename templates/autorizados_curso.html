@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Autorizados a retirar - {{ curso }}</h2>
+<table class="table table-sm table-bordered">
+  <thead>
+    <tr>
+      <th>Alumno</th>
+      <th>Autorizados actuales</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for a in alumnos %}
+    <tr>
+      <td>{{ a.apellido }}, {{ a.nombre }}</td>
+      <td>
+        {% if a.autorizados %}
+          <ul class="mb-0">
+          {% for au in a.autorizados %}
+            <li>{{ au.nombre }} ({{ au.parentesco }}) - DNI {{ au.dni }}</li>
+          {% endfor %}
+          </ul>
+        {% else %}
+          <span class="text-muted">Sin registros</span>
+        {% endif %}
+      </td>
+      <td>
+        <a class="btn btn-sm btn-outline-primary"
+           href="{{ url_for('autorizados_alumno', id=a._id) }}">
+          Gestionar
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if not alumnos %}
+<p class="text-muted">No hay alumnos en este curso.</p>
+{% endif %}
+{% endblock %}

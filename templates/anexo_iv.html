@@ -1,0 +1,97 @@
+<!-- templates/anexo_4.html (Anexo IV) -->
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anexo IV</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{ --border:#222; --muted:#666; --tiny:11px; }
+  body{ font-family: Arial, sans-serif; font-size:13px; margin:16px; }
+  .no-print{ margin-bottom:12px; }
+  .hdr{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .hdr h2{ margin:0; font-size:18px;}
+  .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;}
+  .blk{ border:1px solid var(--border); padding:8px; border-radius:6px;}
+  .muted{ color:var(--muted); font-size: var(--tiny); }
+  table{ width:100%; border-collapse: collapse; }
+  th, td{ border:1px solid #333; padding:6px; font-size:12px; }
+  .foot{ display:flex; justify-content: space-between; align-items:center; margin-top:14px; }
+  .foot img{ height:36px; }
+  .editable[contenteditable="true"]{ outline:1px dashed #bbb; padding:2px; border-radius:4px; }
+  @media print{
+    .no-print{ display:none !important; }
+    body{ margin:8mm; }
+    .page-break{ page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <button onclick="window.print()">🖨️ Imprimir</button>
+</div>
+
+<div class="hdr">
+  <div>
+    <div class="muted">Dirección General de Cultura y Educación – Provincia de Buenos Aires</div>
+    <h2>Anexo IV – Solicitud/Constancia (Institucional)</h2>
+  </div>
+  <div class="muted">Fecha: {{ hoy }}</div>
+</div>
+
+<div class="grid">
+  <div class="blk">
+    <strong>Establecimiento</strong><br>
+    <div class="editable" contenteditable="true">{{ escuela.nombre }}</div>
+    <div class="muted">{{ escuela.domicilio }}</div>
+    <div class="muted">Distrito: {{ escuela.distrito }} – Tel: {{ escuela.telefono or '—' }}</div>
+  </div>
+  <div class="blk">
+    <strong>Datos de la salida</strong>
+    <div>Lugar: <span class="editable" contenteditable="true">{{ salida.lugar }}</span></div>
+    <div>Fecha: <span class="editable" contenteditable="true">{{ salida.fecha }}</span> – Hora: <span class="editable" contenteditable="true">{{ salida.hora }}</span></div>
+    <div>Zona: <span class="editable" contenteditable="true">{{ salida.zona or '—' }}</span></div>
+  </div>
+</div>
+
+<div class="blk">
+  <strong>Docente responsable</strong><br>
+  {% if docente %}
+    {{ docente.apellido }}, {{ docente.nombre }}
+  {% else %}
+    <span class="editable" contenteditable="true">[Apellido, Nombre]</span>
+  {% endif %}
+  {% if curso %}<div class="muted">Curso: {{ curso }}</div>{% endif %}
+</div>
+
+<div class="blk">
+  <strong>Alumnos participantes ({{ alumnos|length }})</strong>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Apellido y Nombre</th><th>DNI</th><th>Edad (30/06)</th><th>Observ.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in alumnos %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td contenteditable="true">{{ a.apellido }}, {{ a.nombre }}</td>
+        <td contenteditable="true">{{ a.dni or '' }}</td>
+        <td>{{ a.edad_30jun if a.edad_30jun is not none else '' }}</td>
+        <td contenteditable="true"></td>
+      </tr>
+      {% endfor %}
+      {% for i in range( (5 - (alumnos|length % 5)) % 5 ) %}
+      <tr><td>&nbsp;</td><td contenteditable="true"></td><td contenteditable="true"></td><td></td><td contenteditable="true"></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="foot">
+  <div class="muted">Firma y sello autoridad: _____________________________</div>
+  <img src="{{ url_for('static', filename='image/logoAnexos.png') }}" alt="Logo PBA">
+</div>
+</body>
+</html>

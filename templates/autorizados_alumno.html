@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Autorizados a retirar</h2>
+<h4>{{ alumno.apellido }}, {{ alumno.nombre }} ({{ alumno.curso }})</h4>
+
+<form method="post">
+  <table class="table table-sm table-bordered align-middle">
+    <thead>
+      <tr>
+        <th>Nombre y apellido</th>
+        <th>DNI</th>
+        <th>Fecha nac. (AAAA-MM-DD)</th>
+        <th>Edad</th>
+        <th>Parentesco</th>
+        <th>Domicilio</th>
+        <th>Teléfono</th>
+      </tr>
+    </thead>
+    <tbody>
+  {% for au in autorizados %}
+  <tr>
+    <td><input class="form-control" name="aut_nombre[]" value="{{ au.nombre }}"></td>
+    <td><input class="form-control" name="aut_dni[]" value="{{ au.dni }}"></td>
+
+    <!-- Fecha de nacimiento como date + clase para JS -->
+    <td>
+      <input class="form-control aut-fnac"
+             type="date"
+             name="aut_fnac[]"
+             value="{{ au.fecha_nac }}">
+    </td>
+
+    <!-- Celda de edad calculada -->
+    <td class="aut-edad text-center">{{ au.edad or "" }}</td>
+
+    <td><input class="form-control" name="aut_parentesco[]" value="{{ au.parentesco }}"></td>
+    <td><input class="form-control" name="aut_dom[]" value="{{ au.domicilio }}"></td>
+    <td><input class="form-control" name="aut_tel[]" value="{{ au.telefono }}"></td>
+  </tr>
+  {% endfor %}
+
+  <!-- fila vacía para agregar nuevo -->
+  <tr>
+    <td><input class="form-control" name="aut_nombre[]" ></td>
+    <td><input class="form-control" name="aut_dni[]" ></td>
+
+    <td>
+      <input class="form-control aut-fnac"
+             type="date"
+             name="aut_fnac[]" >
+    </td>
+
+    <td class="aut-edad text-center"></td>
+
+    <td><input class="form-control" name="aut_parentesco[]" ></td>
+    <td><input class="form-control" name="aut_dom[]" ></td>
+    <td><input class="form-control" name="aut_tel[]" ></td>
+  </tr>
+</tbody>
+
+  </table>
+  <button class="btn btn-primary">Guardar autorizados</button>
+  <a class="btn btn-secondary" href="{{ url_for('autorizados_curso', curso=alumno.curso) }}">Volver</a>
+</form>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  function calcularEdad(fechaStr) {
+    if (!fechaStr) return "";
+    const nac = new Date(fechaStr);
+    if (isNaN(nac.getTime())) return "";
+
+    const hoy = new Date();
+    let edad = hoy.getFullYear() - nac.getFullYear();
+    const mes = hoy.getMonth() - nac.getMonth();
+
+    if (mes < 0 || (mes === 0 && hoy.getDate() < nac.getDate())) {
+      edad--;
+    }
+    return edad >= 0 ? edad : "";
+  }
+
+  function actualizarEdadDesdeInput(input) {
+    const fila = input.closest("tr");
+    if (!fila) return;
+    const celdaEdad = fila.querySelector(".aut-edad");
+    if (!celdaEdad) return;
+
+    celdaEdad.textContent = calcularEdad(input.value);
+  }
+
+  document.querySelectorAll(".aut-fnac").forEach(function (inp) {
+    // calcular al cargar la página
+    actualizarEdadDesdeInput(inp);
+    // y cada vez que cambie la fecha
+    inp.addEventListener("change", function () {
+      actualizarEdadDesdeInput(inp);
+    });
+  });
+
+});
+</script>
+{% endblock %}

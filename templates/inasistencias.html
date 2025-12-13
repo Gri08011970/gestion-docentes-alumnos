@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Inasistencias docentes{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+
+  <h2 class="mb-3">Inasistencias — Docentes</h2>
+  <p class="text-muted">
+    Usá este formulario para cargar inasistencias docentes por período
+    (desde / hasta). Luego podés ver el historial y el calendario anual desde
+    la sección de <strong>Historial de inasistencias</strong>.
+  </p>
+
+  <div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('historial_inasistencias') }}" class="btn btn-outline-secondary me-2">
+      Ver historial / calendario
+    </a>
+    <button type="button"
+            class="btn btn-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#modalInasistencia">
+      Registrar inasistencia
+    </button>
+  </div>
+
+  <!-- Alerta de error -->
+  <div id="inasistencias-alert" class="alert alert-danger d-none" role="alert"></div>
+
+</div>
+
+<!-- Modal de carga de inasistencias -->
+<div class="modal fade" id="modalInasistencia" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form id="formInasistencia">
+        <div class="modal-header">
+          <h5 class="modal-title">Registrar inasistencia</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+
+        <div class="modal-body">
+
+          <!-- Fila fechas -->
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="inas-desde" class="form-label">Desde</label>
+              <input type="date"
+                     class="form-control"
+                     id="inas-desde"
+                     name="desde"
+                     required>
+            </div>
+            <div class="col-md-6">
+              <label for="inas-hasta" class="form-label">Hasta</label>
+              <input type="date"
+                     class="form-control"
+                     id="inas-hasta"
+                     name="hasta"
+                     required>
+            </div>
+          </div>
+
+          <!-- Docente -->
+          <div class="mb-3">
+            <label for="inas-docente" class="form-label">Docente</label>
+            <select id="inas-docente"
+                    name="docente_id"
+                    class="form-select"
+                    required>
+              <option value="">Seleccione...</option>
+              <!-- opciones cargadas por JS desde /api/docentes -->
+            </select>
+          </div>
+
+          <!-- Causa -->
+          <div class="mb-3">
+            <label for="inas-causa" class="form-label">Causa</label>
+            <select id="inas-causa" name="causa" class="form-select" required>
+              <option value="">Seleccione...</option>
+              <option value="enfermedad personal">enfermedad personal</option>
+              <option value="enfermedad familiar">enfermedad familiar</option>
+              <option value="causas particulares">causas particulares</option>
+              <option value="pre-examen">pre-examen</option>
+              <option value="pre-exámenes">pre-exámenes</option>
+              <option value="citacion otro establecimiento">citación en otro establecimiento</option>
+              <option value="otras">otras</option>
+            </select>
+            <small class="form-text text-muted">
+              Si la causa es <strong>citación en otro establecimiento</strong> se pintará en
+              <span class="text-success fw-bold">VERDE</span>; en los demás casos, en
+              <span class="text-danger fw-bold">ROJO</span>.
+            </small>
+          </div>
+
+          <!-- Suplente opcional -->
+          <div class="mb-3">
+            <label class="form-label">Suplente (opcional)</label>
+            <div class="row g-2">
+              <div class="col-md-4">
+                <input type="text"
+                       class="form-control"
+                       id="inas-suplente-nombre"
+                       name="suplente_nombre"
+                       placeholder="Nombre y apellido">
+              </div>
+              <div class="col-md-4">
+                <input type="text"
+                       class="form-control"
+                       id="inas-suplente-dni"
+                       name="suplente_dni"
+                       placeholder="DNI">
+              </div>
+              <div class="col-md-4">
+                <input type="text"
+                       class="form-control"
+                       id="inas-suplente-curso"
+                       name="suplente_curso"
+                       placeholder="Curso / asignatura">
+              </div>
+            </div>
+          </div>
+
+          <!-- Observaciones -->
+          <div class="mb-3">
+            <label for="inas-observaciones" class="form-label">Observaciones</label>
+            <textarea class="form-control"
+                      id="inas-observaciones"
+                      name="observaciones"
+                      rows="2"
+                      placeholder="Notas internas, aclaraciones, etc."></textarea>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancelar
+          </button>
+          <button type="submit" class="btn btn-primary">
+            Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const form           = document.getElementById('formInasistencia');
+  const alerta         = document.getElementById('inasistencias-alert');
+  const selectDocente  = document.getElementById('inas-docente');
+  const desdeInput     = document.getElementById('inas-desde');
+  const hastaInput     = document.getElementById('inas-hasta');
+    // Al cargar la página, abrir el formulario de inasistencias
+  const modalEl = document.getElementById('modalInasistencia');
+  if (modalEl) {
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
+
+
+  // --- Helper: fecha de hoy en YYYY-MM-DD ---
+  function hoyISO() {
+    const hoy = new Date();
+    const y   = hoy.getFullYear();
+    const m   = String(hoy.getMonth() + 1).padStart(2, '0');
+    const d   = String(hoy.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  // Inicializar fechas por defecto
+  const hoy = hoyISO();
+  if (!desdeInput.value) desdeInput.value = hoy;
+  if (!hastaInput.value) hastaInput.value = hoy;
+
+  // --- Cargar docentes en el combo desde /api/docentes ---
+  fetch('{{ url_for("api_docentes") }}')
+    .then(r => r.json())
+    .then(lista => {
+      lista.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d._id;
+        // si el JSON sólo tiene nombre,apellido: ajustá este texto a lo que ya comprobaste que viene bien
+        opt.textContent = `${d.apellido || ''}, ${d.nombre || ''} — ${d.cargo || ''}`;
+        selectDocente.appendChild(opt);
+      });
+    }) 
+    .catch(err => {
+      console.error('Error cargando docentes:', err);
+      alerta.textContent = 'No se pudieron cargar los docentes.';
+      alerta.classList.remove('d-none');
+    });
+
+  // --- Helper: generar array de fechas entre desde y hasta (CORREGIDO) ---
+  function rangoFechas(desdeStr, hastaStr) {
+    const out = [];
+    if (!desdeStr || !hastaStr) return out;
+
+    // Split manual para evitar conversión a UTC
+    const p1 = desdeStr.split('-'); 
+    const p2 = hastaStr.split('-');
+
+    // new Date(año, mes-1, dia) crea la fecha en HORA LOCAL (00:00 de Argentina)
+    const d1 = new Date(p1[0], p1[1] - 1, p1[2]);
+    const d2 = new Date(p2[0], p2[1] - 1, p2[2]);
+
+    if (isNaN(d1) || isNaN(d2) || d1 > d2) return out;
+
+    let d = new Date(d1);
+    while (d <= d2) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      out.push(`${y}-${m}-${dd}`);
+      d.setDate(d.getDate() + 1);
+    }
+    return out;
+  }
+
+  // --- Enviar la inasistencia a /api/inasistencias por cada día del rango ---
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    alerta.classList.add('d-none');
+    alerta.textContent = '';
+
+    const desde = desdeInput.value;
+    const hasta = hastaInput.value;
+
+    if (!desde || !hasta) {
+      alerta.textContent = 'Debe completar las fechas "Desde" y "Hasta".';
+      alerta.classList.remove('d-none');
+      return;
+    }
+
+    const fechas = rangoFechas(desde, hasta);
+    if (!fechas.length) {
+      alerta.textContent = 'Rango de fechas inválido.';
+      alerta.classList.remove('d-none');
+      return;
+    }
+
+    const docenteId = selectDocente.value;
+    if (!docenteId) {
+      alerta.textContent = 'Debe seleccionar un docente.';
+      alerta.classList.remove('d-none');
+      return;
+    }
+
+    const causa = document.getElementById('inas-causa').value;
+    if (!causa) {
+      alerta.textContent = 'Debe seleccionar una causa.';
+      alerta.classList.remove('d-none');
+      return;
+    }
+
+    const observaciones = document.getElementById('inas-observaciones').value || '';
+
+    const suplenteNombre = document.getElementById('inas-suplente-nombre').value || '';
+    const suplenteDni    = document.getElementById('inas-suplente-dni').value || '';
+    const suplenteCurso  = document.getElementById('inas-suplente-curso').value || '';
+
+    try {
+      // disparo un POST por cada fecha del rango
+      for (const fecha of fechas) {
+        const payload = {
+          docente_id: docenteId,
+          fecha: fecha,
+          causa: causa,
+          observaciones: observaciones,
+          suplente: {
+            apellido: suplenteNombre,   // usamos un único campo "nombre y apellido"
+            dni: suplenteDni,
+            curso_asignado: suplenteCurso,
+            asignatura: suplenteCurso
+          }
+        };
+
+        const resp = await fetch('{{ url_for("api_inasistencias") }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) {
+          throw new Error(data.error || 'No se pudo guardar la inasistencia');
+        }
+      }
+
+      // Si todo salió bien:
+      form.reset();
+      desdeInput.value = hoyISO();
+      hastaInput.value = hoyISO();
+
+      const modalEl = document.getElementById('modalInasistencia');
+      const modal   = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+      modal.hide();
+
+      // Si querés refrescar resumen/historial en esta misma vista, podés descomentar:
+      // location.reload();
+
+    } catch (err) {
+      console.error(err);
+      alerta.textContent = err.message;
+      alerta.classList.remove('d-none');
+    } 
+  });
+});
+</script>
+{% endblock %}

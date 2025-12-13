@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Anexo IX{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print_anexos.css') }}">
+<div class="anexo hoja">
+  <h5 class="text-center fw-bold">ANEXO IX — DECLARACIÓN JURADA DE DIRECTIVOS / REPRESENTANTES LEGALES</h5>
+
+  <div class="mb-2 small">Este anexo debe transcribirse en el Libro de Actas Institucionales y elevarse a Inspección y Seguro (según instructivo).</div>
+
+  <div class="box" contenteditable="true" style="min-height: 180px;">
+    Declaro bajo juramento que la documentación de transporte ha sido visada (Anexo VIII) y que
+    la salida educativa presentada mediante Anexo IV cumple con los requisitos de la Resolución vigente.
+    Asimismo, se cuenta con Anexo V (planilla de estudiantes y acompañantes) y Anexo VI/ VII (autorizaciones).
+  </div>
+
+  <div class="grid-2 mt-3">
+    <div><label>Director/a o Representante Legal</label><span contenteditable="true"></span></div>
+    <div><label>DNI</label><span contenteditable="true"></span></div>
+  </div>
+
+  <div class="firmas mt-4">
+    <div>Lugar y fecha: ______________________</div>
+    <div>Firma y sello: ______________________</div>
+  </div>
+  <div class="footer-logo">
+  <img src="{{ url_for('static', filename='img/logoAnexos.png') }}" alt="Gobierno de la Provincia de Buenos Aires">
+</div>
+
+  <div class="no-print mt-3">
+    <button onclick="window.print()" class="btn btn-primary">Imprimir Anexo IX</button>
+  </div>
+</div>
+{% endblock %}

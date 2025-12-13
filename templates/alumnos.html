@@ -1,0 +1,811 @@
+{% extends "base.html" %}
+{% block title %}Alumnos{% endblock %}
+
+{% block content %}
+<div class="container mt-4"> 
+  <div class="d-flex justify-content-between align-items-center mb-3"> 
+    <h1>Estudiantes</h1>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-success"
+         target="_blank"
+         href="https://www.google.com/maps/search/?api=1&query={{ 'Escuela Primaria 91, Tomas Alva Edison 2164, Isidro Casanova, Buenos Aires, Argentina'|urlencode }}">
+        Ver escuela en mapa
+      </a>
+
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoAlumno">
+        + Nuevo Estudiante
+      </button>
+    </div>
+  </div> 
+
+  <!-- Filtros -->
+  <form method="get" class="row g-2 mb-3 align-items-end">
+    <div class="col-md-3">
+      <input type="text"
+             name="q"
+             value="{{ q or '' }}"
+             class="form-control"
+             placeholder="Buscar por nombre, apellido, DNI o curso (Todos si está vacío)">
+    </div>
+
+    <div class="col-md-3">
+      <select name="turno" class="form-select">
+        <option value="">Todos los turnos</option>
+        {% for t in turnos %}
+          <option value="{{ t }}" {% if t == turno_sel %}selected{% endif %}>Turno {{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-2">
+      <select name="curso" class="form-select">
+        <option value="">Todos los cursos</option>
+        {% for c in cursos %}
+          <option value="{{ c }}" {% if c == curso_sel %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Columna de botones -->
+    <div class="col-md-4 d-flex flex-wrap justify-content-md-end gap-2">
+      <button type="submit" class="btn btn-primary">
+        Aplicar filtros
+      </button>
+
+      <a href="{{ url_for('listar_alumnos') }}"
+         class="btn btn-outline-secondary">
+        Limpiar
+      </a>
+    </div>
+  </form>
+
+  {% if alumnos %}
+  <!-- WRAPPER CON DOBLE SCROLL (ARRIBA Y ABAJO) -->
+  <div class="table-scroll-wrapper mt-3">
+
+    <!-- Barra de scroll superior -->
+    <div class="table-scroll table-scroll-top">
+      <div class="table-scroll-inner"></div>
+    </div>
+
+    <!-- Contenedor principal de la tabla -->
+    <div class="table-responsive table-main-scroll">
+      <table class="table table-sm table-striped align-middle tabla-alumnos">
+        <thead class="thead-alumnos">
+          <tr>
+            <th class="col-curso"      style="width:3%;">Curso</th>
+            <th class="col-apellido"   style="width:8%;">Apellido</th>
+            <th class="col-nombre"     style="width:8%;">Nombre</th>
+
+            <th class="col-fecha"      style="width:6%;">Fecha nac.</th>
+            <th class="col-lugar-nac"  style="width:8%;">Lugar nac.</th>
+            <th class="col-edad"       style="width:3%;">Edad<br>(30/6)</th>
+            <th class="col-recursa"    style="width:4%;">Recursa</th>
+
+            <th class="col-sexo"       style="width:3%;">Sexo</th>
+            <th class="col-nac-alumno" style="width:4%;">Nac.</th>
+            <th class="col-dni"        style="width:6%;">DNI</th>
+            <th class="col-cuil"       style="width:8%;">CUIL</th>
+
+            <th class="col-resp"       style="width:10%;">Madre / Padre / Tutor</th>
+            <th class="col-ocup"       style="width:6%;">Ocupación</th>
+
+            <th class="col-domicilio"  style="width:10%;">Domicilio</th>
+            <th class="col-localidad"  style="width:7%;">Localidad</th>
+            <th class="col-escuela-proc" style="width:10%;">Escuela procedencia</th>
+            <th class="col-sale-a"      style="width:8%;">Sale a</th>
+            <th class="col-tel"        style="width:7%;">Teléfono</th>
+            <th class="col-obs"        style="width:8%;">Observaciones</th>
+
+            <th class="col-acciones"   style="width:6%;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for a in alumnos %}
+          <tr>
+            <td class="col-curso">{{ a.curso or "" }}</td>
+            <td class="col-apellido">{{ a.apellido or "" }}</td>
+            <td class="col-nombre">{{ a.nombre or "" }}</td>
+
+            <td class="col-fecha">{{ a.fecha_nac_str or "" }}</td>
+            <td class="col-lugar-nac">{{ a.lugar_nacimiento or "" }}</td>
+            <td class="col-edad">{{ a.edad_30jun or "" }}</td>
+            <td class="col-recursa">{% if a.recursante %}Sí{% else %}No{% endif %}</td>
+            <td class="col-sexo">{{ a.sexo or "" }}</td>
+            <td class="col-nac-alumno">{{ a.nacionalidad or "" }}</td>
+
+            <td class="col-dni">{{ a.dni or "" }}</td>
+            <td class="col-cuil">{{ a.cuil or "" }}</td>
+
+            <td class="col-resp">{{ a.responsable or "" }}</td>
+            <td class="col-ocup">{{ a.ocupacion or "" }}</td>
+
+            <td class="col-domicilio">{{ a.domicilio or "" }}</td>
+            <td class="col-localidad">{{ a.localidad or "" }}</td>
+            <td class="col-escuela-proc">{{ a.escuela_procedencia or "" }}</td>
+            <td class="col-sale-a">{{ a.sale_a or "" }}</td>
+            
+            <td class="col-tel">{{ a.telefono or "" }}</td>
+            <td class="col-obs">{{ a.observaciones or "" }}</td>
+
+            <td class="col-acciones text-nowrap">
+
+              <!-- EDITAR (abre modal único) -->
+              <button type="button"
+                      class="btn btn-sm btn-outline-primary btn-accion btn-edit-alumno"
+                      title="Editar alumno"
+                      data-id="{{ a._id }}"
+                      data-apellido="{{ a.apellido or '' }}"
+                      data-nombre="{{ a.nombre or '' }}"
+                      data-curso="{{ a.curso or '' }}"
+                      data-dni="{{ a.dni or '' }}"
+                      data-cuil="{{ a.cuil or '' }}"
+                      data-sexo="{{ a.sexo or '' }}"
+                      data-recursante="{{ 'SI' if a.recursante else 'NO' }}"
+                      data-fecha-nac="{{ a.fecha_nac_iso or '' }}"
+                      data-nacionalidad="{{ a.nacionalidad or '' }}"
+                      data-responsable="{{ a.responsable or '' }}"
+                      data-ocupacion="{{ a.ocupacion or '' }}"
+                      data-domicilio="{{ a.domicilio or '' }}"
+                      data-localidad="{{ a.localidad or '' }}"
+                      data-telefono="{{ a.telefono or '' }}" 
+                      data-lugar-nacimiento="{{ a.lugar_nacimiento or '' }}"
+                      data-escuela-procedencia="{{ a.escuela_procedencia or '' }}"
+                      data-sale-a="{{ a.sale_a or '' }}"
+                      data-motivo-salida="{{ a.motivo_salida or '' }}"
+                      data-destino-salida="{{ a.destino_salida or '' }}"
+                      data-fecha-salida="{{ a.fecha_salida or '' }}"
+                      data-observaciones="{{ a.observaciones or '' }}">
+                      <i class="fas fa-edit"></i> 
+              </button>
+
+              <!-- ELIMINAR -->
+              <form method="post"
+                    action="{{ url_for('eliminar_alumno', id=a._id) }}"
+                    style="display:inline"
+                    onsubmit="return confirm('¿Eliminar este alumno?');">
+                <button class="btn btn-sm btn-outline-danger btn-accion" title="Eliminar alumno">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </form>
+
+              <!-- MAPA -->
+              {% if a.domicilio %}
+              <a class="btn btn-sm btn-outline-success btn-accion"
+                 title="Ver domicilio en mapa"
+                 target="_blank"
+                 href="https://www.google.com/maps/dir/?api=1
+&origin={{ 'Escuela Primaria 91, Tomas Alva Edison 2164, Isidro Casanova, Buenos Aires, Argentina'|urlencode }}
+&destination={{ (a.domicilio ~ ', Isidro Casanova, Buenos Aires, Argentina')|urlencode }}">
+                <i class="fas fa-map-marker-alt"></i>
+              </a>
+              {% endif %}
+
+              <!-- CERTIFICADO DE FINALIZACIÓN -->
+              {% if a.curso and a.curso.startswith('6') %}
+              <a href="{{ url_for('certificado_finalizacion', id=a._id) }}"
+                 class="btn btn-sm btn-outline-secondary btn-accion"
+                 title="Certificado de finalización de estudios">
+                <i class="fas fa-file-alt"></i>
+              </a>
+              {% endif %}
+
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Barra de scroll inferior -->
+    <div class="table-scroll table-scroll-bottom">
+      <div class="table-scroll-inner"></div>
+    </div>
+  </div>
+  {% else %}
+    <div class="alert alert-warning mt-4 text-center">
+      No se encontraron alumnos para esta búsqueda.
+    </div>
+  {% endif %}
+
+     <!-- Modal NUEVO alumno -->
+  <div class="modal fade" id="modalNuevoAlumno" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg ">
+      <div class="modal-content">
+
+        <form id="formNuevoAlumno" method="post" action="{{ url_for('nuevo_alumno') }}">
+          <div class="modal-header">
+            <h5 class="modal-title">Nuevo Estudiante</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <div class="modal-body">
+
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Apellido</label>
+                <input type="text" class="form-control" name="apellido" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Nombre</label>
+                <input type="text" class="form-control" name="nombre" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Curso</label>
+                <input type="text"
+                       class="form-control"
+                       name="curso"
+                       list="lista-cursos"
+                       placeholder="Ej: 1°A"
+                       required>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label class="form-label">DNI</label>
+                <input type="text" class="form-control" name="dni" required>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">CUIL</label>
+                <input type="text" class="form-control" name="cuil">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Sexo</label>
+                <select class="form-select" name="sexo" required>
+                  <option value="">Seleccione…</option>
+                  <option>F</option>
+                  <option>M</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label class="form-label">¿Recursa el año?</label>
+                <select class="form-select" name="recursante">
+                  <option value="NO" selected>No</option>
+                  <option value="SI">Sí</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Fecha, edad y lugar de nacimiento -->
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Fecha nacimiento</label>
+                <input type="date" class="form-control" id="fecha_nac" name="fecha_nac" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Edad (30/6)</label>
+                <input type="number" class="form-control" id="edad_30jun" name="edad_30jun" readonly>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Lugar de nacimiento</label>
+                <input type="text" class="form-control" id="lugar_nacimiento" name="lugar_nacimiento">
+              </div>
+            </div>
+
+            <!-- Nacionalidad -->
+            <div class="row mb-3">
+              <div class="col-md-6 offset-md-4">
+                <label class="form-label" for="nacionalidad-select">Nacionalidad</label>
+
+                <select class="form-select" id="nacionalidad-select">
+                  <option value="">Seleccione…</option>
+                  <option value="Argentina" selected>Argentina</option>
+                  <option value="Boliviana">Boliviana</option>
+                  <option value="Paraguaya">Paraguaya</option>
+                  <option value="Peruana">Peruana</option>
+                  <option value="OTRO">Otra (especificar)</option>
+                </select>
+
+                <input type="text"
+                       class="form-control mt-1"
+                       id="nacionalidad-input"
+                       name="nacionalidad"
+                       value="Argentina"
+                       required>
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Domicilio</label>
+                <input type="text" class="form-control" name="domicilio">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Localidad</label>
+                <input type="text" class="form-control" name="localidad">
+              </div>
+            </div>
+             <!-- NUEVO: Escuela de procedencia -->
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Escuela de procedencia</label>
+                <input type="text" class="form-control" name="escuela_procedencia">
+              </div>
+            </div>
+  
+            
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Madre / Padre / Tutor</label>
+                <input type="text" class="form-control" name="tutor">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Ocupación</label>
+                <input type="text" class="form-control" name="ocupacion">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Teléfono</label>
+                <input type="text" class="form-control" name="telefono"> 
+              </div>
+            </div>
+
+               
+            <div class="mb-3">
+                <label class="form-label">Observaciones</label> 
+                <textarea id="edit-observaciones"
+                          class="form-control"
+                          name="observaciones"
+                          rows="2"></textarea>
+            </div>
+
+
+          </div> <!-- /modal-body --> 
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">
+              Cancelar
+            </button>
+            <button class="btn btn-primary" type="submit">
+              Guardar
+            </button>
+          </div>
+        </form>
+
+      </div> <!-- /modal-content -->
+    </div>   <!-- /modal-dialog -->
+  </div>     <!-- /modal -->
+
+
+  <!-- Modal EDITAR alumno (único, se rellena por JS) -->
+  <div class="modal fade" id="modalEditarAlumno" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg ">
+      <div class="modal-content">
+        <form id="formEditarAlumno" method="post">
+          <div class="modal-header">
+            <h5 class="modal-title">Editar alumno</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <div class="modal-body">
+
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Apellido</label>
+                <input id="edit-apellido" name="apellido" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Nombre</label>
+                <input id="edit-nombre" name="nombre" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Curso</label>
+                <input id="edit-curso"
+                       name="curso"
+                       class="form-control"
+                       list="lista-cursos"
+                       placeholder="Ej: 1°A">
+              </div>
+            </div>
+
+            <div class="row mb-3"> 
+              <div class="col-md-4">
+                <label class="form-label">DNI</label>
+                <input id="edit-dni" name="dni" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">CUIL</label>
+                <input id="edit-cuil" name="cuil" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Sexo</label>
+                <select id="edit-sexo" name="sexo" class="form-select">
+                  <option value="">Seleccione…</option>
+                  <option value="F">F</option>
+                  <option value="M">M</option>
+                </select>
+              </div>
+            </div>
+             <div class="row mb-3">
+               <div class="col-md-4">
+                  <label class="form-label">¿Recursa el año?</label>
+                  <select id="edit-recursante" name="recursante" class="form-select">
+                   <option value="NO">No</option>
+                    <option value="SI">Sí</option>
+                  </select>
+               </div>
+              </div>
+
+            <!-- Fecha, edad y lugar de nacimiento (edición) -->
+            <div class="row mb-3">
+              <div class="col-md-4">
+                <label class="form-label">Fecha nacimiento</label>
+                <input type="date" id="edit-fecha_nac" name="fecha_nac" class="form-control">
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Edad (30/6)</label>
+                <input type="number" id="edit-edad_30jun" name="edad_30jun" class="form-control" readonly>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Lugar de nacimiento</label>
+                <input type="text" id="edit-lugar_nacimiento" name="lugar_nacimiento" class="form-control">
+              </div>
+            </div>
+
+            <!-- Nacionalidad (edición) -->
+            <div class="row mb-3"> 
+              <div class="col-md-6 offset-md-4">
+                <label class="form-label" for="edit-nacionalidad-select">Nacionalidad</label>
+                <select class="form-select" id="edit-nacionalidad-select">
+                  <option value="">Seleccione…</option>
+                  <option value="Argentina">Argentina</option>
+                  <option value="Boliviana">Boliviana</option>
+                  <option value="Paraguaya">Paraguaya</option>
+                  <option value="Peruana">Peruana</option>
+                  <option value="OTRO">Otra (especificar)</option>
+                </select>
+
+                <input type="text"
+                       class="form-control mt-1"
+                       id="edit-nacionalidad-input"
+                       name="nacionalidad">
+              </div>
+            </div>
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Domicilio</label>
+                <input id="edit-domicilio" name="domicilio" class="form-control">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Localidad</label>
+                <input id="edit-localidad" name="localidad" class="form-control">
+              </div>
+            </div>
+             
+            <!-- NUEVO: Escuela de procedencia + Sale a (edición) -->
+        
+            <div class="row mb-3">
+                <div class="col-md-6">
+                   <label class="form-label">Escuela de procedencia</label>
+                   <input id="edit-escuela_procedencia" name="escuela_procedencia" class="form-control">
+                </div>
+              
+            </div>
+
+
+            <div class="border p-2 rounded-3 bg-light mb-3">
+               <h5 class="small text-muted mb-2">Registro de Movimiento </h5>
+
+               <div class="row g-2">
+                 <div class="col-md-6">
+                   <label for="edit-motivo_salida" class="form-label">Motivo de Salida / Sale A</label>
+                   <select class="form-select" id="edit-motivo_salida" name="motivo_salida">
+                      <option value=""selected>Alumno Activo</option>
+                      <option value="CAMBIO DE TURNO">sale por CAMBIO DE TURNO</option>
+                      <option value="EGRESO"> sale por EGRESO (Finalización Primaria: 6°)</option>
+                      <option value="PASE A OTRA ESCUELA">sale con PASE A OTRA ESCUELA</option>
+                   </select>
+                 </div>
+                <div class="col-md-6">
+                  <label for="edit-curso_destino" class="form-label">
+                     Curso destino (sólo CAMBIO DE TURNO)
+                  </label>
+                  <input type="text"
+                         class="form-control"
+                         id="edit-curso_destino"
+                         name="curso_destino"
+                         list="lista-cursos"
+                         placeholder="Ej: 3°B">
+                  </div> 
+                 <div class="col-md-6">
+                   <label for="edit-destino_salida" class="form-label">Detalle (Destino)</label>
+                   <input type="text"
+                          class="form-control"
+                          id="edit-destino_salida"
+                          name="destino_salida"
+                          placeholder="N° de Escuela y Distrito o Nuevo Turno">
+                   </div>
+                 </div>
+
+                 <input type="hidden" id="edit-fecha_salida" name="fecha_salida" value="{{ hoy_str }}">
+              </div>
+
+
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Madre / Padre / Tutor</label>
+                <input id="edit-responsable" name="tutor" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Ocupación</label>
+                <input id="edit-ocupacion" name="ocupacion" class="form-control">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Teléfono</label>
+                <input id="edit-telefono" name="telefono" class="form-control">
+              </div>
+            </div>
+
+         <div class="mb-3">
+              <label class="form-label">Observaciones</label>
+              <textarea class="form-control" name="observaciones" rows="2"></textarea>
+            </div>
+          </div> <!-- /modal-body -->
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">
+              Cancelar
+            </button>
+            <button class="btn btn-primary" type="submit">
+              Guardar
+            </button>
+          </div>
+        </form>
+
+      </div> <!-- /modal-content -->
+    </div>   <!-- /modal-dialog -->
+  </div>     <!-- /modal -->
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  /* ================== SCROLL SINCRONIZADO ================== */
+  const mainScroll   = document.querySelector(".table-main-scroll");
+  const topScroll    = document.querySelector(".table-scroll-top");
+  const bottomScroll = document.querySelector(".table-scroll-bottom");
+
+  if (mainScroll && topScroll && bottomScroll) {
+    const table  = mainScroll.querySelector("table");
+    const inners = document.querySelectorAll(".table-scroll-inner");
+
+    function actualizarAncho() {
+      if (!table) return;
+      const ancho = table.scrollWidth;
+      inners.forEach(inner => inner.style.width = ancho + "px");
+    }
+
+    function syncFrom(source) {
+      return () => {
+        const x = source.scrollLeft;
+        if (source !== mainScroll)   mainScroll.scrollLeft   = x;
+        if (source !== topScroll)    topScroll.scrollLeft    = x;
+        if (source !== bottomScroll) bottomScroll.scrollLeft = x;
+      };
+    }
+
+    topScroll.addEventListener("scroll",    syncFrom(topScroll));
+    bottomScroll.addEventListener("scroll", syncFrom(bottomScroll));
+    mainScroll.addEventListener("scroll",   syncFrom(mainScroll));
+    window.addEventListener("resize", actualizarAncho);
+    actualizarAncho();
+  }
+
+  /* ================== NACIONALIDAD (ALTA + EDICIÓN) ================== */
+  function setupNacionalidad(selectId, inputId) {
+    const selectNac = document.getElementById(selectId);
+    const inputNac  = document.getElementById(inputId);
+    if (!selectNac || !inputNac) return;
+
+    function aplicarDesdeSelect() {
+      const val = selectNac.value;
+      if (val === "OTRO") {
+        inputNac.value = "";
+        inputNac.readOnly = false;
+        inputNac.placeholder = "Escribí la nacionalidad…";
+        inputNac.focus();
+      } else if (val === "") {
+        inputNac.value = "";
+        inputNac.readOnly = true;
+        inputNac.placeholder = "";
+      } else {
+        inputNac.value = val;
+        inputNac.readOnly = true;
+        inputNac.placeholder = "";
+      }
+    }
+
+    aplicarDesdeSelect();
+    selectNac.addEventListener("change", aplicarDesdeSelect);
+  }
+
+  setupNacionalidad("nacionalidad-select", "nacionalidad-input");
+  setupNacionalidad("edit-nacionalidad-select", "edit-nacionalidad-input");
+
+  /* ================== EDAD AUTOMÁTICA AL 30/6 ================== */
+  function calcularEdad30Jun(fechaStr) {
+    if (!fechaStr) return "";
+    const nac = new Date(fechaStr);
+    if (isNaN(nac.getTime())) return "";
+
+    const hoy = new Date();
+    const anioRef = hoy.getFullYear();
+    const ref = new Date(anioRef, 5, 30);  // 30 junio
+
+    let edad = anioRef - nac.getFullYear();
+    const cumpleEseAnio = new Date(anioRef, nac.getMonth(), nac.getDate());
+    if (cumpleEseAnio > ref) edad--;
+
+    return edad >= 0 ? edad : "";
+  }
+
+  function wireEdad(fechaId, edadId) {
+    const fechaInput = document.getElementById(fechaId);
+    const edadInput  = document.getElementById(edadId);
+    if (!fechaInput || !edadInput) return;
+
+    function actualizarEdad() {
+      edadInput.value = calcularEdad30Jun(fechaInput.value);
+    }
+
+    actualizarEdad();
+    fechaInput.addEventListener("change", actualizarEdad);
+  }
+
+  wireEdad("fecha_nac", "edad_30jun");
+  wireEdad("edit-fecha_nac", "edit-edad_30jun");
+
+  // ================== MOVIMIENTOS (SALE A) ==================
+
+  const FECHA_HOY = "{{ hoy_str }}";
+
+function setupMovimiento(motivoId, cursoDestinoId, destinoId, fechaId) {
+  const selMotivo = document.getElementById(motivoId);
+  const inputCurso = document.getElementById(cursoDestinoId);
+  const inputDestino = document.getElementById(destinoId);
+  const inputFecha = document.getElementById(fechaId);
+  if (!selMotivo || !inputCurso || !inputDestino || !inputFecha) return;
+
+  function actualizar() {
+    const v = selMotivo.value;
+
+    if (!v) {
+      // Alumno activo, sin movimiento
+      inputCurso.value = "";
+      inputCurso.readOnly = true;
+      inputDestino.value = "";
+      inputDestino.readOnly = true;
+      inputFecha.value = "";
+      return;
+    }
+
+    // Hay algún movimiento -> siempre guardamos fecha
+    if (!inputFecha.value) {
+      inputFecha.value = FECHA_HOY;
+    }
+
+    if (v === "CAMBIO DE TURNO") {
+      // Cambio de turno: curso destino obligatorio, detalle opcional
+      inputCurso.readOnly = false;
+      inputDestino.readOnly = false;
+      inputCurso.placeholder = "Ej: 3°B";
+      inputDestino.placeholder = "Ej: pasa de mañana a tarde";
+    } else {
+      // Pase o egreso: curso no se toca, sólo destino texto
+      inputCurso.readOnly = true;
+      inputCurso.placeholder = "";
+      inputDestino.readOnly = false;
+      inputDestino.placeholder = "N° de Escuela y Distrito, o detalle";
+    }
+  }
+
+  actualizar();
+  selMotivo.addEventListener("change", actualizar);
+}
+  // Nuevo alumno
+  setupMovimiento("nuevo-motivo_salida", "nuevo-destino_salida", "nuevo-fecha_salida");
+  // Editar alumno
+  
+  setupMovimiento("edit-motivo_salida", "edit-curso_destino", "edit-destino_salida", "edit-fecha_salida");
+
+  /* ================== MODAL EDITAR ALUMNO ================== */
+
+  const modalEditarEl = document.getElementById("modalEditarAlumno");
+  const formEditar    = document.getElementById("formEditarAlumno");
+
+  if (modalEditarEl && formEditar) {
+    const modalEditar = new bootstrap.Modal(modalEditarEl);
+
+    document.querySelectorAll(".btn-edit-alumno").forEach(btn => {
+      btn.addEventListener("click", function () {
+        const d = this.dataset;
+          // MOVIMIENTOS / SALIDA
+        const motivoSel      = document.getElementById("edit-motivo_salida");
+        const destinoInput   = document.getElementById("edit-destino_salida");
+        const fechaSalidaInp = document.getElementById("edit-fecha_salida");
+
+        if (motivoSel)      motivoSel.value      = d.motivoSalida || "";
+        if (destinoInput)   destinoInput.value   = d.destinoSalida || "";
+        if (fechaSalidaInp) fechaSalidaInp.value = d.fechaSalida || "";
+        
+        const cursoDestinoInput = document.getElementById("edit-curso_destino");
+        if (cursoDestinoInput) cursoDestinoInput.value = d.cursoDestino || "";
+
+        // Reaplicamos lógica de movimientos por si cambia el select
+        setupMovimiento("edit-motivo_salida", "edit-destino_salida", "edit-fecha_salida");
+
+        // Ruta de edición
+        formEditar.action = `/alumnos/${d.id}/editar`;
+
+        // Campos básicos
+        document.getElementById("edit-apellido").value      = d.apellido || "";
+        document.getElementById("edit-nombre").value        = d.nombre || "";
+        document.getElementById("edit-curso").value         = d.curso || "";
+        document.getElementById("edit-dni").value           = d.dni || "";
+        document.getElementById("edit-cuil").value          = d.cuil || "";
+        document.getElementById("edit-sexo").value          = d.sexo || "";
+        document.getElementById("edit-fecha_nac").value     = d.fechaNac || "";
+        document.getElementById("edit-domicilio").value     = d.domicilio || "";
+        document.getElementById("edit-localidad").value     = d.localidad || "";
+        document.getElementById("edit-responsable").value   = d.responsable || "";
+        document.getElementById("edit-ocupacion").value     = d.ocupacion || "";
+        document.getElementById("edit-telefono").value      = d.telefono || "";
+        document.getElementById("edit-lugar_nacimiento").value = d.lugarNacimiento || "";
+        document.getElementById("edit-observaciones").value = d.observaciones || "";
+
+        // Escuela de procedencia
+        const escProc = document.getElementById("edit-escuela_procedencia");
+        if (escProc) {
+          escProc.value = d.escuelaProcedencia || "";
+        }
+
+        // Sale a (detalle de destino)
+        const saleAInput = document.getElementById("edit-sale_a");
+        if (saleAInput) {
+          saleAInput.value = d.saleA || "";
+        }
+
+        // Recursante
+        const recSel = document.getElementById("edit-recursante");
+        if (recSel) {
+          recSel.value = d.recursante || "NO";
+        }
+
+        // Nacionalidad en edición
+        const selNac = document.getElementById("edit-nacionalidad-select");
+        const inpNac = document.getElementById("edit-nacionalidad-input");
+        if (selNac && inpNac) {
+          const nacVal = d.nacionalidad || "";
+          const opciones = ["Argentina", "Boliviana", "Paraguaya", "Peruana"];
+          if (opciones.includes(nacVal)) {
+            selNac.value = nacVal;
+            inpNac.value = nacVal;
+            inpNac.readOnly = true;
+          } else if (!nacVal) {
+            selNac.value = "";
+            inpNac.value = "";
+            inpNac.readOnly = true;
+          } else {
+            selNac.value = "OTRO";
+            inpNac.value = nacVal;
+            inpNac.readOnly = false;
+          }
+        }
+
+        // Recalcular edad para el alumno editado
+        wireEdad("edit-fecha_nac", "edit-edad_30jun");
+       
+        modalEditar.show();
+      });
+    });
+  }
+
+});
+</script>
+{% endblock %} 

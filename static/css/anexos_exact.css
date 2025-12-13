@@ -1,0 +1,65 @@
+/* static/css/anexos_exact.css */
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+:root{
+  --debug: 0;            /* 1 = ver contornos de cajas para calibrar */
+  --font: "Arial", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: var(--font); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+.sheet {
+  position: relative;
+  width: 210mm;   /* A4 */
+  height: 297mm;  /* A4 */
+  background: #fff var(--bg-url) center/cover no-repeat;
+}
+
+/* Caja de texto posicionada absolutemente */
+.abs {
+  position: absolute;
+  font-size: 3.5mm;      /* ~10pt */
+  line-height: 1.25;
+  color: #000;
+  white-space: pre-wrap;
+  background: transparent;
+  padding: 0;
+  border: none;
+  outline: none;
+}
+.abs[contenteditable="true"] { outline: 0.2mm dashed rgba(0,0,0,.2); }
+
+.box {
+  position: absolute;
+  background: transparent;
+  border: calc(var(--debug) * 0.3mm) dashed rgba(255,0,0,.7);
+  padding: 0;
+}
+
+/* Tablas “exactas” (cuando el diseño pide rejillas) */
+.table {
+  position: absolute;
+  border-collapse: collapse;
+  width: var(--w, 100mm);
+  height: var(--h, auto);
+  display: grid;
+  grid-template-columns: var(--cols, 1fr 1fr 1fr);
+  grid-auto-rows: var(--row, 6mm);
+  border: calc(var(--debug) * 0.3mm) dashed rgba(0,128,255,.7);
+}
+.cell {
+  border: 0.2mm solid transparent;
+  border-color: rgba(0,0,0,0); /* sin bordes visibles: los trae el fondo */
+  padding: 1mm 1.5mm;
+  font-size: 3.5mm;
+  line-height: 1.2;
+  overflow: hidden;
+}
+.cell[contenteditable="true"] { outline: 0.2mm dashed rgba(0,0,0,.2); }
+
+/* Botón imprimir en pantalla */
+.no-print { position: fixed; top: 6mm; right: 6mm; z-index: 10; }
+@media print { .no-print { display: none !important; } }

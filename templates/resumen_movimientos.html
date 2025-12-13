@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Movimientos de alumnos · Gestión Escolar{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+  <div class="card-body">
+    <h4 class="mb-3">Movimientos de alumnos</h4>
+
+    <p class="text-muted small mb-3">
+      Altas, cambios de escuela y bajas registradas en el ciclo lectivo.
+    </p>
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Curso</th>
+            <th>Nombre y apellido</th>
+            <th>DNI</th>
+            <th>Escuela de procedencia</th>
+            <th>Escuela destino</th>
+            <th>Fecha</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in movimientos %}
+          <tr>
+            <td>{{ m.curso }}</td>
+            <td>{{ m.apellido }}, {{ m.nombre }}</td>
+            <td>{{ m.dni }}</td>
+            <td>{{ m.escuela_origen }}</td>
+            <td>{{ m.escuela_destino }}</td>
+            <td>
+              {% if m.fecha %}
+                {{ m.fecha.strftime('%d/%m/%Y') }}
+              {% endif %}
+            </td>
+
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center text-muted">
+              No se registran movimientos.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

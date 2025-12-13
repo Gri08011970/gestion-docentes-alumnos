@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anexo VI (Exacto)</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/anexos_exact.css') }}">
+<style>
+  .sheet { --bg-url: url('{{ url_for("static", filename="backgrounds/anexo_VI.png") }}'); }
+</style>
+</head>
+<body>
+<button class="no-print" onclick="print()">🖨️ Imprimir</button>
+{% set listado = [estudiante] if estudiante else alumnos %}
+{% for a in listado %}
+<div class="sheet">
+
+  <!-- Alumno / Curso -->
+  <div class="abs" style="left:28mm; top:64mm; width:150mm;">
+    Alumno/a: {{ a.apellido }}, {{ a.nombre }} — DNI: {{ a.dni or '—' }}
+  </div>
+  <div class="abs" style="left:28mm; top:72mm; width:150mm;">
+    Curso: {{ curso or a.curso or '—' }}
+  </div>
+
+  <!-- Salida -->
+  <div class="abs" style="left:28mm; top:86mm; width:160mm;">
+    Salida: {{ salida.lugar }} — Fecha/Hora: {{ salida.fecha }} {{ salida.hora }}
+  </div>
+
+  <!-- Datos tutor a completar a mano (el modelo trae líneas) -->
+  <div class="abs" style="left:28mm; top:112mm; width:160mm;" contenteditable="true"></div>
+
+  <!-- Fecha / Firma -->
+  <div class="abs" style="left:28mm; top:250mm; width:160mm;">
+    Fecha: {{ hoy }} — Firma: ______________________
+  </div>
+
+</div>
+{% if not loop.last %}<div style="page-break-after:always"></div>{% endif %}
+{% endfor %}
+</body>
+</html>

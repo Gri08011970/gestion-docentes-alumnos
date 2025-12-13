@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Resumen de inasistencias — Docentes</h2>
+<p class="text-muted">
+  Estadísticas de inasistencias docentes para el año {{ anio }}.
+  El porcentaje se calcula sobre la cantidad de días hábiles (lunes a viernes) de cada mes.
+</p>
+
+<form class="row g-3 mb-3" method="get">
+  <div class="col-auto">
+    <label class="form-label">Año</label>
+    <input type="number" class="form-control" name="anio" value="{{ anio }}">
+  </div>
+  <div class="col-auto align-self-end">
+    <button class="btn btn-primary" type="submit">Ver</button>
+  </div>
+</form>
+
+{% if meses|length == 0 %}
+  <p class="text-muted">No hay inasistencias cargadas para este año.</p>
+{% else %}
+
+  <div class="row g-4">
+    <div class="col-md-8">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <strong>Inasistencias por mes</strong>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm table-bordered align-middle mb-3">
+            <thead>
+              <tr>
+                <th>Mes</th>
+                <th>Inasistencias</th>
+                <th>Días hábiles</th>
+                <th>% sobre días hábiles</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in meses %}
+              <tr>
+                <td>{{ m.mes_nombre }}</td>
+                <td>{{ m.cantidad }}</td>
+                <td>{{ m.dias_habiles }}</td>
+                <td>{{ m.porcentaje }}%</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+
+          <canvas id="chartMeses" height="80"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <strong>Resumen por trimestre</strong>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm table-bordered mb-2">
+            <thead>
+              <tr>
+                <th>Trimestre</th>
+                <th>Inasistencias</th>
+                <th>Días hábiles</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for t in trimestres %}
+              <tr>
+                <td>{{ t.trimestre }}º</td>
+                <td>{{ t.cantidad }}</td>
+                <td>{{ t.dias_habiles }}</td>
+                <td>{{ t.porcentaje }}%</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <p class="small text-muted mb-0">
+            1º: marzo–mayo; 2º: junio–agosto; 3º: septiembre–noviembre.
+          </p>
+        </div>
+      </div>
+
+      <div class="card shadow-sm mt-3">
+        <div class="card-header">
+          <strong>Docentes con más inasistencias</strong>
+        </div>
+        <div class="card-body">
+          {% if top_docentes %}
+          <table class="table table-sm table-bordered mb-0">
+            <thead>
+              <tr>
+                <th>Docente</th>
+                <th>Cant.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in top_docentes[:10] %}
+              <tr>
+                <td>{{ d.docente }}</td>
+                <td>{{ d.cantidad }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <p class="small text-muted mt-1 mb-0">
+            Se muestran los 10 docentes con mayor cantidad de inasistencias en el año.
+          </p>
+          {% else %}
+          <p class="text-muted mb-0">No hay datos de inasistencias.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const datosMeses = {{ meses | tojson }};
+  const ctx = document.getElementById('chartMeses').getContext('2d');
+  const labels = datosMeses.map(m => m.mes_nombre);
+  const dataPorcentaje = datosMeses.map(m => m.porcentaje);
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '% de inasistencias sobre días hábiles',
+        data: dataPorcentaje,
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) { return value + '%'; }
+          }
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}

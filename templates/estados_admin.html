@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-3 d-flex align-items-center justify-content-between">
+  <span>Estados administrativos</span>
+  <div class="d-flex gap-2">
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalEA" id="btnNuevoEA">Nuevo</button>
+    <button class="btn btn-outline-secondary" onclick="imprimirDiv('wrap-ea')">Imprimir</button>
+  </div>
+</h2>
+
+<div id="wrap-ea" class="row g-4">
+  <!-- Filtros -->
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <form id="filtros" class="row g-2 align-items-end">
+          <div class="col-md-3">
+            <label class="form-label">Docente</label>
+            <select id="f-docente" class="form-select">
+              <option value="TODOS">TODOS</option>
+              {% for d in docentes %}
+              <option value="{{ d['_id'] }}">{{ d.get('apellido','') }}, {{ d.get('nombre','') }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Tipo</label>
+            <select id="f-tipo" class="form-select">
+              <option value="TODOS">TODOS</option>
+              {% for t in tipos %}
+              <option value="{{ t }}">{{ t.replace('_',' ') }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Estado</label>
+            <select id="f-estado" class="form-select">
+              <option value="todos">Todos</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="cumplido">Cumplido</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Desde</label>
+            <input type="date" id="f-desde" class="form-control">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Hasta</label>
+            <input type="date" id="f-hasta" class="form-control">
+          </div>
+          <div class="col-12">
+            <button class="btn btn-primary" type="button" id="btnFiltrar">Aplicar filtros</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel izquierdo: Resumen -->
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header bg-light">
+        <strong>Resumen</strong>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <span>Total</span>
+          <span id="res-total" class="badge text-bg-secondary">0</span>
+        </div>
+        <div class="d-flex justify-content-between mt-2">
+          <span>Pendientes</span>
+          <span id="res-pend" class="badge text-bg-warning">0</span>
+        </div>
+        <div class="d-flex justify-content-between mt-2">
+          <span>Cumplidos</span>
+          <span id="res-cump" class="badge text-bg-success">0</span>
+        </div>
+        <hr>
+        <div id="res-por-tipo" class="vstack gap-2"></div>
+        <hr>
+        <div>
+          
+          <div id="res-criticos" class="mt-2 small"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header bg-light">
+        <strong>Listado</strong>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Docente</th>
+                <th>Detalle</th>
+                <th>Notif.</th>
+                <th>Límite</th>
+                <th>Estado</th>
+                <th style="width:160px">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-ea"></tbody>
+          </table>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Alta/Edición -->
+<div class="modal fade" id="modalEA" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <form class="modal-content" id="formEA" onsubmit="return false;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ea-title">Nuevo estado</h5>
+        <button class="btn-close" data-bs-dismiss="modal" type="button"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="ea-id">
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label">Docente</label>
+            <select id="ea-docente" class="form-select">
+              <option value="">—</option>
+              {% for d in docentes %}
+              <option value="{{ d['_id'] }}">{{ d.get('apellido','') }}, {{ d.get('nombre','') }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Tipo</label>
+            <select id="ea-tipo" class="form-select" required>
+              {% for t in tipos %}
+              <option value="{{ t }}">{{ t.replace('_',' ') }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Descripción</label>
+            <input class="form-control" id="ea-desc" placeholder="Ej.: Planif. 3°B, Abril">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Fecha notificación</label>
+            <input type="date" class="form-control" id="ea-notif">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Fecha límite</label>
+            <input type="date" class="form-control" id="ea-limite">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Estado</label>
+            <select class="form-select" id="ea-cumplido">
+              <option value="false">Pendiente</option>
+              <option value="true">Cumplido</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Fecha cumplido</label>
+            <input type="date" class="form-control" id="ea-fcumplido">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Adjunto (URL)</label>
+            <input class="form-control" id="ea-adjunto" placeholder="https://...">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Observaciones</label>
+            <textarea class="form-control" id="ea-obs" rows="2"></textarea>
+          </div>
+        </div>
+
+        <hr>
+        <!-- Campos específicos para salidas educativas -->
+        <div class="alert alert-secondary py-2">
+          <div class="d-flex align-items-center justify-content-between">
+            <strong class="me-2">Salidas educativas (solo si el tipo es "salidas_educativas")</strong>
+            <small class="text-muted">La fecha límite se calcula automático si falta: Distrito = -10 días, CABA = -30 días, Otra = -15.</small>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-md-3">
+              <label class="form-label">Fecha salida</label>
+              <input type="date" class="form-control" id="ea-salida">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Zona</label>
+              <select id="ea-zona" class="form-select">
+                <option value="">—</option>
+                <option value="distrito">Distrito</option>
+                <option value="caba">CABA</option>
+                <option value="otra">Otra</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Lugar</label>
+              <input class="form-control" id="ea-lugar" placeholder="Ej.: Museo de Ciencias">
+            </div>
+          </div>
+          <div class="mt-2">
+            <button class="btn btn-sm btn-outline-primary" type="button" id="btnAutoLimite">Calcular fecha límite</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary" id="btnGuardarEA" type="submit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  const tbody = document.getElementById('tbody-ea');
+  const docenteSel = document.getElementById('f-docente');
+  const tipoSel = document.getElementById('f-tipo');
+  const estadoSel = document.getElementById('f-estado');
+  const desdeInp = document.getElementById('f-desde');
+  const hastaInp = document.getElementById('f-hasta');
+
+  const resTotal = document.getElementById('res-total');
+  const resPend = document.getElementById('res-pend');
+  const resCump = document.getElementById('res-cump');
+  const resPorTipo = document.getElementById('res-por-tipo');
+  const resCriticos = document.getElementById('res-criticos');
+
+  const modal = document.getElementById('modalEA');
+  const eaId = document.getElementById('ea-id');
+  const eaDocente = document.getElementById('ea-docente');
+  const eaTipo = document.getElementById('ea-tipo');
+  const eaDesc = document.getElementById('ea-desc');
+  const eaNotif = document.getElementById('ea-notif');
+  const eaLimite = document.getElementById('ea-limite');
+  const eaCumplido = document.getElementById('ea-cumplido');
+  const eaFCumplido = document.getElementById('ea-fcumplido');
+  const eaAdj = document.getElementById('ea-adjunto');
+  const eaObs = document.getElementById('ea-obs');
+  const eaSalida = document.getElementById('ea-salida');
+  const eaZona = document.getElementById('ea-zona');
+  const eaLugar = document.getElementById('ea-lugar');
+  const btnAuto = document.getElementById('btnAutoLimite');
+
+  document.getElementById('btnFiltrar').addEventListener('click', cargarTodo);
+  document.getElementById('btnNuevoEA').addEventListener('click', ()=>{
+    limpiarModal();
+    document.getElementById('ea-title').textContent = "Nuevo estado";
+  });
+  document.getElementById('btnGuardarEA').addEventListener('click', guardarEA);
+  btnAuto.addEventListener('click', ()=>{
+    if (eaTipo.value !== 'salidas_educativas'){
+      alert('Seleccioná tipo "salidas_educativas"');
+      return;
+    }
+    const fs = eaSalida.value;
+    const z = eaZona.value;
+    if(!fs || !z){ alert('Completá Fecha de salida y Zona'); return; }
+    // cálculo en cliente (coincide con servidor)
+    const d = new Date(fs+"T00:00:00");
+    let delta = 15;
+    if (z === 'distrito') delta = 10;
+    else if (z === 'caba') delta = 30;
+    d.setDate(d.getDate() - delta);
+    eaLimite.value = d.toISOString().slice(0,10);
+  });
+
+  async function cargarTodo(){
+    // Resumen
+    const pRes = {
+      docente_id: docenteSel.value || "TODOS",
+      tipo: tipoSel.value || "TODOS"
+    };
+    const r1 = await axios.get('/api/estados_resumen', { params: pRes });
+    const R = r1.data || {};
+    resTotal.textContent = R.total ?? 0;
+    resPend.textContent = R.pendientes ?? 0;
+    resCump.textContent = R.cumplidos ?? 0;
+
+    resPorTipo.innerHTML = "";
+    const map = R.por_tipo || {};
+    Object.keys(map).sort().forEach(k=>{
+      const li = document.createElement('div');
+      li.className = "d-flex justify-content-between";
+      li.innerHTML = `<span class="text-capitalize">${k.replaceAll('_',' ')}</span><span class="badge text-bg-secondary">${map[k]}</span>`;
+      resPorTipo.appendChild(li);
+    });
+
+    resCriticos.innerHTML = "";
+    (R.criticos_5dias || []).sort((a,b)=> (a.fecha_limite||'').localeCompare(b.fecha_limite||'')).forEach(e=>{
+      const d = document.createElement('div');
+      d.innerHTML = `🔴 <strong>${(e.tipo||'').replaceAll('_',' ')}</strong> — ${e.docente_nombre || '—'} — vence <strong>${e.fecha_limite || '—'}</strong> (${e.dias_restantes} días)`;
+      resCriticos.appendChild(d);
+    });
+
+    // Tabla
+    const params = {
+      docente_id: docenteSel.value || "TODOS",
+      tipo: tipoSel.value || "TODOS",
+      estado: (estadoSel.value || "todos").toLowerCase(),
+    };
+    const desde = (desdeInp.value||"").trim();
+    const hasta = (hastaInp.value||"").trim();
+    if (desde && hasta) { params.desde = desde; params.hasta = hasta; }
+
+    const r2 = await axios.get('/api/estados_admin', { params });
+    const filas = r2.data || [];
+    tbody.innerHTML = "";
+    filas.forEach(f=>{
+      const critico = (!f.cumplido && (f.dias_restantes!=null) && f.dias_restantes<=5);
+      const pill = critico ? `<span class="badge text-bg-danger">Crítico</span>` :
+                   (!f.cumplido ? `<span class="badge text-bg-warning">Pendiente</span>` :
+                                  `<span class="badge text-bg-success">Cumplido</span>`);
+
+      // detalle compacto
+      let detalle = f.descripcion || "";
+      if (f.tipo === "salidas_educativas"){
+        const pedazos = [];
+        if (f.lugar) pedazos.push("Lugar: "+f.lugar);
+        if (f.fecha_salida) pedazos.push("Salida: "+f.fecha_salida);
+        if (f.zona) pedazos.push("Zona: "+f.zona);
+        detalle = (detalle ? (detalle+" — ") : "") + pedazos.join(" — ");
+      }
+      if (f.adjunto_url){
+        detalle += ` <a href="${f.adjunto_url}" target="_blank" rel="noopener">[Adjunto]</a>`;
+      }
+
+      const tr = document.createElement('tr');
+      if (critico) tr.classList.add('table-danger');
+      tr.innerHTML = `
+        <td class="text-capitalize">${(f.tipo||'').replaceAll('_',' ')}</td>
+        <td>${f.docente_nombre || '—'}</td>
+        <td>${detalle || '—'}</td>
+        <td>${f.fecha_notificacion || '—'}</td>
+        <td>${f.fecha_limite || '—'}</td>
+        <td>${pill}</td>
+        <td class="text-nowrap">
+          <button class="btn btn-sm btn-outline-secondary me-1" data-action="edit" data-id="${f._id}">Editar</button>
+          ${f.cumplido ? '' : `<button class="btn btn-sm btn-success me-1" data-action="done" data-id="${f._id}">Marcar cumplido</button>`}
+          <button class="btn btn-sm btn-danger" data-action="del" data-id="${f._id}">Eliminar</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // listeners
+    tbody.querySelectorAll('button[data-action]').forEach(b=>{
+      b.addEventListener('click', (ev)=>{
+        const id = ev.currentTarget.getAttribute('data-id');
+        const action = ev.currentTarget.getAttribute('data-action');
+        const row = ev.currentTarget.closest('tr');
+        if (action === 'del'){
+          if (confirm('¿Eliminar este registro?')) eliminarEA(id);
+        } else if (action === 'done'){
+          marcarCumplido(id);
+        } else if (action === 'edit'){
+          editarDesdeFila(id);
+        }
+      });
+    });
+  }
+
+  async function eliminarEA(id){
+    try{
+      await axios.delete('/api/estados_admin/'+id);
+      cargarTodo();
+    }catch(e){ alert('No se pudo eliminar.'); }
+  }
+  async function marcarCumplido(id){
+    try{
+      const hoy = new Date().toISOString().slice(0,10);
+      await axios.put('/api/estados_admin/'+id, {cumplido: true, fecha_cumplido: hoy});
+      cargarTodo();
+    }catch(e){ alert('No se pudo marcar como cumplido.'); }
+  }
+  async function editarDesdeFila(id){
+    try{
+      const r = await axios.get('/api/estados_admin', { params: { _id: id }});
+      // Como el endpoint no filtra por _id, busco localmente:
+      const all = r.data || [];
+      const f = all.find(x=>x._id === id);
+      if(!f){ alert('No se pudo cargar.'); return; }
+      abrirModalConDatos(f);
+    }catch(e){ alert('Error al cargar.'); }
+  }
+
+  function limpiarModal(){
+    eaId.value = "";
+    eaDocente.value = "";
+    eaTipo.value = "planificaciones";
+    eaDesc.value = "";
+    eaNotif.value = "";
+    eaLimite.value = "";
+    eaCumplido.value = "false";
+    eaFCumplido.value = "";
+    eaAdj.value = "";
+    eaObs.value = "";
+    eaSalida.value = "";
+    eaZona.value = "";
+    eaLugar.value = "";
+  }
+
+  function abrirModalConDatos(f){
+    limpiarModal();
+    document.getElementById('ea-title').textContent = "Editar estado";
+    eaId.value = f._id || "";
+    eaDocente.value = f.docente_id || "";
+    eaTipo.value = f.tipo || "planificaciones";
+    eaDesc.value = f.descripcion || "";
+    eaNotif.value = f.fecha_notificacion || "";
+    eaLimite.value = f.fecha_limite || "";
+    eaCumplido.value = String(!!f.cumplido);
+    eaFCumplido.value = f.fecha_cumplido || "";
+    eaAdj.value = f.adjunto_url || "";
+    eaObs.value = f.observaciones || "";
+    eaSalida.value = f.fecha_salida || "";
+    eaZona.value = f.zona || "";
+    eaLugar.value = f.lugar || "";
+    new bootstrap.Modal(modal).show();
+  }
+
+  async function guardarEA(ev){
+    ev && ev.preventDefault && ev.preventDefault();
+    const payload = {
+      docente_id: eaDocente.value,
+      tipo: eaTipo.value,
+      descripcion: eaDesc.value.trim(),
+      fecha_notificacion: eaNotif.value,
+      fecha_limite: eaLimite.value,
+      cumplido: (eaCumplido.value === "true"),
+      fecha_cumplido: eaFCumplido.value,
+      adjunto_url: eaAdj.value.trim(),
+      observaciones: eaObs.value.trim(),
+      // extras salidas
+      fecha_salida: eaSalida.value,
+      zona: eaZona.value,
+      lugar: eaLugar.value.trim()
+    };
+    try{
+      if (eaId.value){
+        // UPDATE
+        await axios.put('/api/estados_admin/'+eaId.value, payload);
+      }else{
+        // CREATE
+        await axios.post('/api/estados_admin', payload);
+      }
+      bootstrap.Modal.getInstance(modal).hide();
+      cargarTodo();
+    }catch(e){
+      alert('No se pudo guardar.');
+    }
+  }
+
+  // Carga inicial
+  try { document.getElementById('f-hasta').value = new Date().toISOString().slice(0,10); } catch(e){}
+  cargarTodo();
+})();
+</script>
+{% endblock %}

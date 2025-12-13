@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Resumen de calificaciones — Desaprobados</h2>
+<p class="text-muted">
+  Estadísticas calculadas a partir de las calificaciones cargadas en el sistema.
+  Criterio de desaprobación:
+  <strong>R / D</strong> en escala conceptual, o <strong>nota &lt; 6</strong> en escala numérica.
+</p>
+
+{% if resumen_curso|length == 0 %}
+  <p class="text-muted">Todavía no hay calificaciones cargadas.</p>
+{% else %}
+
+  <div class="row g-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <strong>Desaprobados por curso, asignatura y trimestre</strong>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Curso</th>
+                  <th>Asignatura</th>
+                  <th>Trimestre</th>
+                  <th>Total calificaciones</th>
+                  <th>Desaprobados</th>
+                  <th>% desaprobados</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in resumen_curso %}
+                <tr>
+                  <td>{{ r.curso }}</td>
+                  <td>{{ r.asignatura }}</td>
+                  <td>{{ r.trimestre }}º</td>
+                  <td>{{ r.total }}</td>
+                  <td>{{ r.desaprobados }}</td>
+                  <td>{{ r.porcentaje }}%</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p class="small text-muted mt-2 mb-0">
+            Cada fila corresponde a las calificaciones de un curso, una asignatura y un trimestre.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-7">
+      <div class="card shadow-sm">
+        <div class="card-header">
+          <strong>Resumen por asignatura (toda la escuela)</strong>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm table-bordered mb-3">
+            <thead>
+              <tr>
+                <th>Asignatura</th>
+                <th>Total calificaciones</th>
+                <th>Desaprobados</th>
+                <th>% desaprobados</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in resumen_asig %}
+              <tr>
+                <td>{{ r.asignatura }}</td>
+                <td>{{ r.total }}</td>
+                <td>{{ r.desaprobados }}</td>
+                <td>{{ r.porcentaje }}%</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+
+          <canvas id="chartAsignaturas" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-5">
+      <div class="card shadow-sm h-100">
+        <div class="card-header">
+          <strong>Lectura rápida</strong>
+        </div>
+        <div class="card-body">
+          {% set peor = (resumen_asig|sort(attribute='porcentaje')|last) if resumen_asig else None %}
+          {% set mejor = (resumen_asig|sort(attribute='porcentaje')|first) if resumen_asig else None %}
+
+          {% if peor %}
+          <p>
+            La asignatura con <strong>mayor porcentaje de desaprobados</strong> es
+            <strong>{{ peor.asignatura }}</strong> con
+            <strong>{{ peor.porcentaje }}%</strong>.
+          </p>
+          {% endif %}
+
+          {% if mejor %}
+          <p>
+            La asignatura con <strong>menor porcentaje de desaprobados</strong> es
+            <strong>{{ mejor.asignatura }}</strong> con
+            <strong>{{ mejor.porcentaje }}%</strong>.
+          </p>
+          {% endif %}
+
+          <p class="small text-muted mb-0">
+            Estos datos se recalculan automáticamente cada vez que se cargan o modifican
+            calificaciones en el módulo de "Calificaciones".
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const datosAsig = {{ resumen_asig | tojson }};
+  const ctxAsig = document.getElementById('chartAsignaturas').getContext('2d');
+
+  const labelsAsig = datosAsig.map(a => a.asignatura);
+  const dataPct = datosAsig.map(a => a.porcentaje);
+
+  new Chart(ctxAsig, {
+    type: 'bar',
+    data: {
+      labels: labelsAsig,
+      datasets: [{
+        label: '% de desaprobados por asignatura',
+        data: dataPct,
+      }]
+    },
+    options: {
+      responsive: true,
+      indexAxis: 'y',
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) { return value + '%'; }
+          }
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}

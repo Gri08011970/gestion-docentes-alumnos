@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Autorizados a retirar · EP N° 91{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-12 col-md-8">
+    <h2 class="mb-1">Autorizados a retirar</h2>
+    <p class="text-muted mb-0">
+      Seleccionar un curso para ver y gestionar las personas autorizadas a retirar a los alumnos.
+    </p>
+  </div>
+</div>
+
+{% if cursos %}
+  <div class="row g-3">
+    {% for c in cursos %}
+      <div class="col-6 col-sm-4 col-md-3 col-lg-2">
+        <a href="{{ url_for('autorizados_curso', curso=c) }}" class="text-decoration-none">
+          <div class="card card-hover h-100 text-center py-3">
+            <div class="fw-semibold fs-5">{{ c }}</div>
+            <div class="small text-muted mt-1">
+              Ver autorizados del curso
+            </div>
+          </div>
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="alert alert-light border mt-3">
+    <p class="mb-0 text-muted">
+      No hay cursos con alumnos cargados todavía. Una vez que se registren, podrás gestionar aquí los autorizados a retirar.
+    </p>
+  </div>
+{% endif %}
+{% endblock %}
+

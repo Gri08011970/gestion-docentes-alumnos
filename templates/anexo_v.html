@@ -1,0 +1,80 @@
+<!-- templates/anexo_v.html (Anexo V – Nómina y seguros) -->
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anexo V</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{ font-family: Arial, sans-serif; font-size:13px; margin:16px; }
+  .no-print{ margin-bottom:12px;}
+  h2{ font-size:18px; margin:0 0 6px; }
+  .muted{ color:#666; font-size:11px;}
+  .blk{ border:1px solid #222; padding:8px; border-radius:6px; margin-bottom:10px;}
+  table{ width:100%; border-collapse: collapse; }
+  th, td{ border:1px solid #333; padding:6px; font-size:12px; }
+  .foot{ display:flex; justify-content: space-between; align-items:center; margin-top:14px; }
+  .foot img{ height:36px; }
+  [contenteditable="true"]{ outline:1px dashed #bbb; padding:2px; border-radius:4px; }
+  @media print{ .no-print{display:none} body{margin:8mm} .page-break{page-break-after:always;} }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <button onclick="window.print()">🖨️ Imprimir</button>
+</div>
+
+<div class="muted">DGCyE – Provincia de Buenos Aires</div>
+<h2>Anexo V – Nómina de participantes / Seguro</h2>
+
+<div class="blk">
+  <strong>Establecimiento:</strong> <span contenteditable="true">{{ escuela.nombre }}</span> –
+  <strong>Curso:</strong> <span contenteditable="true">{{ curso or '—' }}</span> –
+  <strong>Docente:</strong>
+  {% if docente %}
+    {{ docente.apellido }}, {{ docente.nombre }}
+  {% else %}
+    <span contenteditable="true">[Apellido, Nombre]</span>
+  {% endif %}
+  <br>
+  <strong>Lugar:</strong> <span contenteditable="true">{{ salida.lugar }}</span> –
+  <strong>Fecha/Hora:</strong> <span contenteditable="true">{{ salida.fecha }} {{ salida.hora }}</span>
+</div>
+
+<div class="blk">
+  <strong>Nómina de alumnos ({{ alumnos|length }})</strong>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Apellido y Nombre</th><th>DNI</th><th>Edad (30/06)</th><th>Autorización</th><th>Obs.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in alumnos %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td contenteditable="true">{{ a.apellido }}, {{ a.nombre }}</td>
+        <td contenteditable="true">{{ a.dni or '' }}</td>
+        <td>{{ a.edad_30jun if a.edad_30jun is not none else '' }}</td>
+        <td contenteditable="true">Sí</td>
+        <td contenteditable="true"></td>
+      </tr>
+      {% endfor %}
+      {% for i in range( (5 - (alumnos|length % 5)) % 5 ) %}
+      <tr><td>&nbsp;</td><td contenteditable="true"></td><td contenteditable="true"></td><td></td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="blk">
+  <strong>Seguro/ART</strong><br>
+  <div>Empresa / Póliza: <span contenteditable="true">{{ transporte.seguro or '—' }}</span></div>
+</div>
+
+<div class="foot">
+  <div class="muted">Firma autoridad: _______________________</div>
+  <img src="{{ url_for('static', filename='image/logoAnexos.png') }}" alt="Logo PBA">
+</div>
+</body>
+</html>

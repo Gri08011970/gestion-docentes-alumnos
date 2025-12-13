@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anexo V (Exacto)</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/anexos_exact.css') }}">
+<style>
+  .sheet { --bg-url: url('{{ url_for("static", filename="backgrounds/anexo_V.png") }}'); }
+</style>
+</head>
+<body>
+<button class="no-print" onclick="print()">🖨️ Imprimir</button>
+<div class="sheet">
+
+  <!-- Cabecera -->
+  <div class="abs" style="left:22mm; top:34mm; width:162mm;">
+    Establecimiento: {{ escuela.nombre }} — Curso: {{ curso or '—' }} — Docente: {% if docente %}{{ docente.apellido }}, {{ docente.nombre }}{% else %}—{% endif %}
+  </div>
+  <div class="abs" style="left:22mm; top:41mm; width:162mm;">
+    Lugar: {{ salida.lugar }} — Fecha/Hora: {{ salida.fecha }} {{ salida.hora }}
+  </div>
+
+  <!-- Rejilla nómina -->
+  <div class="box" style="left:14mm; top:60mm; width:182mm; height:125mm;">
+    {% for a in alumnos %}
+      <div class="abs" style="left:18mm;  top:{{ 64 + loop.index * 6 }}mm; width:8mm; text-align:center;">{{ loop.index }}</div>
+      <div class="abs" style="left:28mm;  top:{{ 64 + loop.index * 6 }}mm; width:90mm;">{{ a.apellido }}, {{ a.nombre }}</div>
+      <div class="abs" style="left:120mm; top:{{ 64 + loop.index * 6 }}mm; width:26mm;">{{ a.dni or '' }}</div>
+      <div class="abs" style="left:148mm; top:{{ 64 + loop.index * 6 }}mm; width:14mm; text-align:center;">{{ a.edad_30jun if a.edad_30jun is not none else '' }}</div>
+      <div class="abs" style="left:164mm; top:{{ 64 + loop.index * 6 }}mm; width:30mm;" contenteditable="true">Sí</div>
+    {% endfor %}
+  </div>
+
+  <!-- Seguro -->
+  <div class="abs" style="left:22mm; top:192mm; width:162mm;">
+    Seguro/ART: {{ transporte.seguro or '—' }}
+  </div>
+
+  <!-- Firma -->
+  <div class="abs" style="left:22mm; top:260mm; width:162mm;">Firma autoridad: _______________________</div>
+
+</div>
+</body>
+</html>

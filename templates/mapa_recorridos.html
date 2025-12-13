@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Mapa y recorridos domiciliarios · Estudiantes{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <!-- Encabezado -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-1">Mapa y recorridos domiciliarios</h1>
+      <p class="text-muted mb-0">
+        Filtrá por curso / turno o buscá por apellido, DNI, domicilio o localidad.
+        Seleccioná estudiantes para generar el acta de visita domiciliaria.
+      </p>
+    </div>
+
+    <a class="btn btn-outline-primary"
+       target="_blank"
+       href="{{ url_for('ver_mapa_escuela') }}">
+      Ver escuela en el mapa
+    </a>
+  </div>
+
+  <!-- Filtros -->
+  <form class="row g-2 mb-3" method="get">
+    <div class="col-md-4 col-lg-3">
+      <label class="form-label mb-0 small">Buscar</label>
+      <input type="text"
+             name="q"
+             value="{{ q }}"
+             class="form-control form-control-sm"
+             placeholder="Apellido, DNI, domicilio, localidad...">
+    </div>
+
+    <div class="col-md-3 col-lg-2">
+      <label class="form-label mb-0 small">Curso</label>
+      <select name="curso" class="form-select form-select-sm">
+        <option value="">Todos</option>
+        {% for c in cursos %}
+          <option value="{{ c }}" {% if c == curso_sel %}selected{% endif %}>
+            {{ c }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-3 col-lg-2">
+      <label class="form-label mb-0 small">Turno</label>
+      <select name="turno" class="form-select form-select-sm">
+        <option value="">Todos</option>
+        {% for t in turnos %}
+          <option value="{{ t }}" {% if t == turno_sel %}selected{% endif %}>
+            {{ t }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-2 col-lg-2 d-flex align-items-end">
+      <button class="btn btn-primary btn-sm w-100">Aplicar filtros</button>
+    </div>
+  </form>
+
+  <!-- Form para generar el acta -->
+  <form method="post"
+        action="{{ url_for('mapa_recorridos_visitas') }}"
+        target="_blank">
+
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <button type="submit"
+                class="btn btn-success btn-sm"
+                {% if not alumnos %}disabled{% endif %}>
+          Generar acta de visita domiciliaria
+        </button>
+
+        <span class="text-muted small ms-2">
+          Marcá con tilde a quiénes querés incluir.
+        </span>
+      </div>
+    </div>
+
+    <!-- TABLA -->
+    <div class="table-responsive">
+      <table class="table table-sm table-striped align-middle">
+        <thead>
+          <tr>
+            <th class="text-center" style="width:3%;">
+              <input type="checkbox" id="checkAllRecorridos">
+            </th>
+            <th style="width:8%;">Curso</th>
+            <th style="width:15%;">Apellido</th>
+            <th style="width:15%;">Nombre</th>
+            <th style="width:25%;">Domicilio</th>
+            <th style="width:15%;">Localidad</th>
+            <th style="width:12%;">Teléfono</th>
+            <th style="width:20%;" class="text-center">Acciones</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for a in alumnos %}
+          <tr>
+            <td class="text-center">
+              <input type="checkbox" name="alumno_id" value="{{ a._id }}">
+            </td>
+
+            <td>{{ a.curso or "" }}</td>
+            <td>{{ a.apellido or "" }}</td>
+            <td>{{ a.nombre or "" }}</td>
+            <td>{{ a.domicilio or "" }}</td>
+            <td>{{ a.localidad or "" }}</td>
+            <td>{{ a.telefono or "" }}</td>
+
+            <td class="text-center">
+              <div class="btn-group btn-group-sm" role="group">
+
+                <!-- Ver en Matrícula -->
+                <a class="btn btn-outline-secondary"
+                   title="Ver en Matrícula"
+                   href="{{ url_for('listar_alumnos', q=(a.dni or (a.apellido ~ ' ' ~ a.nombre))) }}">
+                  <i class="fas fa-id-card"></i>
+                </a>
+
+                <!-- Ver legajos del curso -->
+                {% if a.curso %}
+                <a class="btn btn-outline-secondary"
+                   title="Legajos del curso"
+                   href="{{ url_for('legajos_curso', curso=a.curso) }}">
+                  <i class="fas fa-folder-open"></i>
+                </a>
+                {% endif %}
+
+                <!-- Ver autorizados del alumno -->
+                <a class="btn btn-outline-secondary"
+                   title="Autorizados a retirar"
+                   href="{{ url_for('autorizados_alumno', id=a._id) }}">
+                  <i class="fas fa-user-shield"></i>
+                </a>
+
+                <!-- Ver recorrido en mapa -->
+                <a class="btn btn-outline-success"
+                   title="Ver recorrido en mapa"
+                   target="_blank"
+                   href="{{ url_for('mapa_alumno', id=a._id) }}">
+                  <i class="fas fa-map-marker-alt"></i>
+                </a>
+
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+
+      </table>
+    </div>
+
+  </form>
+
+  {% if not alumnos %}
+  <p class="text-muted mt-3">
+    No se encontraron estudiantes con los filtros seleccionados.
+  </p>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const master = document.getElementById("checkAllRecorridos");
+  if (!master) return;
+
+  master.addEventListener("change", function () {
+    document
+      .querySelectorAll('input[name="alumno_id"]')
+      .forEach(ch => ch.checked = master.checked);
+  });
+});
+</script>
+{% endblock %}

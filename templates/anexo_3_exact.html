@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anexo III (Exacto)</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/anexos_exact.css') }}">
+<style>
+  .sheet { --bg-url: url('{{ url_for("static", filename="backgrounds/anexo_III.png") }}'); }
+</style>
+</head>
+<body>
+<button class="no-print" onclick="print()">🖨️ Imprimir</button>
+<div class="sheet">
+
+  <!-- Establecimiento -->
+  <div class="abs" style="left:25mm; top:38mm; width:120mm;">
+    {{ escuela.nombre }}
+  </div>
+  <div class="abs" style="left:25mm; top:44mm; width:160mm;">
+    {{ escuela.domicilio }} — Distrito: {{ escuela.distrito }} — Tel: {{ escuela.telefono or '—' }}
+  </div>
+
+  <!-- Docente y Curso -->
+  <div class="abs" style="left:25mm; top:55mm; width:150mm;">
+    {% if docente %}{{ docente.apellido }}, {{ docente.nombre }}{% else %}—{% endif %}
+    {% if curso %} — Curso: {{ curso }}{% endif %}
+  </div>
+
+  <!-- Destino / Fecha Hora / Zona -->
+  <div class="abs" style="left:25mm; top:66mm; width:160mm;">
+    Lugar: {{ salida.lugar }} — Fecha/Hora: {{ salida.fecha }} {{ salida.hora }} — Zona: {{ salida.zona or '—' }}
+  </div>
+
+  <!-- Fundamentación -->
+  <div class="box" style="left:20mm; top:85mm; width:170mm; height:28mm;">
+    <div class="abs" style="left:21mm; top:86mm; width:168mm; height:26mm;" contenteditable="true">
+      Fundamentación…
+    </div>
+  </div>
+
+  <!-- Objetivos -->
+  <div class="box" style="left:20mm; top:117mm; width:170mm; height:26mm;">
+    <div class="abs" style="left:21mm; top:118mm; width:168mm; height:24mm;" contenteditable="true">
+      Objetivos…
+    </div>
+  </div>
+
+  <!-- Cronograma (rejilla de 4 filas x 3 cols: hora / actividad / responsable) -->
+  <div class="table" style="left:20mm; top:147mm; --w:170mm; --cols: 25mm 95mm 50mm;">
+    {% for i in range(8) %}
+      <div class="cell" contenteditable="true"></div>
+      <div class="cell" contenteditable="true"></div>
+      <div class="cell" contenteditable="true"></div>
+    {% endfor %}
+  </div>
+
+  <!-- Evaluación -->
+  <div class="box" style="left:20mm; top:197mm; width:170mm; height:26mm;">
+    <div class="abs" style="left:21mm; top:198mm; width:168mm; height:24mm;" contenteditable="true">
+      Evaluación…
+    </div>
+  </div>
+
+  <!-- Seguridad -->
+  <div class="box" style="left:20mm; top:227mm; width:170mm; height:26mm;">
+    <div class="abs" style="left:21mm; top:228mm; width:168mm; height:24mm;" contenteditable="true">
+      Proporción adultos/estudiantes; contactos; coberturas…
+    </div>
+  </div>
+
+  <!-- Firma / Fecha -->
+  <div class="abs" style="left:20mm; top:260mm; width:120mm;">
+    Fecha: {{ hoy }} — Firma y sello autoridad: ______________________
+  </div>
+
+</div>
+</body>
+</html>

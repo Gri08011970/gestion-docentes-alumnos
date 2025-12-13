@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-print-none d-flex justify-content-between align-items-center mb-3">
+  <h2 class="m-0">ANEXO 4 – Datos del transporte</h2>
+  <button class="btn btn-outline-secondary" onclick="imprimirDiv('print-area')">Imprimir / PDF</button>
+</div>
+
+<div id="print-area" class="anexo paper">
+  <h4 class="text-center mb-2">Provincia de Buenos Aires – Salidas Educativas</h4>
+  <h5 class="text-center mb-4">ANEXO 4 – Transporte (empresa y chofer)</h5>
+
+  <div class="row mb-2 small">
+    <div class="col-md-6"><strong>Empresa:</strong> {{ transporte.empresa or "—" }}</div>
+    <div class="col-md-3"><strong>Patente:</strong> {{ transporte.patente or "—" }}</div>
+    <div class="col-md-3"><strong>Póliza / Seguro:</strong> {{ transporte.seguro or "—" }}</div>
+  </div>
+  <div class="row mb-3 small">
+    <div class="col-md-6"><strong>Chofer:</strong> {{ transporte.chofer_nombre or "—" }}</div>
+    <div class="col-md-3"><strong>DNI:</strong> {{ transporte.chofer_dni or "—" }}</div>
+    <div class="col-md-3"><strong>Licencia:</strong> {{ transporte.chofer_licencia or "—" }}</div>
+  </div>
+
+  <div class="row mb-2 small">
+    <div class="col-md-5"><strong>Escuela:</strong> {{ escuela.nombre }}</div>
+    <div class="col-md-7"><strong>Domicilio:</strong> {{ escuela.domicilio }}</div>
+  </div>
+  <div class="row mb-3 small">
+    <div class="col-md-4"><strong>Curso:</strong> {{ curso }}</div>
+    <div class="col-md-5"><strong>Destino:</strong> {{ salida.lugar or "—" }}</div>
+    <div class="col-md-3"><strong>Fecha:</strong> {{ salida.fecha or "—" }}</div>
+  </div>
+
+  <p class="small"><em>El transporte contratado cumple con los requisitos vigentes. Se adjunta constancia de seguro y habilitaciones.</em></p>
+
+  <div class="mt-5 row">
+    <div class="col-6 text-center">______________________________<br><small>Firma representante de la empresa</small></div>
+    <div class="col-6 text-center">______________________________<br><small>Firma de la dirección</small></div>
+  </div>
+</div>
+{% endblock %}

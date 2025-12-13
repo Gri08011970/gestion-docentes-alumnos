@@ -1,0 +1,135 @@
+<!-- templates/anexos_index.html -->
+{% extends "base.html" %}
+{% block title %}Anexos – Salidas Educativas{% endblock %}
+{% block content %}
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0">Generar Anexos</h4>
+    <a href="{{ url_for('salidas.listado_salidas') }}" class="btn btn-outline-secondary">Volver a Salidas</a>
+  </div>
+
+  <form class="card" method="POST" action="{{ url_for('anexos_render') }}" target="_blank">
+    <div class="card-body">
+      <div class="row g-3">
+
+        <div class="col-md-3">
+          <label class="form-label">Tipo de anexo</label>
+          <select class="form-select" name="tipo" required>
+            <option value="">Seleccioná…</option>
+            <option value="anexo_3">Anexo III</option>
+            <option value="anexo_4">Anexo IV</option>
+            <option value="anexo_v">Anexo V</option>
+            <option value="anexo_vi">Anexo VI</option>
+            <option value="anexo_7">Anexo VII</option>
+            <option value="anexo_8">Anexo VIII</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Curso</label>
+          <select class="form-select" name="curso">
+            <option value="">(opcional)</option>
+            {% for c in cursos %}
+              <option>{{ c }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Ej.: 1° A TM, 6° B TT, etc.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Docente responsable</label>
+          <select class="form-select" name="docente_id">
+            <option value="">(opcional)</option>
+            {% for d in docentes %}
+              <option value="{{ d._id }}">{{ d.apellido }}, {{ d.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Fecha salida</label>
+          <input type="date" class="form-control" name="fecha_salida">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Hora salida</label>
+          <input type="time" class="form-control" name="hora_salida">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Lugar</label>
+          <input class="form-control" name="lugar" placeholder="Ej.: Museo Saavedra">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Zona</label>
+          <select class="form-select" name="zona">
+            <option value="">Seleccioná…</option>
+            <option value="distrito">Dentro del distrito</option>
+            <option value="caba">CABA</option>
+            <option value="otra">Otra provincia / exterior</option>
+          </select>
+        </div>
+
+        <div class="col-12">
+          <div class="border rounded p-3 bg-light">
+            <div class="row g-2">
+              <div class="col-12"><strong>Datos de transporte (para Anexo VIII)</strong></div>
+              <div class="col-md-4">
+                <label class="form-label">Empresa</label>
+                <input class="form-control" name="micro_empresa">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Patente</label>
+                <input class="form-control" name="micro_patente">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Seguro / Póliza</label>
+                <input class="form-control" name="seguro">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Chofer – nombre</label>
+                <input class="form-control" name="chofer_nombre">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Chofer – DNI</label>
+                <input class="form-control" name="chofer_dni">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Chofer – Licencia</label>
+                <input class="form-control" name="chofer_licencia">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="border rounded p-3">
+            <div class="row g-2">
+              <div class="col-12"><strong>Datos de la escuela (pie del formulario)</strong></div>
+              <div class="col-md-6">
+                <label class="form-label">Nombre</label>
+                <input class="form-control" name="escuela_nombre" placeholder="EP N° 91">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Teléfono</label>
+                <input class="form-control" name="escuela_telefono">
+              </div>
+              <div class="col-12">
+                <label class="form-label">Domicilio</label>
+                <input class="form-control" name="escuela_domicilio" placeholder="Tomás Edison 2164, La Matanza…">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Distrito</label>
+                <input class="form-control" name="escuela_distrito" placeholder="La Matanza">
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="card-footer d-flex justify-content-between">
+      <span class="text-muted small">Los anexos se abrirán en una pestaña nueva listos para imprimir.</span>
+      <button class="btn btn-primary" type="submit">Generar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

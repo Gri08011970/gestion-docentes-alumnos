@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+{% block content %}
+<h2 class="mb-3">Docentes</h2>
+
+<!-- Botón: nuevo docente -->
+<button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#modalNuevoDocente">
+  Agregar docente
+</button>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Nombre y Apellido</th>
+      <th>Cargo</th>
+      <th>Situación de Revista</th>
+      <th>Observaciones</th>
+      <th class="text-center">Carga horaria 5×5</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in docentes %}
+    <tr>
+      <td><strong>{{ d.get('apellido','') }}, {{ d.get('nombre','') }}</strong></td>
+      <td>{{ d.get('asignatura','') }}</td>
+      <td>{{ d.get('situacion','') }}</td>
+      <td>{{ d.get('observaciones','') }}</td>
+      <td class="text-center">
+        <button class="btn btn-sm btn-outline-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#modalCargaHoraria"
+                data-docente-id="{{ d['_id'] }}"
+                data-docente-nombre="{{ d.get('apellido','') }}, {{ d.get('nombre','') }}"
+                data-carga='{{ d.get("carga_horaria") | tojson }}'>
+          Editar 5×5
+        </button>
+      </td>
+      <td>
+        <div class="d-flex gap-2">
+          <!-- Botón Editar (abre modal) -->
+          <button type="button"
+                  class="btn btn-sm btn-primary btn-edit-docente"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalEditarDocente"
+                  data-id="{{ d['_id'] }}"
+                  data-nombre="{{ d.get('nombre','') }}"
+                  data-apellido="{{ d.get('apellido','') }}"
+                  data-asignatura="{{ d.get('asignatura','') }}"
+                  data-situacion="{{ d.get('situacion','') }}"
+                  data-fecha="{{ d.get('fecha_ingreso','') }}"
+                  data-observaciones="{{ d.get('observaciones','') }}">
+            Editar
+          </button>
+             <!-- Nuevo: ver inasistencias anuales -->
+                 <a href="{{ url_for('docente_inasistencias_anuales', id=d['_id']) }}"
+                   class="btn btn-sm btn-outline-secondary">
+                   Inasistencias
+                 </a>
+          <!-- Eliminar -->
+          <form action="{{ url_for('eliminar_docente', id=d['_id']) }}"
+                method="post"
+                onsubmit="return confirm('¿Eliminar docente y sus inasistencias?');">
+            <button class="btn btn-sm btn-danger">Eliminar</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Modal: Nuevo Docente -->
+<div class="modal fade" id="modalNuevoDocente" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" action="{{ url_for('nuevo_docente') }}" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuevo docente</h5>
+        <button class="btn-close" data-bs-dismiss="modal" type="button"></button>
+      </div>
+      <div class="modal-body">
+
+        <div class="mb-2">
+          <label class="form-label">Nombre</label>
+          <input name="nombre" class="form-control" placeholder="Nombre" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Apellido</label>
+          <input name="apellido" class="form-control" placeholder="Apellido" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Cargo</label>
+          <select name="asignatura" id="nuevo-asignatura"
+                  class="form-select" multiple size="8">
+            <option value="PROFESOR">PROFESOR</option>
+            <option value="MAESTRA DE GRADO">MG</option>
+            <option value="MAESTRA 5° HORA">MG 5</option>
+            
+          </select>
+          <small class="text-muted">
+            Podés seleccionar una o varias (Ctrl+clic).
+          </small>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Situación de Revista</label>
+          <select name="situacion" id="nuevo-situacion" class="form-select">
+            <option value="Titular">Titular</option>
+            <option value="Provisional">Provisional</option>
+            <option value="Suplente">Suplente</option>
+          </select>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Fecha de ingreso (opcional)</label>
+          <input type="date" name="fecha_ingreso" class="form-control">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Observaciones</label>
+          <textarea name="observaciones" class="form-control" rows="2"
+                    placeholder="Observaciones"></textarea>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Editar Docente -->
+<div class="modal fade" id="modalEditarDocente" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar docente</h5>
+        <button class="btn-close" data-bs-dismiss="modal" type="button"></button>
+      </div>
+      <div class="modal-body">
+
+        <div class="mb-2">
+          <label class="form-label">Nombre</label>
+          <input id="edit-nombre" name="nombre" class="form-control" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Apellido</label>
+          <input id="edit-apellido" name="apellido" class="form-control" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Cargo</label>
+          <select id="edit-asignatura" name="asignatura"
+                  class="form-select" multiple size="8">
+            <option value="PROFESOR">PROFESOR</option>
+            <option value="MAESTRA DE GRADO">MG</option>
+            <option value="MAESTRA 5° HORA">MG 5</option>
+            
+          </select>
+          <small class="text-muted">
+            Podés seleccionar una o varias (Ctrl+clic).
+          </small>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Situación de Revista</label>
+          <select id="edit-situacion" name="situacion" class="form-select">
+            <option value="Titular">Titular</option>
+            <option value="Provisional">Provisional</option>
+            <option value="Suplente">Suplente</option>
+          </select>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Fecha de ingreso (opcional)</label>
+          <input id="edit-fecha_ingreso" type="date" name="fecha_ingreso"
+                 class="form-control">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Observaciones</label>
+          <textarea id="edit-observaciones" name="observaciones"
+                    class="form-control" rows="2"></textarea>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Carga Horaria 5×5 -->
+<div class="modal fade" id="modalCargaHoraria" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          Carga Horaria (5×5) — <span id="ch-docente-nombre"></span>
+        </h5>
+        <button class="btn-close" data-bs-dismiss="modal" type="button"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle text-center carga-5x5">
+            <thead>
+              <tr>
+                <th>Hora / Día</th>
+                <th>Lunes</th>
+                <th>Martes</th>
+                <th>Miércoles</th>
+                <th>Jueves</th>
+                <th>Viernes</th>
+              </tr>
+            </thead>
+            <tbody id="ch-tbody">
+              <!-- Se completa por JS (5 filas × 5 columnas de inputs) -->
+            </tbody>
+          </table>
+        </div>
+        <small class="text-muted">
+          Ingresá curso / división / aula o texto libre en cada celda.
+        </small>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cerrar</button>
+        <button class="btn btn-primary" id="btnGuardarCH">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Carga horaria 5x5 ---
+(() => {
+  const modal = document.getElementById('modalCargaHoraria');
+  if (!modal) return;
+
+  let DOCENTE_ID = null;
+  let MATRIZ = null;
+
+  modal.addEventListener('show.bs.modal', (ev) => {
+    const btn = ev.relatedTarget;
+    DOCENTE_ID = btn.getAttribute('data-docente-id');
+    const nombre = btn.getAttribute('data-docente-nombre');
+    const raw = btn.getAttribute('data-carga');
+
+    try { MATRIZ = JSON.parse(raw); } catch { MATRIZ = null; }
+    if (!Array.isArray(MATRIZ) || MATRIZ.length !== 5) {
+      MATRIZ = Array.from({length:5}, () => Array.from({length:5}, () => "" ));
+    }
+
+    document.getElementById('ch-docente-nombre').textContent = nombre;
+
+    const tbody = document.getElementById('ch-tbody');
+    tbody.innerHTML = "";
+
+    for (let r = 0; r < 5; r++) {
+      const tr = document.createElement('tr');
+      const horaLabel = ["1°","2°","3°","4°","5°"][r];
+      tr.innerHTML =
+        `<th class="text-nowrap">${horaLabel} hora</th>` +
+        Array.from({length:5}, (_, c) => {
+          const val = (MATRIZ[r] && typeof MATRIZ[r][c] === 'string') ? MATRIZ[r][c] : "";
+          return `<td><input class="form-control form-control-sm text-center ch-cell"
+                             data-r="${r}" data-c="${c}"
+                             value="${val.replace(/"/g,'&quot;')}"></td>`;
+        }).join('');
+      tbody.appendChild(tr);
+    }
+  });
+
+  document.getElementById('btnGuardarCH').addEventListener('click', async () => {
+    const inputs = modal.querySelectorAll('.ch-cell');
+    const nueva = Array.from({length:5}, () => Array.from({length:5}, () => "" ));
+    inputs.forEach(inp => {
+      const r = parseInt(inp.getAttribute('data-r'), 10);
+      const c = parseInt(inp.getAttribute('data-c'), 10);
+      nueva[r][c] = inp.value.trim();
+    });
+    try {
+      await axios.post(`/docentes/${DOCENTE_ID}/carga_horaria`, { carga_horaria: nueva });
+      const m = bootstrap.Modal.getInstance(modal);
+      m.hide();
+      location.reload();
+    } catch (e) {
+      alert('No se pudo guardar la carga horaria.');
+    }
+  });
+})();
+
+// --- Modal Editar Docente ---
+(() => {
+  const modal = document.getElementById('modalEditarDocente');
+  if (!modal) return;
+
+  modal.addEventListener('show.bs.modal', (ev) => {
+    const btn = ev.relatedTarget;
+    if (!btn) return;
+
+    const id = btn.getAttribute('data-id');
+    const nombre = btn.getAttribute('data-nombre') || "";
+    const apellido = btn.getAttribute('data-apellido') || "";
+    const asigStr = (btn.getAttribute('data-asignatura') || "").trim();
+    const situacion = btn.getAttribute('data-situacion') || "";
+    const fecha = btn.getAttribute('data-fecha') || "";
+    const obs = btn.getAttribute('data-observaciones') || "";
+
+    const form = modal.querySelector('form');
+    form.action = `/docentes/${id}/editar`;
+
+    modal.querySelector('#edit-nombre').value = nombre;
+    modal.querySelector('#edit-apellido').value = apellido;
+
+    const actuales = asigStr ? asigStr.split(/\s*,\s*/) : [];
+    const selAsig = modal.querySelector('#edit-asignatura');
+    Array.from(selAsig.options).forEach(opt => {
+      opt.selected = actuales.includes(opt.value);
+    });
+
+    const selSit = modal.querySelector('#edit-situacion');
+    if (situacion) selSit.value = situacion;
+
+    modal.querySelector('#edit-fecha_ingreso').value = fecha || "";
+    modal.querySelector('#edit-observaciones').value = obs || "";
+  });
+})();
+</script>
+{% endblock %}

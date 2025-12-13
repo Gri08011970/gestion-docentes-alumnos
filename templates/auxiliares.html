@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Auxiliares</h2>
+<button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#modalNuevoAux">Agregar auxiliar</button>
+
+<table class="table">
+  <thead><tr><th>Nombre</th><th>Situación revista</th><th>Sectores</th><th>Turno / Horario</th><th>Acciones</th></tr></thead>
+  <tbody>
+    {% for a in auxiliares %}
+    <tr>
+      <td>{{ a.get('nombre','') }} {{ a.get('apellido','') }}</td>
+      <td>{{ a.get('situacion_revista','') }}</td>
+      <td>{{ a.get('Sectores','') }}</td>
+      <td>{{ a.get('turno','') }} / {{ a.get('horario','') }}</td>
+      <td>
+        <form style="display:inline" action="{{ url_for('eliminar_auxiliar', id=a['_id']) }}" method="post">
+          <button class="btn btn-sm btn-danger">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Modal auxiliar -->
+<div class="modal fade" id="modalNuevoAux" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="post" action="{{ url_for('nuevo_auxiliar') }}" class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Nuevo auxiliar</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <input name="nombre" class="form-control mb-2" placeholder="Nombre">
+        <input name="apellido" class="form-control mb-2" placeholder="Apellido">
+        <input name="turno" class="form-control mb-2" placeholder="Turno (Mañana/Tarde)">
+        <input name="horario" class="form-control mb-2" placeholder="Horario">
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button><button class="btn btn-primary">Guardar</button></div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anexo IV (Exacto)</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/anexos_exact.css') }}">
+<style>
+  .sheet { --bg-url: url('{{ url_for("static", filename="backgrounds/anexo_IV.png") }}'); }
+</style>
+</head>
+<body>
+<button class="no-print" onclick="print()">🖨️ Imprimir</button>
+<div class="sheet">
+
+  <!-- Establecimiento -->
+  <div class="abs" style="left:24mm; top:36mm; width:120mm;">{{ escuela.nombre }}</div>
+  <div class="abs" style="left:24mm; top:42mm; width:160mm;">{{ escuela.domicilio }} — Distrito: {{ escuela.distrito }} — Tel: {{ escuela.telefono or '—' }}</div>
+
+  <!-- Datos de salida -->
+  <div class="abs" style="left:24mm; top:54mm; width:160mm;">Lugar: {{ salida.lugar }}</div>
+  <div class="abs" style="left:24mm; top:60mm; width:160mm;">Fecha/Hora: {{ salida.fecha }} {{ salida.hora }} — Zona: {{ salida.zona or '—' }}</div>
+
+  <!-- Docente / Curso -->
+  <div class="abs" style="left:24mm; top:70mm; width:160mm;">
+    Docente responsable: {% if docente %}{{ docente.apellido }}, {{ docente.nombre }}{% else %}—{% endif %}
+    {% if curso %} — Curso: {{ curso }}{% endif %}
+  </div>
+
+  <!-- Nómina (área de tabla del modelo) -->
+  <div class="box" style="left:15mm; top:86mm; width:180mm; height:120mm;">
+    <!-- Si querés prellenar filas visibles en pantalla (no imprime cuadrícula porque viene del fondo): -->
+    {% for a in alumnos %}
+      <div class="abs" style="left:18mm; top:{{ 90 + loop.index * 6 }}mm; width:95mm;">{{ a.apellido }}, {{ a.nombre }}</div>
+      <div class="abs" style="left:116mm; top:{{ 90 + loop.index * 6 }}mm; width:26mm;">{{ a.dni or '' }}</div>
+      <div class="abs" style="left:146mm; top:{{ 90 + loop.index * 6 }}mm; width:18mm; text-align:center;">{{ a.edad_30jun if a.edad_30jun is not none else '' }}</div>
+      <div class="abs" style="left:166mm; top:{{ 90 + loop.index * 6 }}mm; width:26mm;" contenteditable="true"></div>
+    {% endfor %}
+  </div>
+
+  <!-- Firma -->
+  <div class="abs" style="left:24mm; top:260mm; width:160mm;">Firma y sello: _____________________________</div>
+
+</div>
+</body>
+</html>

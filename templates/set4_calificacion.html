@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Planilla S.E.T. 4{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print_anexos.css') }}">
+
+<div class="anexo hoja">
+  <h5 class="text-center fw-bold">PROVINCIA DE BUENOS AIRES — DIRECCIÓN GENERAL DE CULTURA Y EDUCACIÓN</h5>
+  <h5 class="text-center fw-bold">Planilla S.E.T. 4 — HOJA DE CALIFICACIÓN PERSONAL DOCENTE</h5>
+
+  <div class="grid-3 mt-2">
+    <div><label>1) Apellido y Nombre</label><span contenteditable="true">{{ docente.apellido }}, {{ docente.nombre }}</span></div>
+    <div><label>2) Cargo del que es titular</label><span contenteditable="true">{{ docente.situacion or "" }}</span></div>
+    <div><label>Escuela Nº / Distrito</label><span contenteditable="true"></span></div>
+  </div>
+
+  <div class="grid-3 mt-2">
+    <div><label>3) Cargo que desempeña actualmente</label><span contenteditable="true">{{ docente.asignatura or "" }}</span></div>
+    <div><label>4) Organismo / Dependencia</label><span contenteditable="true"></span></div>
+    <div><label>5) ¿Desde qué fecha?</label><span contenteditable="true"></span></div>
+  </div>
+
+  <div class="grid-2 mt-2">
+    <div><label>Período</label><span>{{ periodo.desde }} al {{ periodo.hasta }}</span></div>
+    <div><label>Fecha</label><span contenteditable="true"></span></div>
+  </div>
+
+  <hr>
+
+  <!-- Ítems 2.1, 2.2 y 2.3: dejados como cajas editables para asignar nota según instructivo -->
+  <div class="mt-2">
+    <strong>2.1 Condiciones personales</strong>
+    <div class="box" contenteditable="true"></div>
+  </div>
+  <div class="mt-2">
+    <strong>2.2 Condiciones profesionales</strong>
+    <div class="box" contenteditable="true"></div>
+  </div>
+  <div class="mt-2">
+    <strong>2.3 Resultados en (2.3.1 Conducción / 2.3.2 Funciones / 2.3.3 Gobierno escolar / 2.3.4 Administración)</strong>
+    <div class="box" contenteditable="true"></div>
+  </div>
+
+  <div class="mt-2">
+    <strong>PROMEDIO DE TRES NOTAS:</strong>
+    <span contenteditable="true">__________</span>
+  </div>
+
+  <hr>
+
+  <!-- Ítem 14: Asistencias / Inasistencias (autocompletado con totales y detalle) -->
+  <h6 class="mt-3">14) Asistencias / Inasistencias</h6>
+  <div class="grid-3">
+    <div><label>Por enfermedad personal</label> <span>{{ totales.enfermedad_personal }}</span></div>
+    <div><label>Por enfermedad familiar</label> <span>{{ totales.enfermedad_familiar }}</span></div>
+    <div><label>Por causas particulares</label> <span>{{ totales.particulares }}</span></div>
+  </div>
+  <div class="grid-3">
+    <div><label>Por otras causas</label> <span>{{ totales.otras }}</span></div>
+    <div><label>Injustificadas</label> <span>{{ totales.injustificadas }}</span></div>
+    <div><label>Suma</label> <span>{{ totales.suma }}</span></div>
+  </div>
+
+  <div class="mt-2">
+    <label>Detalle del período</label>
+    <table class="tabla">
+      <thead><tr><th>Fecha</th><th>Causa</th><th>Observaciones</th></tr></thead>
+      <tbody>
+        {% for fila in inasistencias %}
+        <tr><td>{{ fila.fecha }}</td><td>{{ fila.causa }}</td><td>{{ fila.observaciones }}</td></tr>
+        {% endfor %}
+        {% if inasistencias|length == 0 %}
+        <tr><td colspan="3" class="text-center text-muted">Sin registros en el período.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid-2 mt-4">
+    <div>
+      <strong>En cifras:</strong> <span contenteditable="true">____.__</span><br>
+      <strong>En letras:</strong> <span contenteditable="true">______________________________</span>
+    </div>
+    <div>
+      <strong>Notificación del docente</strong><br>
+      <span>En conformidad / En disconformidad</span><br>
+      <div style="height:60px;border:1px solid #bbb;border-radius:6px;margin-top:6px;" contenteditable="true"></div>
+    </div>
+  </div>
+
+  <div class="firmas mt-4">
+    <div>Firma — Aclaración — Sello</div>
+  </div>
+
+  <div class="footer-logo">
+    <img src="{{ url_for('static', filename='img/logoAnexos.png') }}" alt="Gobierno de la Provincia de Buenos Aires">
+  </div>
+
+  <div class="no-print mt-3">
+  <button onclick="window.print()" class="btn btn-primary me-2">Imprimir S.E.T. 4</button>
+  <a id="btnPdf" class="btn btn-outline-primary me-2" href="#">Descargar PDF</a>
+  <button id="btnMail" class="btn btn-outline-secondary">Enviar por correo</button>
+</div>
+
+<script>
+(function(){
+  const url = new URL(window.location.href);
+  // Enlace a PDF (render del mismo HTML con WeasyPrint)
+  const pathParts = window.location.pathname.split("/");
+  // convierte /docentes/<id>/set4 -> /docentes/<id>/set4.pdf
+  const pdfPath = window.location.pathname.replace(/\/set4$/, "/set4.pdf");
+  document.getElementById("btnPdf").href = pdfPath + "?" + url.searchParams.toString();
+
+  // Enviar por mail (adjunta PDF generado en backend)
+  document.getElementById("btnMail").addEventListener("click", async ()=>{
+    const res = await fetch("/api/set4_mail?" + url.searchParams.toString() + "&docente=" + pathParts[2], {method:"POST"});
+    const j = await res.json();
+    alert(j.ok ? "Correo enviado" : ("Error: " + (j.error || "desconocido")));
+  });
+})();
+</script>
+
+{% endblock %}

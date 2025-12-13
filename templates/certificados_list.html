@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Certificados sin entregar{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="m-0">Certificados sin entregar</h4>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevo">
+      Nuevo certificado
+    </button>
+  </div>
+
+  <!-- Buscador -->
+  <form class="row g-2 mb-3" method="get">
+    <div class="col-sm-4">
+      <label class="form-label mb-0">Buscar por apellido o DNI</label>
+      <input type="text" class="form-control" name="q"
+             value="{{ q or '' }}" placeholder="Ej. PÉREZ o 30123456">
+    </div>
+    <div class="col-auto align-self-end">
+      <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+    </div>
+    {% if q %}
+    <div class="col-auto align-self-end">
+      <a class="btn btn-link" href="{{ url_for('certificados_pendientes') }}">Quitar filtro</a>
+    </div>
+    {% endif %}
+  </form>
+
+  {% if certificados %}
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr>
+          <th>Apellido y nombre</th>
+          <th>DNI</th>
+          <th>Año de promoción</th>
+          <th>Observaciones</th>
+          <th class="text-nowrap">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in certificados %}
+        <tr>
+          <td>{{ c.apellido }}, {{ c.nombre }}</td>
+          <td>{{ c.dni }}</td>
+          <td>{{ c.anio_promocion or "" }}</td>
+          <td>{{ c.observaciones or "" }}</td>
+          <td class="text-nowrap">
+            <form method="post"
+                  action="{{ url_for('eliminar_certificado', id=c._id) }}"
+                  class="d-inline"
+                  onsubmit="return confirm('¿Eliminar este registro?');">
+              <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="alert alert-info">
+    No hay certificados cargados para los filtros aplicados.
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Modal: nuevo certificado -->
+<div class="modal fade" id="modalNuevo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="{{ url_for('certificados_pendientes') }}">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuevo certificado sin entregar</h5>
+        <button class="btn-close" data-bs-dismiss="modal" type="button"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">Apellido</label>
+          <input class="form-control" name="apellido" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Nombre</label>
+          <input class="form-control" name="nombre" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">DNI</label>
+          <input class="form-control" name="dni" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Año de promoción</label>
+          <input type="number" class="form-control" name="anio_promocion"
+                 min="1950" max="2100" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Observaciones (opcional)</label>
+          <textarea class="form-control" name="observaciones" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary" type="submit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

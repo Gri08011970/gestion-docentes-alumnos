@@ -1,0 +1,219 @@
+<!-- templates/salidas_list.html -->
+{% extends "base.html" %}
+{% block title %}Salidas Educativas{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h4 class="m-0">Salidas Educativas</h4>
+    <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNueva">Nueva</a>
+  </div>
+
+  <!-- Tarjetas de alertas (plazo + anexos) -->
+  <div class="card mb-3">
+    <div class="card-header bg-light"><strong>Alertas (plazo y anexos)</strong></div>
+    <div class="card-body">
+      <div id="alertas" class="row g-2"></div>
+    </div>
+  </div>
+
+  <!-- Tabla de salidas -->
+  <div class="table-responsive">
+    {% if salidas and salidas|length %}
+    <table class="table table-sm align-middle">
+      <thead class="table-light">
+        <tr>
+          <th class="text-nowrap">Fecha</th>
+          <th>Proyecto</th>
+          <th>Lugar</th>
+          <th>Plazo</th>
+          <th class="text-nowrap">Anexos / Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in salidas %}
+        <tr>
+          <td>{{ s.fecha_salida or "-" }}</td>
+          <td>{{ s.proyecto or "" }}</td>
+          <td>{{ s.lugar or "" }}</td>
+          <td>
+            {% set ep = s.estado_plazo or {} %}
+            <span class="badge
+              {% if ep.estado == 'VENCIDO' %} bg-danger
+              {% elif ep.estado == 'PROXIMO' %} bg-warning text-dark
+              {% elif ep.estado == 'OK' %} bg-success
+              {% else %} bg-secondary
+              {% endif %}">
+              {{ ep.estado or 'SIN_FECHA' }}
+            </span>
+            {% if ep.dias_restantes is not none %}
+              <small>({{ ep.dias_restantes }} días)</small>
+            {% endif %}
+          </td>
+          <td class="text-nowrap">
+            <a class="btn btn-outline-primary btn-sm" target="_blank" href="{{ url_for('salidas.anexo_iii', id=s._id) }}">III</a>
+            <a class="btn btn-outline-primary btn-sm" target="_blank" href="{{ url_for('salidas.anexo_iv', id=s._id) }}">IV</a>
+            <a class="btn btn-outline-primary btn-sm" target="_blank" href="{{ url_for('salidas.anexo_v', id=s._id) }}">V</a>
+            <a class="btn btn-outline-primary btn-sm" target="_blank" href="{{ url_for('salidas.anexo_vi', id=s._id) }}">VI</a>
+            <a class="btn btn-outline-primary btn-sm" target="_blank" href="{{ url_for('salidas.anexo_vii', id=s._id) }}">VII</a>
+            <a class="btn btn-outline-primary btn-sm" target="_blank" href="{{ url_for('salidas.anexo_viii', id=s._id) }}">VIII</a>
+            <a class="btn btn-outline-primary btn-sm" target="_blank" href="{{ url_for('salidas.anexo_ix', id=s._id) }}">IX</a>
+            <button class="btn btn-sm btn-success" onclick="elevar('{{ s._id }}')">Elevar</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-info mb-0">
+      No hay salidas cargadas aún. Cargá una nueva para ver la lista y los anexos.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal: Nueva salida -->
+<div class="modal fade" id="modalNueva" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <form class="modal-content" id="formNueva">
+      <div class="modal-header">
+        <h5 class="modal-title">Nueva salida</h5>
+        <button class="btn-close" data-bs-dismiss="modal" type="button"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label">Proyecto</label>
+            <input class="form-control" name="proyecto" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Institución</label>
+            <input class="form-control" name="institucion">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Lugar</label>
+            <input class="form-control" name="lugar" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Fecha salida</label>
+            <input type="date" class="form-control" name="fecha_salida" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Fecha regreso</label>
+            <input type="date" class="form-control" name="fecha_regreso">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Tipo destino</label>
+            <select class="form-select" name="tipo_destino" required>
+              <option value="">Seleccionar…</option>
+              <option>Barrio/Área inmediata</option>
+              <option>Dentro del distrito (regreso en el día)</option>
+              <option>Fuera del distrito (regreso en el día)</option>
+              <option>Con más de 24 horas de duración</option>
+              <option>Fuera de la provincia</option>
+              <option>Fuera del País</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Regreso en el día</label>
+            <select class="form-select" name="regreso_en_el_dia">
+              <option value="true">Sí</option>
+              <option value="false" selected>No</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Duración (hs)</label>
+            <input type="number" class="form-control" name="duracion_horas" min="0" step="1">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary" type="submit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(async function(){
+  // Tarjetas del tablero (trae JSON desde /salidas/api/alertas)
+  const cont = document.getElementById('alertas');
+  try {
+    const r = await fetch('{{ url_for("salidas.alertas_tablero") }}');
+    const data = await r.json();
+    cont.innerHTML = "";
+    data.forEach(s => {
+      const estado = (s.deadline || {}).estado || 'SIN_FECHA';
+      const dias = (s.deadline || {}).dias_restantes;
+      const falt = (s.anexos_faltantes || []).join(", ") || "—";
+
+      let badge = "secondary";
+      if (estado === "OK") badge = "success";
+      if (estado === "PROXIMO") badge = "warning";
+      if (estado === "VENCIDO") badge = "danger";
+
+      const card = document.createElement("div");
+      card.className = "col-12 col-md-6 col-xl-4";
+      card.innerHTML = `
+        <div class="border rounded p-2 h-100">
+          <div class="d-flex justify-content-between align-items-center">
+            <strong>${s.proyecto || "(Sin título)"}</strong>
+            <span class="badge text-bg-${badge}">${estado}${dias!=null ? " ("+dias+")": ""}</span>
+          </div>
+          <div class="small text-muted mt-1">${s.lugar || ""} — Sale: ${s.fecha_salida || "-"}</div>
+          <div class="small mt-2">Anexos faltantes: <strong>${falt}</strong></div>
+          <div class="mt-2">
+            <a class="btn btn-sm btn-outline-primary" target="_blank" href="/salidas/${s.id}/anexo/III">III</a>
+            <a class="btn btn-sm btn-outline-primary" target="_blank" href="/salidas/${s.id}/anexo/IV">IV</a>
+            <a class="btn btn-sm btn-outline-primary" target="_blank" href="/salidas/${s.id}/anexo/V">V</a>
+            <a class="btn btn-sm btn-outline-primary" target="_blank" href="/salidas/${s.id}/anexo/VI">VI</a>
+            <a class="btn btn-sm btn-outline-primary" target="_blank" href="/salidas/${s.id}/anexo/VII">VII</a>
+            <a class="btn btn-sm btn-outline-primary" target="_blank" href="/salidas/${s.id}/anexo/VIII">VIII</a>
+            <a class="btn btn-sm btn-outline-primary" target="_blank" href="/salidas/${s.id}/anexo/IX">IX</a>
+            <button class="btn btn-sm btn-success" onclick="elevar('${s.id}')">Elevar</button>
+          </div>
+        </div>`;
+      cont.appendChild(card);
+    });
+  } catch(e) {
+    // en silencio
+  }
+
+  // Crear nueva salida
+  const form = document.getElementById('formNueva');
+  if (form) {
+    form.addEventListener('submit', async (ev)=>{
+      ev.preventDefault();
+      const formData = new FormData(form);
+      const body = Object.fromEntries(formData.entries());
+      const res = await fetch('/salidas/api', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      });
+      const j = await res.json();
+      if (j.ok) {
+        location.reload();
+      } else {
+        alert('No se pudo crear: ' + (j.error || 'desconocido'));
+      }
+    });
+  }
+})();
+
+// Elevar (valida anexos en el backend)
+async function elevar(id){
+  if(!confirm("¿Confirmás elevar esta salida?")) return;
+  const r = await fetch(`/salidas/api/${id}/elevar`, {method:"POST"});
+  const j = await r.json();
+  if(!j.ok){
+    alert("No se pudo elevar. Faltan anexos: " + (j.faltantes || []).join(", "));
+    return;
+  }
+  alert("¡Salida elevada y correo enviado!");
+  location.reload();
+}
+</script>
+{% endblock %}

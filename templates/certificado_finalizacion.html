@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Certificado de Finalización de Estudios Primarios</title>
+
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 1.5cm;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      color: #000000;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 12pt; /* un poco más grande, como el modelo oficial */
+    }
+
+    .cert-container {
+      border: 2px solid #000; /* borde más grueso */
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 100%;
+      padding: 1.4cm 2cm 1.2cm 2cm;
+      position: relative;
+    }
+
+    /* Escudo arriba, centrado */
+    .header-escudo {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 0.1cm;
+    }
+
+    .header-escudo img {
+      height: 55px;
+    }
+
+    /* Encabezado institucional */
+    .header-line {
+      text-align: center;
+      margin: 0;
+      line-height: 1.2;
+      font-size: 11pt;
+    }
+
+    .bold {
+      font-weight: bold;
+    }
+
+    /* ANEXO ÚNICO arriba a la derecha */
+    .anexo-unico {
+      position: absolute;
+      top: 1.0cm;
+      right: 2cm;
+      font-size: 10pt;
+      font-weight: bold; /* pedido: en negrita */
+      text-align: right;
+    }
+
+    .contenido {
+      margin-top: 0.8cm;
+      font-size: 12pt;
+      line-height: 1.6;
+      text-align: justify;
+    }
+
+    .campo {
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .lugar-fecha {
+      margin-top: 0.7cm;
+      font-size: 11pt;
+      text-align: left;
+    }
+
+    .firma-block {
+      margin-top: 1.6cm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10pt;
+    }
+
+    .firma {
+      width: 30%;
+      text-align: center;
+    }
+
+    .firma-linea {
+      border-top: 1px solid #000;
+      margin-bottom: 0.15cm;
+      height: 0;
+    }
+
+    /* Leyenda: izquierda, pegada al bloque de firmas */
+    .pie-leyenda {
+      margin-top: 0.3cm;
+      text-align: left;
+      font-size: 9.5pt;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    @media print {
+      .no-print { display: none; }
+      body { background: #ffffff; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="no-print" style="margin:10px; text-align:right;">
+  <button onclick="window.print()">Imprimir</button>
+</div>
+
+<div class="cert-container">
+
+  <!-- ANEXO ÚNICO arriba derecha -->
+  <div class="anexo-unico">
+    ANEXO ÚNICO Nº
+    {% if alumno.dni %}
+      {{ alumno.dni }}/069
+    {% else %}
+      ........../069
+    {% endif %}
+  </div>
+
+  <!-- Escudo -->
+  <div class="header-escudo">
+    <img src="{{ url_for('static', filename='image/escudo_ar.png') }}" alt="Escudo Provincia de Buenos Aires">
+  </div>
+
+  <!-- Encabezado oficial respetando negritas (1,3,5) -->
+  <p class="header-line bold">
+    REPÚBLICA ARGENTINA
+  </p>
+  <p class="header-line">
+    LEY DE EDUCACIÓN NACIONAL N° 26.206
+  </p>
+  <p class="header-line bold">
+    DIRECCIÓN GENERAL DE CULTURA Y EDUCACIÓN DE LA PROVINCIA DE BUENOS AIRES
+  </p>
+  <p class="header-line">
+    LEY DE EDUCACIÓN PROVINCIAL N° 13.688
+  </p>
+  <p class="header-line bold">
+    DIRECCIÓN PROVINCIAL DE EDUCACIÓN
+  </p>
+
+  <!-- Texto central -->
+  <div class="contenido">
+    {% set ape = (alumno.apellido or "")|upper %}
+    {% set nom = (alumno.nombre or "")|upper %}
+    {% set dni = alumno.dni or "........" %}
+    {% set fn = alumno.fecha_nacimiento or "" %}
+    {% set nac_lugar = alumno.lugar_nacimiento or "........................................" %}
+
+    {% if fn|length == 10 %}
+      {% set anio_n = fn[0:4] %}
+      {% set mes_n = fn[5:7] %}
+      {% set dia_n = fn[8:10] %}
+    {% else %}
+      {% set anio_n = "...." %}
+      {% set mes_n = ".." %}
+      {% set dia_n = ".." %}
+    {% endif %}
+
+    <p>
+      La Dirección del establecimiento educativo
+      <span class="campo">PROVINCIAS ARGENTINAS Nº 91</span>,
+      C.U.E. Nº <span class="campo">060791200</span>,
+      ubicado en <span class="campo">EDISON 2164</span> de la ciudad de
+      <span class="campo">ISIDRO CASANOVA</span>, Provincia de Buenos Aires,
+      CERTIFICA QUE:
+    </p>
+
+    <p>
+      <span class="campo">{{ ape }}, {{ nom }}</span>,
+      nacido/a en
+      <span class="campo">{{ nac_lugar }}</span>,
+      el día
+      <span class="campo">{{ dia_n }}</span>
+      del mes de
+      <span class="campo">
+        {% if mes_n == "01" %}ENERO{% elif mes_n == "02" %}FEBRERO{% elif mes_n == "03" %}MARZO
+        {% elif mes_n == "04" %}ABRIL{% elif mes_n == "05" %}MAYO{% elif mes_n == "06" %}JUNIO
+        {% elif mes_n == "07" %}JULIO{% elif mes_n == "08" %}AGOSTO{% elif mes_n == "09" %}SEPTIEMBRE
+        {% elif mes_n == "10" %}OCTUBRE{% elif mes_n == "11" %}NOVIEMBRE{% elif mes_n == "12" %}DICIEMBRE
+        {% else %}..........{% endif %}
+      </span>
+      del año
+      <span class="campo">{{ anio_n }}</span>,
+      tipo de documento
+      <span class="campo">DNI Nº {{ dni }}</span>,
+      ha concluido los estudios de
+      <span class="campo">NIVEL PRIMARIO</span>.
+      Diseño Curricular aprobado por Resolución 2499/18 - Consejo Federal de Educación.
+    </p>
+
+    <p>
+      Fecha de egreso:
+      <span class="campo">
+        {% if fecha_fin %}
+          {% set df = "%02d"|format(fecha_fin.day) %}
+          {% set mf = "%02d"|format(fecha_fin.month) %}
+          {% if mf == "01" %}{{ df }} DE ENERO{% elif mf == "02" %}{{ df }} DE FEBRERO
+          {% elif mf == "03" %}{{ df }} DE MARZO{% elif mf == "04" %}{{ df }} DE ABRIL
+          {% elif mf == "05" %}{{ df }} DE MAYO{% elif mf == "06" %}{{ df }} DE JUNIO
+          {% elif mf == "07" %}{{ df }} DE JULIO{% elif mf == "08" %}{{ df }} DE AGOSTO
+          {% elif mf == "09" %}{{ df }} DE SEPTIEMBRE{% elif mf == "10" %}{{ df }} DE OCTUBRE
+          {% elif mf == "11" %}{{ df }} DE NOVIEMBRE{% elif mf == "12" %}{{ df }} DE DICIEMBRE{% endif %}
+          DE {{ fecha_fin.year }}
+        {% else %}
+          ... DE .......................... DE .....
+        {% endif %}
+      </span>
+    </p>
+  </div>
+
+  <!-- Lugar y fecha final -->
+  <div class="lugar-fecha">
+    Otorgado en <span class="campo">ISIDRO CASANOVA</span>,
+    del distrito <span class="campo">LA MATANZA</span>,
+    Región <span class="campo">III</span> de la Provincia de Buenos Aires,
+    República Argentina, a los
+    <span class="campo">
+      {% if fecha_fin %}
+        {{ "%02d"|format(fecha_fin.day) }}
+      {% else %}
+        ...
+      {% endif %}
+    </span>
+    días del mes de
+    <span class="campo">
+      {% if fecha_fin %}
+        {% set mf = "%02d"|format(fecha_fin.month) %}
+        {% if mf == "01" %}ENERO{% elif mf == "02" %}FEBRERO{% elif mf == "03" %}MARZO
+        {% elif mf == "04" %}ABRIL{% elif mf == "05" %}MAYO{% elif mf == "06" %}JUNIO
+        {% elif mf == "07" %}JULIO{% elif mf == "08" %}AGOSTO
+        {% elif mf == "09" %}SEPTIEMBRE{% elif mf == "10" %}OCTUBRE
+        {% elif mf == "11" %}NOVIEMBRE{% elif mf == "12" %}DICIEMBRE{% endif %}
+      {% else %}
+        ........................
+      {% endif %}
+    </span>
+    de
+    <span class="campo">
+      {% if fecha_fin %}
+        {{ fecha_fin.year }}
+      {% else %}
+        .....
+      {% endif %}
+    </span>.
+  </div>
+
+  <!-- Firmas -->
+  <div class="firma-block">
+    <div class="firma">
+      <div class="firma-linea"></div>
+      <div>Director/a del Establecimiento</div>
+    </div>
+    <div class="firma">
+      <div class="firma-linea"></div>
+      <div>Sello del Establecimiento</div>
+    </div>
+    <div class="firma">
+      <div class="firma-linea"></div>
+      <div>Inspector/a del Área</div>
+    </div>
+  </div>
+
+  <!-- Leyenda obligatoria -->
+  
+<div class="pie-leyenda" style="font-weight: normal;">
+  LA ESCUELA SECUNDARIA ES OBLIGATORIA (LEY 13.688)
+</div>
+
+
+</div>
+
+</body>
+</html>

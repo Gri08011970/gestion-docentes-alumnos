@@ -1,0 +1,75 @@
+<!-- templates/anexo_7.html (Anexo VII – Autorización para mayores de 18 años) -->
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Anexo VII</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{ font-family: Arial, sans-serif; font-size:13px; margin:16px; }
+  .no-print{ margin-bottom:12px;}
+  h2{ font-size:18px; margin:0 0 8px; }
+  .muted{ color:#666; font-size:11px;}
+  .blk{ border:1px solid #222; padding:10px; border-radius:6px; margin-bottom:10px;}
+  .foot{ display:flex; justify-content: space-between; align-items:center; margin-top:14px; }
+  .foot img{ height:36px; }
+  [contenteditable="true"]{ outline:1px dashed #bbb; padding:2px; border-radius:4px; }
+  .page-break{ page-break-after: always; }
+  table{ width:100%; border-collapse: collapse; }
+  th, td{ border:1px solid #333; padding:6px; font-size:12px; }
+  @media print{ .no-print{display:none} body{margin:8mm} }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <button onclick="window.print()">🖨️ Imprimir</button>
+</div>
+
+<div class="muted">DGCyE – Provincia de Buenos Aires</div>
+<h2>Anexo VII – Autorización de participación (mayores de 18 años)</h2>
+
+<div class="blk">
+  <table>
+    <tr>
+      <th style="width:35%">Establecimiento</th>
+      <td><span contenteditable="true">{{ escuela.nombre }}</span></td>
+    </tr>
+    <tr>
+      <th>Destino / Fecha y hora</th>
+      <td>
+        Lugar: <span contenteditable="true">{{ salida.lugar }}</span><br>
+        Fecha/Hora: <span contenteditable="true">{{ salida.fecha }} {{ salida.hora }}</span>
+      </td>
+    </tr>
+    <tr>
+      <th>Docente responsable</th>
+      <td>
+        {% if docente %}{{ docente.apellido }}, {{ docente.nombre }}{% else %}<span contenteditable="true">[Apellido, Nombre]</span>{% endif %}
+        {% if curso %}<div class="muted">Curso/Grupo: {{ curso }}</div>{% endif %}
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div class="blk">
+  <strong>Participante mayor de edad</strong>
+  <table>
+    <tr><th>Apellido y Nombre</th><td contenteditable="true">______________________________</td></tr>
+    <tr><th>DNI</th><td contenteditable="true">________________</td></tr>
+    <tr><th>Domicilio</th><td contenteditable="true">________________________________________________________</td></tr>
+    <tr><th>Teléfono</th><td contenteditable="true">________________</td></tr>
+  </table>
+</div>
+
+<div class="blk">
+  <p>Declaro que, siendo mayor de 18 años, autorizo y asumo la participación en la actividad detallada, habiendo sido informado/a de objetivos, itinerario, acompañantes y coberturas.</p>
+  <div><strong>Firma del/la participante:</strong> ____________________________</div>
+</div>
+
+<div class="foot">
+  <div class="muted">Fecha: {{ hoy }}</div>
+  <img src="{{ url_for('static', filename='image/logoAnexos.png') }}" alt="Logo PBA">
+</div>
+</body>
+</html>
+

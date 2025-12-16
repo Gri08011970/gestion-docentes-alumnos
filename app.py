@@ -10,7 +10,7 @@ from datetime import datetime, date, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 
 from io import BytesIO
-#from weasyprint import HTML
+#from weasyprint import HTML 
 
 from collections import defaultdict
 
@@ -2143,8 +2143,8 @@ def certificado_finalizacion(id):
     if not a:
         abort(404)
 
-    # Fecha de finalización configurable (.env), ej: CERT_FECHA_FIN=2024-12-13
-    fecha_fin_str = os.getenv("CERT_FECHA_FIN", "2024-12-13")
+    # Fecha de finalización configurable (.env), ej: CERT_FECHA_FIN=2025-12-22
+    fecha_fin_str = os.getenv("CERT_FECHA_FIN", "2025-12-22")
     fecha_fin = datetime.strptime(fecha_fin_str, "%Y-%m-%d").date()
 
     alumno = to_json(a)

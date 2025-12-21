@@ -1,53 +1,94 @@
 {% extends "base.html" %}
-{% block title %}Movimientos de alumnos · Gestión Escolar{% endblock %}
-
 {% block content %}
-<div class="card border-0 shadow-sm">
-  <div class="card-body">
-    <h4 class="mb-3">Movimientos de alumnos</h4>
 
-    <p class="text-muted small mb-3">
-      Altas, cambios de escuela y bajas registradas en el ciclo lectivo.
-    </p>
+<h2>Movimientos de Alumnos</h2>
 
-    <div class="table-responsive">
-      <table class="table table-sm align-middle">
-        <thead class="table-light">
-          <tr>
-            <th>Curso</th>
-            <th>Nombre y apellido</th>
-            <th>DNI</th>
-            <th>Escuela de procedencia</th>
-            <th>Escuela destino</th>
-            <th>Fecha</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for m in movimientos %}
-          <tr>
-            <td>{{ m.curso }}</td>
-            <td>{{ m.apellido }}, {{ m.nombre }}</td>
-            <td>{{ m.dni }}</td>
-            <td>{{ m.escuela_origen }}</td>
-            <td>{{ m.escuela_destino }}</td>
-            <td>
-              {% if m.fecha %}
-                {{ m.fecha.strftime('%d/%m/%Y') }}
-              {% endif %}
-            </td>
+<h3>Entradas (ALTA)</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr>
+    <th>Fecha</th><th>Alumno</th><th>DNI</th><th>Curso</th><th>Escuela Origen</th>
+  </tr>
+  {% for m in entradas %}
+  <tr>
+    <td>{{ m.fecha }}</td>
+    <td>{{ m.apellido }}, {{ m.nombre }}</td>
+    <td>{{ m.dni }}</td>
+    <td>{{ m.curso }}</td>
+    <td>{{ m.escuela_origen }}</td>
+  </tr>
+  {% endfor %}
+</table>
 
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="6" class="text-center text-muted">
-              No se registran movimientos.
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+<br>
+
+<h3>Cambios de turno</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr>
+    <th>Fecha</th><th>Alumno</th><th>DNI</th><th>Curso origen</th><th>Curso destino</th>
+  </tr>
+  {% for m in cambios_turno %}
+  <tr>
+    <td>{{ m.fecha }}</td>
+    <td>{{ m.apellido }}, {{ m.nombre }}</td>
+    <td>{{ m.dni }}</td>
+    <td>{{ m.curso_origen }}</td>
+    <td>{{ m.curso_destino }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<br>
+
+<h3>Salidas por pase</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr>
+    <th>Fecha</th><th>Alumno</th><th>DNI</th><th>Curso</th><th>Destino</th>
+  </tr>
+  {% for m in pases %}
+  <tr>
+    <td>{{ m.fecha }}</td>
+    <td>{{ m.apellido }}, {{ m.nombre }}</td>
+    <td>{{ m.dni }}</td>
+    <td>{{ m.curso }}</td>
+    <td>{{ m.escuela_destino }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<br>
+
+<h3>Egresos</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr>
+    <th>Fecha</th><th>Alumno</th><th>DNI</th><th>Curso</th><th>Observación</th>
+  </tr>
+  {% for m in egresos %}
+  <tr>
+    <td>{{ m.fecha }}</td>
+    <td>{{ m.apellido }}, {{ m.nombre }}</td>
+    <td>{{ m.dni }}</td>
+    <td>{{ m.curso }}</td>
+    <td>{{ m.motivo }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<br>
+
+<h3>Otras bajas</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <tr>
+    <th>Fecha</th><th>Alumno</th><th>DNI</th><th>Curso</th><th>Motivo</th>
+  </tr>
+  {% for m in otras_bajas %}
+  <tr>
+    <td>{{ m.fecha }}</td>
+    <td>{{ m.apellido }}, {{ m.nombre }}</td>
+    <td>{{ m.dni }}</td>
+    <td>{{ m.curso }}</td>
+    <td>{{ m.motivo }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
 {% endblock %}
-

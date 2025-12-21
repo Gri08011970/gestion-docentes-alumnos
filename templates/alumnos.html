@@ -15,9 +15,15 @@
       <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoAlumno">
         + Nuevo Estudiante
       </button>
+
+       <a class="btn btn-sm btn-outline-secondary"
+           href="{{ url_for('listar_alumnos', q=q, curso=curso_sel, turno=turno_sel, historico=('0' if ver_historico else '1')) }}">
+          {% if ver_historico %}Ocultar histórico{% else %}Ver histórico{% endif %}
+       </a>
+
     </div>
   </div> 
-
+     
   <!-- Filtros -->
   <form method="get" class="row g-2 mb-3 align-items-end">
     <div class="col-md-3">
@@ -59,7 +65,7 @@
     </div>
   </form>
 
-  {% if alumnos %}
+  {% if alumnos %} 
   <!-- WRAPPER CON DOBLE SCROLL (ARRIBA Y ABAJO) -->
   <div class="table-scroll-wrapper mt-3">
 
@@ -68,6 +74,14 @@
       <div class="table-scroll-inner"></div>
     </div>
 
+  {% if ver_historico %}
+    <div style="margin:8px 0; padding:8px; background:#f3f3f3; border:1px solid #ddd;">
+      Mostrando histórico del curso (incluye alumnos dados de baja / pase / egreso).
+    </div>
+  {% endif %}
+
+  <!-- Contenedor principal de la tabla -->
+  <div class="table-responsive table-main-scroll">
     <!-- Contenedor principal de la tabla -->
     <div class="table-responsive table-main-scroll">
       <table class="table table-sm table-striped align-middle tabla-alumnos">
@@ -102,7 +116,9 @@
         </thead>
         <tbody>
         {% for a in alumnos %}
-          <tr>
+          <tr class="{% if a.historico_en_curso %}fila-historica{% endif %}">
+
+          
             <td class="col-curso">{{ a.curso or "" }}</td>
             <td class="col-apellido">{{ a.apellido or "" }}</td>
             <td class="col-nombre">{{ a.nombre or "" }}</td>
@@ -713,6 +729,7 @@ function setupMovimiento(motivoId, cursoDestinoId, destinoId, fechaId) {
   // Editar alumno
   
   setupMovimiento("edit-motivo_salida", "edit-curso_destino", "edit-destino_salida", "edit-fecha_salida");
+
 
   /* ================== MODAL EDITAR ALUMNO ================== */
 

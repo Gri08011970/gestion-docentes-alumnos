@@ -597,3 +597,7 @@ body {
     }
 }
 
+.fila-historica {
+    opacity: 0.55;
+    background-color: #f2f2f2;
+  }

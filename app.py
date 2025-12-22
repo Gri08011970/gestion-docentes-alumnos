@@ -489,10 +489,10 @@ def _limites_restantes(docente_id_raw, referencia_fecha=None):
         fecha_s = ins.get("fecha")
         d = _parse_date(fecha_s)
 
-        if _is_preexamen(causa_norm):
+        if _is_preexamen(causa_norm): 
             cont["preexamen"] += 1
 
-        if bucket in cont:
+        if bucket in cont: 
             cont[bucket] += 1
         else:
             cont["otras"] += 1
@@ -527,24 +527,22 @@ def listar_docentes():
         docentes.append(dj)
     return render_template("docentes.html", docentes=docentes)
 
-
 @app.route("/docentes/nuevo", methods=["POST"])
 def nuevo_docente():
     data = request.form.to_dict()
 
-    # CARGO: puede venir con varias opciones (select multiple)
-    cargos = request.form.getlist("cargo")
+    # Cargos múltiples (select multiple)
+    cargos = sorted(set(c.strip() for c in request.form.getlist("cargo") if c.strip()))
     if cargos:
-        data["cargo"] = ", ".join(c for c in cargos if c)
+        data["cargo"] = ", ".join(cargos)
     else:
-        data.setdefault("cargo", "")
+        data["cargo"] = ""
 
     data.setdefault("situacion", "")
     data["carga_horaria"] = matriz_5x5_vacia()
 
     COL_DOCENTES.insert_one(data)
     return redirect(url_for("listar_docentes"))
-
 
 @app.route("/docentes/<id>/editar", methods=["POST"])
 def editar_docente(id):
@@ -610,11 +608,15 @@ def _fetch_set4_context(docente_id, desde, hasta):
 
     totales = {
     "enfermedad_personal": 0,
-    "enfermedad_familiar": 0,
+    "enfermedad_familiar": 0, 
     "particulares": 0,
     "citacion": 0,
     "injustificadas": 0,
-    "otras": 0,
+    "pre_examen": 0,
+    "duelo": 0,
+    "examen": 0,
+    "paro": 0,
+    "otras": 0, 
     "suma": 0 
 }
 
@@ -623,18 +625,29 @@ def _fetch_set4_context(docente_id, desde, hasta):
     for ins in COL_INASISTENCIAS.find(q).sort("fecha", 1): 
         causa_raw = ins.get("causa", "") or ""
         c2 = _normalizar_texto(causa_raw)
-
         if "enfermedad personal" in c2:
-            totales["enfermedad_personal"] += 1
+             totales["enfermedad_personal"] += 1
 
         elif "enfermedad familiar" in c2:
-            totales["enfermedad_familiar"] += 1
+             totales["enfermedad_familiar"] += 1
 
         elif "particular" in c2:
-            totales["particulares"] += 1
+             totales["particulares"] += 1
+
+        elif "pre" in c2 and "examen" in c2:
+              totales["pre_examen"] += 1
+
+        elif "duelo" in c2:
+             totales["duelo"] += 1
+
+        elif "examen" in c2:
+             totales["examen"] += 1
+
+        elif "paro" in c2:
+             totales["paro"] += 1
 
         elif "citacion" in c2 and "otro" in c2 and "establecimiento" in c2:
-            totales["citacion"] += 1
+             totales["citacion"] += 1
 
         elif "injustificada" in c2:
             totales["injustificadas"] += 1
@@ -642,13 +655,15 @@ def _fetch_set4_context(docente_id, desde, hasta):
         else:
             totales["otras"] += 1
 
+
         lista.append({
             "fecha": ins.get("fecha", ""),
             "causa": causa_raw,
             "observaciones": ins.get("observaciones", "")
         })
 
-    totales["suma"] = sum(totales.values())
+    totales["suma"] = sum(v for k, v in totales.items() if k != "suma")
+
     periodo = {"desde": desde or "", "hasta": hasta or ""}
     return d, periodo, (totales, lista)
 
@@ -761,6 +776,10 @@ def docente_inasistencias_anuales(id):
             "particulares": 0,
             "citacion": 0,
             "injustificadas": 0,
+            "duelo": 0,
+            "examen": 0,
+            "paro": 0,
+            "pre_examen": 0,
             "otras": 0,
             "suma": 0,
         }
@@ -939,6 +958,21 @@ def listar_alumnos():
             # Cambio de turno desde ese curso
             if a.get("curso_origen") == curso_sel:
                 a["historico_en_curso"] = True
+        mot = (a.get("motivo_salida") or "").strip().upper()
+        dest = (a.get("destino_salida") or "").strip()
+        curso_dest = (a.get("curso_destino") or "").strip()
+
+        sale_a = ""
+        if mot == "CAMBIO DE TURNO":
+           sale_a = f"CAMBIO TURNO → {curso_dest}" if curso_dest else "CAMBIO DE TURNO"
+        elif mot == "EGRESO":
+           sale_a = "EGRESO (Finalización Primaria)"
+        elif mot == "PASE A OTRA ESCUELA":
+           sale_a = f"PASE → {dest}" if dest else "PASE A OTRA ESCUELA"
+        elif mot:
+           sale_a = f"{mot} → {dest}" if dest else mot
+
+        a["sale_a_str"] = sale_a
 
     # ----------------- ORDEN -----------------
     alumnos.sort(key=_orden_alumno)
@@ -2556,6 +2590,7 @@ def api_inasistencias():
     suplente_info = {k: v for k, v in suplente_info.items() if v}
 
     # ----- Topes y causas particulares por mes -----
+
     limites = _limites_restantes(docente_id, referencia_fecha=desde)
     causa_norm = _norm(causa)
     bucket = _causa_bucket(causa_norm)
@@ -2693,11 +2728,11 @@ def editar_inasistencia(id):
 
 
 # ----------------- HISTORIAL INASISTENCIAS (vista + APIs) -----------------
+
 @app.route("/historial/inasistencias")
 def historial_inasistencias():
     docentes = [to_json(d) for d in COL_DOCENTES.find().sort([("apellido",1),("nombre",1)])]
     return render_template("historial_inasistencias.html", docentes=docentes)
-
 @app.get("/api/historial_resumen")
 def api_historial_resumen():
     """
@@ -2733,6 +2768,7 @@ def api_historial_resumen():
 
     registros = []
     causa_norm_filtro = _normalizar_texto(causa_filtro)
+
     for ins in cursor:
         causa_raw = ins.get("causa", "") or ""
         c_norm = _normalizar_texto(causa_raw)
@@ -2747,21 +2783,41 @@ def api_historial_resumen():
     total = len(registros)
 
     # --- Contadores por tipo (para el cuadrito de la izquierda) ---
+    # OJO: uso .get() para que no explote si LIMITES_ANUALES tiene otras claves
     topes = {
-        "pre-examen": LIMITES_ANUALES["preexamen"],
-        "enfermedad personal": LIMITES_ANUALES["enfermedad_personal"],
-        "enfermedad familiar": LIMITES_ANUALES["enfermedad_familiar"],
-        "causas particulares": LIMITES_ANUALES["particulares"],
+        "pre-examen": (LIMITES_ANUALES.get("pre-examen")
+                       or LIMITES_ANUALES.get("preexamen")
+                       or LIMITES_ANUALES.get("pre_examen")),
+        "enfermedad personal": (LIMITES_ANUALES.get("enfermedad personal")
+                                or LIMITES_ANUALES.get("enfermedad_personal")),
+        "enfermedad familiar": (LIMITES_ANUALES.get("enfermedad familiar")
+                                or LIMITES_ANUALES.get("enfermedad_familiar")),
+        "causas particulares": (LIMITES_ANUALES.get("causas particulares")
+                                or LIMITES_ANUALES.get("particulares")),
+        "duelo": "",
+        "examen": "",
+        "paro": "",
+        "otras": "",
     }
 
+    # ✅ inicialización (lo que vos decías que “no tenías”)
     por_causa = {k: 0 for k in topes.keys()}
 
+    # ✅ normalización + conteo
     for ins in registros:
         causa_raw = ins.get("causa", "") or ""
         c_norm = _normalizar_texto(causa_raw)
 
+        # IMPORTANTE: pre-examen ANTES que examen
         if "pre" in c_norm and "examen" in c_norm:
             key = "pre-examen"
+        elif "duelo" in c_norm:
+            key = "duelo"
+        elif "paro" in c_norm:
+            key = "paro"
+        # examen (pero no pre-examen)
+        elif "examen" in c_norm:
+            key = "examen"
         elif "enfermedad personal" in c_norm:
             key = "enfermedad personal"
         elif "enfermedad familiar" in c_norm:
@@ -2769,10 +2825,9 @@ def api_historial_resumen():
         elif "particular" in c_norm:
             key = "causas particulares"
         else:
-            key = None
+            key = "otras"
 
-        if key and key in por_causa:
-            por_causa[key] += 1 
+        por_causa[key] += 1
 
     return jsonify({
         "total": total,

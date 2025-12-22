@@ -195,10 +195,10 @@ Inasistencias {{ docente.get('apellido','') }}, {{ docente.get('nombre','') }} â
               {% for celda in fila %}
                 {% if celda %}
                   {% if celda.color %}
-                    <td class="dia-con-falta"
-                        style="background-color: {{ celda.color }};">
+                    <td class="dia-con-falta" data-color="{{ celda.color }}">
                       {{ celda.dia }}
                     </td>
+
                   {% else %}
                     <td>{{ celda.dia }}</td>
                   {% endif %}
@@ -279,4 +279,13 @@ Inasistencias {{ docente.get('apellido','') }}, {{ docente.get('nombre','') }} â
     </div>
   </div>
 </div>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("td.dia-con-falta[data-color]").forEach(td => {
+      const c = td.dataset.color;
+      if (c) td.style.backgroundColor = c;
+    });
+  });
+</script>
+
 {% endblock %}

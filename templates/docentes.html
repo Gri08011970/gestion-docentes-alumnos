@@ -22,7 +22,14 @@
     {% for d in docentes %}
     <tr>
       <td><strong>{{ d.get('apellido','') }}, {{ d.get('nombre','') }}</strong></td>
-      <td>{{ d.get('asignatura','') }}</td>
+      <td>
+        {%  set cargos = (d.get('asignatura','') or '').split(',') %}
+        {% for c in cargos %}
+           <div>{{ c.strip() }}</div>
+        {% endfor %}
+    </td>
+
+      
       <td>{{ d.get('situacion','') }}</td>
       <td>{{ d.get('observaciones','') }}</td>
       <td class="text-center">
@@ -37,7 +44,7 @@
       </td>
       <td>
         <div class="d-flex gap-2">
-          <!-- Botón Editar (abre modal) -->
+          <!-- Botón Editar (abre modal) --> 
           <button type="button"
                   class="btn btn-sm btn-primary btn-edit-docente"
                   data-bs-toggle="modal"
@@ -45,7 +52,7 @@
                   data-id="{{ d['_id'] }}"
                   data-nombre="{{ d.get('nombre','') }}"
                   data-apellido="{{ d.get('apellido','') }}"
-                  data-asignatura="{{ d.get('asignatura','') }}"
+                  data-cargo="{{ d.get('cargo','') }}"
                   data-situacion="{{ d.get('situacion','') }}"
                   data-fecha="{{ d.get('fecha_ingreso','') }}"
                   data-observaciones="{{ d.get('observaciones','') }}">
@@ -89,19 +96,30 @@
           <input name="apellido" class="form-control" placeholder="Apellido" required>
         </div>
 
-        <div class="mb-2">
-          <label class="form-label">Cargo</label>
-          <select name="asignatura" id="nuevo-asignatura"
-                  class="form-select" multiple size="8">
-            <option value="PROFESOR">PROFESOR</option>
-            <option value="MAESTRA DE GRADO">MG</option>
-            <option value="MAESTRA 5° HORA">MG 5</option>
-            
-          </select>
-          <small class="text-muted">
-            Podés seleccionar una o varias (Ctrl+clic).
-          </small>
-        </div>
+       <div class="mb-2">
+  <label class="form-label">Cargo</label>
+  <select name="cargo" id="nuevo-cargo" class="form-select" multiple size="10">
+    <option value="PROFESOR">PROFESOR</option>
+    <option value="MG">MG (Maestra de grado)</option>
+    <option value="MG 5">MG 5 (MAESTRA 5° HORA)</option>
+
+    <option value="DIRECTORA">Directora</option>
+    <option value="VICE-DIRECTORA">Vice-directora</option>
+    <option value="SECRETARIA">Secretaria</option>
+    <option value="MAESTRA BIBLIOTECARIA">Maestra bibliotecaria</option>
+
+    <option value="OS">OS</option>
+    <option value="OA">OA</option>
+    <option value="OE">OE</option>
+
+    <option value="CAMBIO DE FUNCIONES">Cambio de funciones</option>
+  </select>
+
+  <small class="text-muted">
+    Podés seleccionar una o varias (Ctrl+clic).
+  </small>
+</div>
+ 
 
         <div class="mb-2">
           <label class="form-label">Situación de Revista</label>
@@ -151,20 +169,34 @@
           <label class="form-label">Apellido</label>
           <input id="edit-apellido" name="apellido" class="form-control" required>
         </div>
-
         <div class="mb-2">
-          <label class="form-label">Cargo</label>
-          <select id="edit-asignatura" name="asignatura"
-                  class="form-select" multiple size="8">
-            <option value="PROFESOR">PROFESOR</option>
-            <option value="MAESTRA DE GRADO">MG</option>
-            <option value="MAESTRA 5° HORA">MG 5</option>
-            
-          </select>
-          <small class="text-muted">
-            Podés seleccionar una o varias (Ctrl+clic).
-          </small>
-        </div>
+  <label class="form-label">Cargo</label>
+
+  <!-- IMPORTANTE: name="cargo" -->
+  <select id="edit-cargo" name="cargo" class="form-select" multiple size="10">
+    <option value="PROFESOR">PROFESOR</option>
+
+    <!-- Como vos querés que sean distintos -->
+    <option value="MG">MG (Maestra de grado)</option>
+    <option value="MG 5">MG 5 (Maestra de 5° hora)</option>
+
+    <option value="DIRECTORA">Directora</option>
+    <option value="VICE-DIRECTORA">Vice-directora</option>
+    <option value="SECRETARIA">Secretaria</option>
+    <option value="MAESTRA BIBLIOTECARIA">Maestra bibliotecaria</option>
+
+    <option value="OS">OS</option>
+    <option value="OA">OA</option>
+    <option value="OE">OE</option>
+
+    <option value="CAMBIO DE FUNCIONES">Cambio de funciones</option>
+  </select>
+
+  <small class="text-muted">
+    Podés seleccionar una o varias (Ctrl+clic).
+  </small>
+</div>
+
 
         <div class="mb-2">
           <label class="form-label">Situación de Revista</label>
@@ -276,7 +308,7 @@
     }
   });
 
-  document.getElementById('btnGuardarCH').addEventListener('click', async () => {
+  document.getElementById('btnGuardarCH')?.addEventListener('click', async () => {
     const inputs = modal.querySelectorAll('.ch-cell');
     const nueva = Array.from({length:5}, () => Array.from({length:5}, () => "" ));
     inputs.forEach(inp => {
@@ -284,10 +316,10 @@
       const c = parseInt(inp.getAttribute('data-c'), 10);
       nueva[r][c] = inp.value.trim();
     });
+
     try {
       await axios.post(`/docentes/${DOCENTE_ID}/carga_horaria`, { carga_horaria: nueva });
-      const m = bootstrap.Modal.getInstance(modal);
-      m.hide();
+      bootstrap.Modal.getInstance(modal)?.hide();
       location.reload();
     } catch (e) {
       alert('No se pudo guardar la carga horaria.');
@@ -295,10 +327,23 @@
   });
 })();
 
-// --- Modal Editar Docente ---
+
+// --- Modal Editar Docente (con cargo multiselect) ---
 (() => {
   const modal = document.getElementById('modalEditarDocente');
   if (!modal) return;
+
+  function setMultiSelectValues(selectEl, csvString) {
+    const values = (csvString || "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const set = new Set(values);
+    for (const opt of selectEl.options) {
+      opt.selected = set.has(opt.value);
+    }
+  }
 
   modal.addEventListener('show.bs.modal', (ev) => {
     const btn = ev.relatedTarget;
@@ -307,7 +352,7 @@
     const id = btn.getAttribute('data-id');
     const nombre = btn.getAttribute('data-nombre') || "";
     const apellido = btn.getAttribute('data-apellido') || "";
-    const asigStr = (btn.getAttribute('data-asignatura') || "").trim();
+    const cargoCsv = (btn.getAttribute('data-cargo') || "").trim();
     const situacion = btn.getAttribute('data-situacion') || "";
     const fecha = btn.getAttribute('data-fecha') || "";
     const obs = btn.getAttribute('data-observaciones') || "";
@@ -318,18 +363,19 @@
     modal.querySelector('#edit-nombre').value = nombre;
     modal.querySelector('#edit-apellido').value = apellido;
 
-    const actuales = asigStr ? asigStr.split(/\s*,\s*/) : [];
-    const selAsig = modal.querySelector('#edit-asignatura');
-    Array.from(selAsig.options).forEach(opt => {
-      opt.selected = actuales.includes(opt.value);
-    });
+    const selCargo = modal.querySelector('#edit-cargo');
+    setMultiSelectValues(selCargo, cargoCsv);
 
     const selSit = modal.querySelector('#edit-situacion');
-    if (situacion) selSit.value = situacion;
+    if (selSit && situacion) selSit.value = situacion;
 
-    modal.querySelector('#edit-fecha_ingreso').value = fecha || "";
-    modal.querySelector('#edit-observaciones').value = obs || "";
+    const inpFecha = modal.querySelector('#edit-fecha_ingreso');
+    if (inpFecha) inpFecha.value = fecha || "";
+
+    const inpObs = modal.querySelector('#edit-observaciones');
+    if (inpObs) inpObs.value = obs || "";
   });
 })();
 </script>
+
 {% endblock %}

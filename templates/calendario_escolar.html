@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Calendario escolar — Feriados y Suspensiones</h2>
+
+<form class="row g-3 mb-4" method="get">
+  <div class="col-auto">
+    <label class="form-label">Año</label>
+    <input type="number" class="form-control" name="anio" value="{{ anio }}">
+  </div>
+  <div class="col-auto align-self-end">
+    <button class="btn btn-primary" type="submit">Ver</button>
+  </div>
+</form>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header"><strong>Agregar / actualizar fecha</strong></div>
+  <div class="card-body">
+    <form class="row g-2" method="post">
+      <div class="col-md-3">
+        <label class="form-label">Fecha</label>
+        <input type="date" name="fecha" class="form-control" required>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Tipo</label>
+        <select name="tipo" class="form-select" required>
+          <option value="FERIADO">FERIADO</option>
+          <option value="SUSPENSION">SUSPENSIÓN</option>
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Motivo</label>
+        <input type="text" name="motivo" class="form-control" placeholder="Ej: FALTA DE AGUA">
+      </div>
+
+      <div class="col-12">
+        <button class="btn btn-success" type="submit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header"><strong>Fechas cargadas ({{ anio }})</strong></div>
+  <div class="card-body">
+    {% if items|length == 0 %}
+      <p class="text-muted mb-0">No hay feriados/suspensiones cargados para este año.</p>
+    {% else %}
+      <table class="table table-sm table-bordered align-middle">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Motivo</th>
+            <th style="width:120px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for x in items %}
+          <tr>
+            <td>{{ x.fecha }}</td>
+            <td>{{ x.tipo }}</td>
+            <td>{{ x.motivo }}</td>
+            <td class="text-center">
+              <form method="post" action="/calendario_escolar/{{ x._id }}/eliminar" onsubmit="return confirm('¿Eliminar esta fecha?')">
+                <button class="btn btn-sm btn-danger">Eliminar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

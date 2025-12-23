@@ -75,6 +75,7 @@ COL_CFG_ASIGNATURAS = mongo.db.config_asignaturas
 COL_CURSOS          = mongo.db.cursos  # Agregado para evitar error de definición
 COL_CONFIG          = mongo.db.config   # Colección para configuraciones generales (ej. _id: "config_general")COL_CERTIFICADOS    = mongo.db["certificados_pendientes"]
 COL_CERTIFICADOS    = mongo.db.certificados_pendientes
+COL_CALENDARIO_ESCOLAR = mongo.db.calendario_escolar
 
 # ----------------- Authentication Placeholder -----------------
 
@@ -514,7 +515,159 @@ def _limites_restantes(docente_id_raw, referencia_fecha=None):
         "restantes": restantes,
         "particulares_mes_lleno": particulares_mes_lleno
     }
+def _split_cargos(docente):
+    cargo_raw = (docente.get("cargo") or "").strip()
+    return [c.strip().upper() for c in cargo_raw.split(",") if c.strip()]
 
+def docente_concurre_todos_los_dias(docente):
+    """
+    True si concurre L-V.
+    Regla: SOLO si el cargo es PROFESOR como único cargo => variable.
+    PROFESOR + otro cargo => se considera que concurre todos los días.
+    """
+    cargos = _split_cargos(docente)
+    return cargos != ["PROFESOR"]
+
+def dias_semana_con_horas_docente(docente):
+    """
+    Devuelve set() de weekdays (0-4) donde tiene al menos una hora en la matriz 5x5.
+    0=Lun ... 4=Vie
+    """
+    matriz = docente.get("carga_horaria") or []
+    dias = set()
+
+    for r in range(5):      # horas
+        for c in range(5):  # días
+            try:
+                val = matriz[r][c]
+            except Exception:
+                val = ""
+            if isinstance(val, str) and val.strip():
+                dias.add(c)
+
+    return dias
+
+def _no_laborables_set(anio: int):
+    """
+    Set de fechas ISO 'YYYY-MM-DD' NO laborables (feriados + suspensiones).
+    """
+    desde = date(anio, 1, 1).isoformat()
+    hasta = date(anio, 12, 31).isoformat()
+
+    s = set()
+    for x in COL_CALENDARIO_ESCOLAR.find({"fecha": {"$gte": desde, "$lte": hasta}}):
+        f = (x.get("fecha") or "").strip()
+        if f:
+            s.add(f)
+    return s
+
+def get_dias_habiles(anio, mes, no_laborables=None):
+    """
+    Lista de fechas (date) hábiles L-V del mes, excluyendo no_laborables.
+    """
+    no_laborables = no_laborables or set()
+
+    dias = []
+    cal = calendar.Calendar(firstweekday=0)  # 0=Lunes
+    for d in cal.itermonthdates(anio, mes):
+        if d.month != mes:
+            continue
+        if d.weekday() < 5 and d.isoformat() not in no_laborables:
+            dias.append(d)
+    return dias
+
+def dias_base_mes_para_docente(docente, anio, mes, no_laborables=None):
+    """
+    Denominador correcto del mes:
+    - Grupo A (todos menos PROFESOR solo): todos los días hábiles reales del mes
+    - PROFESOR solo: sólo los días hábiles que caen en weekdays donde tiene horas
+    """
+    no_laborables = no_laborables or set()
+    dias_habiles = get_dias_habiles(anio, mes, no_laborables=no_laborables)
+
+    if docente_concurre_todos_los_dias(docente):
+        return len(dias_habiles)
+
+    dias_con_horas = dias_semana_con_horas_docente(docente)
+    if not dias_con_horas:
+        return 0
+
+    return sum(1 for d in dias_habiles if d.weekday() in dias_con_horas)
+def docente_esperado_en_fecha(docente, fdate, no_laborables=None):
+    """
+    True si el docente debería concurrir ese día (para cálculo diario).
+    - Si el día es no laborable => False para todos
+    - Grupo A => True en L-V
+    - PROFESOR solo => True si weekday está en sus días con horas
+    """
+    no_laborables = no_laborables or set()
+
+    # Día no laborable => nadie "esperado"
+    if fdate.isoformat() in no_laborables:
+        return False
+
+    # Grupo A => concurre todos los días hábiles
+    if docente_concurre_todos_los_dias(docente):
+        return fdate.weekday() < 5  # L-V
+
+    # PROFESOR solo => depende de su carga horaria (weekdays con horas)
+    return fdate.weekday() in dias_semana_con_horas_docente(docente)
+
+
+@app.route("/calendario_escolar", methods=["GET", "POST"])
+def calendario_escolar():
+    # Año a mostrar
+    anio_param = (request.args.get("anio") or "").strip()
+    try:
+        anio = int(anio_param) if anio_param else date.today().year
+    except ValueError:
+        anio = date.today().year
+
+    if request.method == "POST":
+        fecha = (request.form.get("fecha") or "").strip()  # YYYY-MM-DD
+        tipo = (request.form.get("tipo") or "").strip().upper()  # FERIADO / SUSPENSION
+        motivo = (request.form.get("motivo") or "").strip().upper()
+
+        if fecha and tipo in ("FERIADO", "SUSPENSION"):
+            # upsert por fecha (si ya existe, lo actualiza)
+            COL_CALENDARIO_ESCOLAR.update_one(
+                {"fecha": fecha},
+                {"$set": {"fecha": fecha, "tipo": tipo, "motivo": motivo}},
+                upsert=True
+            )
+
+        return redirect(url_for("calendario_escolar", anio=anio))
+
+    # listar solo del año
+    desde = date(anio, 1, 1).isoformat()
+    hasta = date(anio, 12, 31).isoformat()
+
+    items = list(
+        COL_CALENDARIO_ESCOLAR.find({"fecha": {"$gte": desde, "$lte": hasta}})
+        .sort("fecha", 1)
+    )
+
+    # para template
+    items_json = []
+    for x in items:
+        items_json.append({
+            "_id": str(x.get("_id")), 
+            "fecha": x.get("fecha", ""),
+            "tipo": x.get("tipo", ""),
+            "motivo": x.get("motivo", ""),
+        })
+
+    return render_template("calendario_escolar.html", anio=anio, items=items_json)
+
+
+@app.route("/calendario_escolar/<id>/eliminar", methods=["POST"])
+def eliminar_calendario_escolar(id):
+    try:
+        COL_CALENDARIO_ESCOLAR.delete_one({"_id": ObjectId(id)})
+    except Exception:
+        pass
+    # volver al año actual (o podés mandar anio hidden en form si querés)
+    return redirect(url_for("calendario_escolar"))
 
 # ----------------- DOCENTES -----------------
 @app.route("/docentes")
@@ -737,22 +890,20 @@ def docente_set4(id):
 #                          attachment=("SET4.pdf", pdf_bytes, "application/pdf"))
 #     return jsonify({"ok": ok, "error": err if not ok else None})
 
-
-
 @app.route("/docentes/<id>/inasistencias_anuales")
 def docente_inasistencias_anuales(id):
     """
-    Hoja anual de inasistencias para un docente:
-    - Calendario de lunes a viernes (enero–diciembre) del año elegido
+    Hoja anual de inasistencias para un docente (formato SET4):
+    - Calendario L-V (enero–diciembre) del año elegido
     - Colores por día según causa (rojo / verde)
     - Resumen numérico tipo punto 14 del SET4
+    NOTA: El calendario visual NO excluye feriados/suspensiones (SET4 mantiene grilla).
     """
     try:
         oid = ObjectId(id)
     except Exception:
         abort(404)
 
-    # Año a mostrar (por defecto el año actual)
     anio_param = (request.args.get("anio") or "").strip()
     try:
         anio = int(anio_param) if anio_param else date.today().year
@@ -763,11 +914,10 @@ def docente_inasistencias_anuales(id):
     if not docente:
         abort(404)
 
-    # Rango anual en formato ISO (para que coincida con lo que usa la DB)
     desde_iso = date(anio, 1, 1).isoformat()
     hasta_iso = date(anio, 12, 31).isoformat()
 
-    # Resumen numérico (aprovechamos el helper del SET4)
+    # Resumen numérico (SET4)
     d_set4, periodo, pack = _fetch_set4_context(id, desde_iso, hasta_iso)
     if not d_set4:
         totales = {
@@ -785,35 +935,32 @@ def docente_inasistencias_anuales(id):
         }
         lista_inasistencias = []
         periodo = {"desde": desde_iso, "hasta": hasta_iso}
-
     else:
         totales, lista_inasistencias = pack
 
-    # Mapa (mes, día) -> color para pintar el calendario
+    # Mapa (mes, día) -> color
     faltas_por_fecha = {}
-    q = {
-        "docente_id": _maybe_oid(id),
-        "fecha": {"$gte": desde_iso, "$lte": hasta_iso},
-    }
-
+    q = {"docente_id": _maybe_oid(id), "fecha": {"$gte": desde_iso, "$lte": hasta_iso}}
     for ins in COL_INASISTENCIAS.find(q):
         f = _parse_date(ins.get("fecha"))
         if not f:
             continue
         causa = (ins.get("causa") or "").strip()
-        color = _color_for_causa(causa)
-        faltas_por_fecha[(f.month, f.day)] = color
+        faltas_por_fecha[(f.month, f.day)] = _color_for_causa(causa)
 
-    # Armamos el calendario anual por mes, usando sólo días hábiles (lunes-viernes)
+    # Calendario anual: grilla L-V completa (SET4)
     meses_data = []
     for mes in range(1, 13):
-        dias_habiles = get_dias_habiles(anio, mes) 
+        dias_habiles = get_dias_habiles(anio, mes)  # OJO: sin no_laborables para mantener grilla
+
         filas = []
-        fila_actual = [None] * 5  # columnas: L, M, M, J, V
+        fila_actual = [None] * 5  # L M M J V
         last_weekday = None
 
         for f in dias_habiles:
-            wd = f.weekday()  # 0=Lunes ... 4=Viernes
+            wd = f.weekday()  # 0..4
+
+            # Si vuelve a lunes, cortamos semana
             if last_weekday is not None and wd == 0:
                 if any(c is not None for c in fila_actual):
                     filas.append(fila_actual)
@@ -821,7 +968,7 @@ def docente_inasistencias_anuales(id):
 
             fila_actual[wd] = {
                 "dia": f.day,
-                "color": faltas_por_fecha.get((mes, f.day)) 
+                "color": faltas_por_fecha.get((mes, f.day)),
             }
             last_weekday = wd
 
@@ -834,10 +981,7 @@ def docente_inasistencias_anuales(id):
             "filas": filas,
         })
 
-    # 👉 ACÁ definimos la fecha de impresión
     fecha_impresion = date.today()
-
-    # Ajustamos período para que quede explícito el año completo
     periodo = {"desde": desde_iso, "hasta": hasta_iso}
 
     return render_template(
@@ -847,8 +991,9 @@ def docente_inasistencias_anuales(id):
         meses=meses_data,
         totales=totales,
         periodo=periodo,
-        fecha_impresion=fecha_impresion, 
+        fecha_impresion=fecha_impresion,
     )
+
 
 
 # ----------------- ALUMNOS -----------------
@@ -1371,8 +1516,7 @@ def calificaciones_gestionar():
 
 # ----------------- RESUMEN EDADES POR CURSO -----------------
 
-from collections import defaultdict
-from datetime import date, datetime 
+
 
 def _orden_curso(curso: str):
     """
@@ -1671,100 +1815,125 @@ def resumen_edades():
     )
 @app.route("/resumen/inasistencias")
 def resumen_inasistencias():
-    """
-    Resumen de inasistencias docentes:
-      - Cantidad por mes
-      - Porcentaje sobre días hábiles del mes
-      - Resumen por trimestre
-      - Top de docentes con más inasistencias
-
-    El porcentaje se calcula como:
-        inasistencias_del_mes / días_hábiles_del_mes * 100
-    usando get_dias_habiles(year, month).
-    """
+    anio_param = (request.args.get("anio") or "").strip()
     try:
-        anio = int(request.args.get("anio") or datetime.now().year)
-    except Exception:
-        anio = datetime.now().year
+        anio = int(anio_param) if anio_param else date.today().year
+    except ValueError:
+        anio = date.today().year
 
-    # Traer todas las inasistencias del año
-    q = {"fecha": {"$regex": f"^{anio}-"}}
-    registros = list(COL_INASISTENCIAS.find(q))
+    # feriados + suspensiones para estadística
+    no_laborables = _no_laborables_set(anio)
 
-    # Resumen mensual y por docente
-    resumen_mensual = {m: {"mes": m, "cantidad": 0} for m in range(1, 12 + 1)}
-    por_docente = defaultdict(int)
+    docentes = list(COL_DOCENTES.find({}))
+    if not docentes:
+        return render_template(
+            "resumen_inasistencias.html",
+            anio=anio, meses=[], dias=[], resumen_por_docente=[],
+            nota_dias_base="Días base: suma institucional de días programados de todos los docentes."
+        )
 
-    for ins in registros:
-        fecha_str = ins.get("fecha") or ""
-        try:
-            f = datetime.strptime(fecha_str[:10], "%Y-%m-%d").date()
-        except Exception:
+    desde_iso = date(anio, 1, 1).isoformat()
+    hasta_iso = date(anio, 12, 31).isoformat()
+    inas = list(COL_INASISTENCIAS.find({"fecha": {"$gte": desde_iso, "$lte": hasta_iso}}))
+
+    faltas_doc_mes = defaultdict(int)      # (docente_id_str, mes) -> cant
+    faltas_por_fecha = defaultdict(int)    # "YYYY-MM-DD" -> cant
+
+    for ins in inas:
+        f = _parse_date(ins.get("fecha"))
+        if not f:
             continue
-        if f.year != anio:
-            continue
+        did = str(ins.get("docente_id") or "")
+        faltas_doc_mes[(did, f.month)] += 1
+        faltas_por_fecha[f.isoformat()] += 1
 
-        # Mes
-        resumen_mensual[f.month]["cantidad"] += 1
+    # -------- Mensual institucional --------
+    meses = []
+    for mes in range(1, 13):
+        dias_base_institucional = 0
+        faltas_total_mes = 0
 
-        # Contador por docente
-        docente_id = ins.get("docente_id")
-        if docente_id:
-            por_docente[str(docente_id)] += 1
+        for d in docentes:
+            did = str(d.get("_id"))
+            dias_base_institucional += dias_base_mes_para_docente(d, anio, mes, no_laborables=no_laborables)
+            faltas_total_mes += faltas_doc_mes.get((did, mes), 0)
 
-    # Calcular días hábiles y porcentaje por mes
-    for m in range(1, 12 + 1):
-        dias = get_dias_habiles(anio, m)
-        dias_habiles = len(dias)
-        cant = resumen_mensual[m]["cantidad"]
-        porcentaje = (cant * 100 / dias_habiles) if dias_habiles else 0
-        resumen_mensual[m]["dias_habiles"] = dias_habiles
-        resumen_mensual[m]["porcentaje"] = round(porcentaje, 2)
-        resumen_mensual[m]["mes_nombre"] = calendar.month_name[m].capitalize()
+        pct = 0.0
+        if dias_base_institucional > 0:
+            pct = (faltas_total_mes / dias_base_institucional) * 100
+            pct = min(round(pct, 1), 100.0)
 
-    # Resumen por trimestre (1: mar-may, 2: jun-ago, 3: sep-nov)
-    resumen_trimestres = {
-        1: {"trimestre": 1, "meses": [3, 4, 5], "cantidad": 0, "dias_habiles": 0},
-        2: {"trimestre": 2, "meses": [6, 7, 8], "cantidad": 0, "dias_habiles": 0},
-        3: {"trimestre": 3, "meses": [9, 10, 11], "cantidad": 0, "dias_habiles": 0},
-    }
+        meses.append({
+            "mes": mes,
+            "mes_nombre": MESES_MAYUS.get(mes, str(mes)),
+            "faltas": faltas_total_mes,
+            "dias_base": dias_base_institucional,   # OJO: institucional
+            "porcentaje": pct,
+        })
 
-    for t_data in resumen_trimestres.values():
-        for m in t_data["meses"]:
-            t_data["cantidad"] += resumen_mensual[m]["cantidad"]
-            t_data["dias_habiles"] += resumen_mensual[m]["dias_habiles"]
-        if t_data["dias_habiles"]:
-            t_data["porcentaje"] = round(
-                t_data["cantidad"] * 100 / t_data["dias_habiles"], 2
-            )
-        else:
-            t_data["porcentaje"] = 0.0
+    # -------- Ranking anual por docente (porcentaje real del docente) --------
+    resumen_por_docente = []
+    for d in docentes:
+        did = str(d.get("_id"))
 
-    # Top docentes con más inasistencias (nombre + cantidad)
-    docentes_ids = list({_maybe_oid(k) for k in por_docente.keys() if k})
-    nombres_docentes = {}
-    if docentes_ids:
-        for d in COL_DOCENTES.find({"_id": {"$in": docentes_ids}}):
-            key = str(d["_id"])
-            nombres_docentes[key] = f"{d.get('apellido','')}, {d.get('nombre','')}"
+        faltas_anual = 0
+        dias_prog_anual = 0
 
-    top_docentes = []
-    for raw_id, cant in sorted(por_docente.items(), key=lambda x: x[1], reverse=True):
-        nombre = nombres_docentes.get(raw_id, "Docente sin nombre")
-        top_docentes.append({"docente": nombre, "cantidad": cant})
+        for mes in range(1, 13):
+            faltas_anual += faltas_doc_mes.get((did, mes), 0)
+            dias_prog_anual += dias_base_mes_para_docente(d, anio, mes, no_laborables=no_laborables)
 
-    # Ordenar meses por número
-    lista_meses = [resumen_mensual[m] for m in range(1, 13)]
-    lista_trimestres = [resumen_trimestres[1], resumen_trimestres[2], resumen_trimestres[3]]
+        pct = 0.0
+        if dias_prog_anual > 0:
+            pct = (faltas_anual / dias_prog_anual) * 100
+            pct = min(round(pct, 1), 100.0)
+
+        resumen_por_docente.append({
+            "apellido": d.get("apellido", ""),
+            "nombre": d.get("nombre", ""),
+            "cargo": d.get("cargo", ""),
+            "faltas": faltas_anual,
+            "dias_base": dias_prog_anual,   # del docente
+            "porcentaje": pct,
+        })
+
+    resumen_por_docente.sort(key=lambda x: x["porcentaje"], reverse=True)
+
+    # -------- Diario institucional (opcional para gráfico diario) --------
+    dias = []
+    for mes in range(1, 13):
+        for f in get_dias_habiles(anio, mes, no_laborables=no_laborables):
+            esperados = 0
+            for doc in docentes:
+                if docente_esperado_en_fecha(doc, f, no_laborables=no_laborables):
+                    esperados += 1
+
+            faltas_dia = faltas_por_fecha.get(f.isoformat(), 0)
+
+            pct_dia = 0.0
+            if esperados > 0:
+                pct_dia = (faltas_dia / esperados) * 100
+                pct_dia = min(round(pct_dia, 1), 100.0)
+
+            dias.append({
+                "fecha": f.isoformat(),
+                "faltas": faltas_dia,
+                "esperados": esperados,
+                "porcentaje": pct_dia,
+            })
 
     return render_template(
         "resumen_inasistencias.html",
         anio=anio,
-        meses=lista_meses,
-        trimestres=lista_trimestres,
-        top_docentes=top_docentes,
+        meses=meses,
+        dias=dias,
+        resumen_por_docente=resumen_por_docente,
+        nota_dias_base="Días base (tabla mensual): suma institucional de días programados de todos los docentes (según cargo + carga horaria)."
     )
-@app.route("/resumen/calificaciones")
+
+
+
+@app.route("/resumen/calificaciones") 
 def resumen_calificaciones():
     # 1) IDs activos (string)
     activos_ids = [str(a["_id"]) for a in COL_ALUMNOS.find(filtro_activos(), {"_id": 1})]
@@ -2482,7 +2651,7 @@ def listar_auxiliares():
 @app.route("/auxiliares/nuevo", methods=["POST"])
 def nuevo_auxiliar():
     data = request.form.to_dict()
-    COL_AUX.insert_one(data)
+    COL_AUX.insert_one(data) 
     return redirect(url_for("listar_auxiliares"))
 
 @app.route("/auxiliares/<id>/editar", methods=["POST"])
@@ -2605,13 +2774,11 @@ def api_inasistencias():
             
     # --- NUEVO BLOQUE: Validar tope anual ---
     # Si la causa tiene límite y ya no quedan días disponibles (restantes <= 0)
-    if bucket in limites["restantes"]:
-        if limites["restantes"][bucket] <= 0:
-            return jsonify(
-                ok=False,
-                error=f"Se ha excedido el límite anual para '{causa}' (Tope: {LIMITES_ANUALES.get(bucket)})."
-            ), 400
-    # ----------------------------------------
+    warning = None
+    if bucket in limites["restantes"] and limites["restantes"][bucket] <= 0:
+         warning = f"DOCENTE EXCEDIDO DE FALTAS PARA LA CAUSA: {causa}"
+
+         
 
     # ----- Evitar más de una inasistencia por día -----
     dias_a_insertar = []
@@ -2641,7 +2808,7 @@ def api_inasistencias():
     if docs:
         COL_INASISTENCIAS.insert_many(docs)
 
-    return jsonify(ok=True, inserted=len(docs))
+    return jsonify(ok=True, inserted=len(docs), warning=warning)
 
 
 # GET: listar para HISTORIAL / CALENDARIO 

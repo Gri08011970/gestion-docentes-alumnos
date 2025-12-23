@@ -1,10 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Resumen de inasistencias — Docentes</h2>
-<p class="text-muted">
-  Estadísticas de inasistencias docentes para el año {{ anio }}.
-  El porcentaje se calcula sobre la cantidad de días hábiles (lunes a viernes) de cada mes.
-</p>
+
+<div class="d-flex align-items-center justify-content-between mb-2">
+  <div>
+    <h2 class="mb-0">Resumen de inasistencias — Docentes</h2>
+    <p class="text-muted mb-0">
+      Año {{ anio }}. El % se calcula con denominador real (días programados).
+    </p>
+  </div>
+</div>
 
 <form class="row g-3 mb-3" method="get">
   <div class="col-auto">
@@ -16,137 +20,447 @@
   </div>
 </form>
 
+{% if nota_dias_base %}
+  <div class="alert alert-info py-2 small">
+    {{ nota_dias_base }}
+  </div>
+{% endif %}
+
 {% if meses|length == 0 %}
   <p class="text-muted">No hay inasistencias cargadas para este año.</p>
 {% else %}
 
-  <div class="row g-4">
-    <div class="col-md-8">
-      <div class="card shadow-sm">
-        <div class="card-header">
-          <strong>Inasistencias por mes</strong>
+<div class="row g-4">
+
+  <!-- IZQUIERDA: mensual + gráfico diario -->
+  <div class="col-lg-8">
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header">
+        <strong>Inasistencias por mes (institucional)</strong>
+        <div class="small text-muted">
+          “Días base” = suma de días programados de todos los docentes (según cargo + carga horaria), excluyendo feriados/suspensiones.
         </div>
-        <div class="card-body">
+      </div>
+      <div class="card-body">
+
+        <div class="table-responsive">
           <table class="table table-sm table-bordered align-middle mb-3">
-            <thead>
+            <thead class="table-light">
               <tr>
                 <th>Mes</th>
-                <th>Inasistencias</th>
-                <th>Días hábiles</th>
-                <th>% sobre días hábiles</th>
+                <th>Faltas</th>
+                <th>Días base</th>
+                <th>%</th>
               </tr>
             </thead>
             <tbody>
               {% for m in meses %}
               <tr>
-                <td>{{ m.mes_nombre }}</td>
-                <td>{{ m.cantidad }}</td>
-                <td>{{ m.dias_habiles }}</td>
+                <td class="text-nowrap">{{ m.mes_nombre }}</td>
+                <td>{{ m.faltas }}</td>
+                <td>{{ m.dias_base }}</td>
                 <td>{{ m.porcentaje }}%</td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
-
-          <canvas id="chartMeses" height="80"></canvas>
         </div>
+
+        <div class="mb-1"><strong>% mensual (institucional)</strong></div>
+        <canvas id="chartMeses" height="90"></canvas>
       </div>
     </div>
 
-    <div class="col-md-4">
-      <div class="card shadow-sm">
-        <div class="card-header">
-          <strong>Resumen por trimestre</strong>
+    <div class="card shadow-sm">
+      <div class="card-header">
+        <strong>% diario (institucional)</strong>
+        <div class="small text-muted">
+          Cada punto = % de docentes ausentes sobre docentes esperados ese día (según cargo/carga horaria) y excluyendo no laborables.
         </div>
-        <div class="card-body">
-          <table class="table table-sm table-bordered mb-2">
-            <thead>
+      </div>
+
+      <div class="card-body">
+
+        <!-- ✅ (CAMBIO 1) Selector de mes para el gráfico diario -->
+        <div class="row g-2 align-items-end mb-2">
+          <div class="col-auto">
+            <label class="form-label small mb-1">Mes</label>
+            <select id="filtroMesDiario" class="form-select form-select-sm">
+              <option value="ALL" selected>Todo el año</option>
+              <option value="1">Enero</option>
+              <option value="2">Febrero</option>
+              <option value="3">Marzo</option>
+              <option value="4">Abril</option>
+              <option value="5">Mayo</option>
+              <option value="6">Junio</option>
+              <option value="7">Julio</option>
+              <option value="8">Agosto</option>
+              <option value="9">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+          </div>
+
+          <div class="col-auto">
+            <div class="small text-muted">
+              Tip: elegí un mes para ver el % diario sin saturación.
+            </div>
+          </div>
+        </div>
+
+        <canvas id="chartDiario" height="110"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- DERECHA: ranking top10 + filtros + tabla completa -->
+  <div class="col-lg-4">
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-header">
+        <strong>Ranking anual (Top 10)</strong>
+      </div>
+      <div class="card-body">
+
+        <!-- ✅ (CAMBIO 2) Toggle ordenar ranking -->
+        <div class="row g-2 mb-2">
+          <div class="col-auto">
+            <label class="form-label small mb-1">Ordenar por</label>
+            <select id="ordenRanking" class="form-select form-select-sm">
+              <option value="PCT" selected>% anual</option>
+              <option value="FALTAS">Faltas</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle mb-2" id="tablaTop10">
+            <thead class="table-light">
               <tr>
-                <th>Trimestre</th>
-                <th>Inasistencias</th>
-                <th>Días hábiles</th>
+                <th>Docente</th>
+                <th>Faltas</th>
+                <th>Días</th>
                 <th>%</th>
               </tr>
             </thead>
             <tbody>
-              {% for t in trimestres %}
+              {# Se completa por JS (igual dejé fallback) #}
+              {% for d in resumen_por_docente[:10] %}
               <tr>
-                <td>{{ t.trimestre }}º</td>
-                <td>{{ t.cantidad }}</td>
-                <td>{{ t.dias_habiles }}</td>
-                <td>{{ t.porcentaje }}%</td>
+                <td class="small">{{ d.apellido }}, {{ d.nombre }}</td>
+                <td>{{ d.faltas }}</td>
+                <td>{{ d.dias_base }}</td>
+                <td>{{ d.porcentaje }}%</td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
-          <p class="small text-muted mb-0">
-            1º: marzo–mayo; 2º: junio–agosto; 3º: septiembre–noviembre.
-          </p>
         </div>
-      </div>
 
-      <div class="card shadow-sm mt-3">
-        <div class="card-header">
-          <strong>Docentes con más inasistencias</strong>
+        <canvas id="chartTop10" height="130"></canvas>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header">
+        <strong>Detalle por docente</strong>
+      </div>
+      <div class="card-body">
+
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label class="form-label small mb-1">Filtro</label>
+            <select id="filtroTipo" class="form-select form-select-sm">
+              <option value="TODOS" selected>Todos</option>
+              <option value="SOLO_PROF">Solo PROFESOR</option>
+              <option value="SIN_PROF">Sin PROFESOR</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">Buscar</label>
+            <input id="buscador" class="form-control form-control-sm" placeholder="Apellido / nombre">
+          </div>
         </div>
-        <div class="card-body">
-          {% if top_docentes %}
-          <table class="table table-sm table-bordered mb-0">
-            <thead>
+
+        <div class="table-responsive" style="max-height: 420px; overflow:auto;">
+          <table class="table table-sm table-bordered align-middle mb-0" id="tablaDocentes">
+            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
               <tr>
                 <th>Docente</th>
-                <th>Cant.</th>
+                <th class="text-nowrap">Cargo</th>
+                <th>Faltas</th>
+                <th>Días</th>
+                <th>%</th>
               </tr>
             </thead>
-            <tbody>
-              {% for d in top_docentes[:10] %}
-              <tr>
-                <td>{{ d.docente }}</td>
-                <td>{{ d.cantidad }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
+            <tbody></tbody>
           </table>
-          <p class="small text-muted mt-1 mb-0">
-            Se muestran los 10 docentes con mayor cantidad de inasistencias en el año.
-          </p>
-          {% else %}
-          <p class="text-muted mb-0">No hay datos de inasistencias.</p>
-          {% endif %}
+        </div>
+
+        <div class="small text-muted mt-2">
+          Tip: “Solo PROFESOR” significa que el cargo es exactamente PROFESOR (sin otro cargo).
         </div>
       </div>
     </div>
+
   </div>
+
+</div>
 
 {% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const datosMeses = {{ meses | tojson }};
-  const ctx = document.getElementById('chartMeses').getContext('2d');
-  const labels = datosMeses.map(m => m.mes_nombre);
-  const dataPorcentaje = datosMeses.map(m => m.porcentaje);
+  // ---------- DATA (desde Flask/Jinja) ----------
+  // ✅ |safe suele reducir avisos del editor
+  const datosMeses = {{ meses|tojson|safe }};
+  const datosDias = {{ dias|tojson|safe }};
+  const docentesAll = {{ resumen_por_docente|tojson|safe }};
 
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: '% de inasistencias sobre días hábiles',
-        data: dataPorcentaje,
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            callback: function(value) { return value + '%'; }
+  // ---------- Helpers ----------
+  function norm(s) { return (s || "").toString().trim().toUpperCase(); }
+  function splitCargos(csv) {
+    return norm(csv).split(",").map(x => x.trim()).filter(Boolean);
+  }
+  function esProfesorPuro(cargoCsv) {
+    const cs = splitCargos(cargoCsv);
+    return (cs.length === 1 && cs[0] === "PROFESOR");
+  }
+  function parseISO(s) {
+    // "YYYY-MM-DD"
+    if (!s) return null;
+    const [yy, mm, dd] = s.slice(0,10).split("-").map(Number);
+    return { yy, mm, dd };
+  }
+
+  // ---------- CHART mensual ----------
+  (() => {
+    const el = document.getElementById('chartMeses');
+    if (!el) return;
+
+    const labels = datosMeses.map(m => m.mes_nombre);
+    const dataPct = datosMeses.map(m => Number(m.porcentaje || 0));
+
+    new Chart(el.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: '% de inasistencias (institucional)',
+          data: dataPct
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 100,
+            ticks: { callback: v => v + '%' }
           }
         }
       }
+    });
+  })();
+
+  // ---------- ✅ (CAMBIO 3) Ranking Top10 (orden % / faltas) ----------
+  (() => {
+    const selOrden = document.getElementById('ordenRanking');
+    const tabla = document.getElementById('tablaTop10');
+    const canvas = document.getElementById('chartTop10');
+    if (!selOrden || !tabla || !canvas) return;
+
+    let chart = null;
+
+    function ordenar(arr) {
+      const modo = selOrden.value;
+      const cp = arr.slice();
+      if (modo === "FALTAS") {
+        cp.sort((a,b) => Number(b.faltas||0) - Number(a.faltas||0));
+      } else {
+        cp.sort((a,b) => Number(b.porcentaje||0) - Number(a.porcentaje||0));
+      }
+      return cp;
     }
-  });
+
+    function renderTabla(top10) {
+      const tbody = tabla.querySelector('tbody');
+      tbody.innerHTML = "";
+      top10.forEach(d => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="small">${(d.apellido||"")}, ${(d.nombre||"")}</td>
+          <td>${Number(d.faltas||0)}</td>
+          <td>${Number(d.dias_base||0)}</td>
+          <td>${Number(d.porcentaje||0).toFixed(1)}%</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderChart(top10) {
+      const labels = top10.map(d => `${d.apellido}, ${d.nombre}`);
+
+      const modo = selOrden.value;
+      const data = (modo === "FALTAS")
+        ? top10.map(d => Number(d.faltas || 0))
+        : top10.map(d => Number(d.porcentaje || 0));
+
+      const labelDataset = (modo === "FALTAS")
+        ? 'Faltas anuales'
+        : '% anual de inasistencias';
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: labelDataset,
+            data
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          scales: {
+            x: {
+              beginAtZero: true,
+              ...(modo === "PCT" ? { max: 100, ticks: { callback: v => v + '%' } } : {})
+            }
+          }
+        }
+      });
+    }
+
+    function render() {
+      const sorted = ordenar(docentesAll);
+      const top10 = sorted.slice(0, 10);
+      renderTabla(top10);
+      renderChart(top10);
+    }
+
+    selOrden.addEventListener('change', render);
+    render();
+  })();
+
+  // ---------- ✅ (CAMBIO 4) CHART diario (con filtro por mes) ----------
+  (() => {
+    const el = document.getElementById('chartDiario');
+    const selMes = document.getElementById('filtroMesDiario');
+    if (!el || !selMes) return;
+
+    let chart = null;
+
+    function buildData(mesFiltro) {
+      let arr = datosDias.slice();
+
+      if (mesFiltro !== "ALL") {
+        const m = Number(mesFiltro);
+        arr = arr.filter(x => {
+          const p = parseISO(x.fecha);
+          return p && p.mm === m;
+        });
+      }
+
+      const labels = arr.map(x => {
+        const p = parseISO(x.fecha);
+        return p ? `${String(p.dd).padStart(2,'0')}/${String(p.mm).padStart(2,'0')}` : "";
+      });
+
+      const dataPct = arr.map(x => Number(x.porcentaje || 0));
+      return { labels, dataPct };
+    }
+
+    function render() {
+      const { labels, dataPct } = buildData(selMes.value);
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(el.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: '% diario institucional',
+            data: dataPct,
+            tension: 0.2,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              ticks: { callback: v => v + '%' }
+            },
+            x: {
+              ticks: { maxTicksLimit: 20 }
+            }
+          }
+        }
+      });
+    }
+
+    selMes.addEventListener('change', render);
+    render();
+  })();
+
+  // ---------- Tabla detalle docentes con filtros ----------
+  (() => {
+    const tbody = document.querySelector('#tablaDocentes tbody');
+    const filtroTipo = document.getElementById('filtroTipo');
+    const buscador = document.getElementById('buscador');
+    if (!tbody || !filtroTipo || !buscador) return;
+
+    function render() {
+      const tipo = filtroTipo.value;
+      const q = norm(buscador.value);
+
+      let arr = docentesAll.slice();
+
+      // filtro prof
+      if (tipo === "SOLO_PROF") {
+        arr = arr.filter(d => esProfesorPuro(d.cargo));
+      } else if (tipo === "SIN_PROF") {
+        arr = arr.filter(d => !esProfesorPuro(d.cargo));
+      }
+
+      // búsqueda
+      if (q) {
+        arr = arr.filter(d => {
+          const texto = norm(`${d.apellido} ${d.nombre} ${d.cargo}`);
+          return texto.includes(q);
+        });
+      }
+
+      // orden por porcentaje desc
+      arr.sort((a,b) => (Number(b.porcentaje||0) - Number(a.porcentaje||0)));
+
+      tbody.innerHTML = "";
+      for (const d of arr) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="small">${(d.apellido||"")}, ${(d.nombre||"")}</td>
+          <td class="small">${(d.cargo||"")}</td>
+          <td>${Number(d.faltas||0)}</td>
+          <td>${Number(d.dias_base||0)}</td>
+          <td>${Number(d.porcentaje||0).toFixed(1)}%</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    filtroTipo.addEventListener('change', render);
+    buscador.addEventListener('input', render);
+    render();
+  })();
 </script>
+
 {% endblock %}

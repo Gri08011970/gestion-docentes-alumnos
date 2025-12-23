@@ -2775,8 +2775,16 @@ def api_inasistencias():
     # --- NUEVO BLOQUE: Validar tope anual ---
     # Si la causa tiene límite y ya no quedan días disponibles (restantes <= 0)
     warning = None
-    if bucket in limites["restantes"] and limites["restantes"][bucket] <= 0:
-         warning = f"DOCENTE EXCEDIDO DE FALTAS PARA LA CAUSA: {causa}"
+
+# --- ADVERTENCIA SIN BLOQUEO (excepto particulares) ---
+# Particulares NO se toca (tu regla 1 por mes / 6 anual sigue estricta)
+    if bucket in ("enfermedad_personal", "enfermedad_familiar", "preexamen", "pre_examen"):
+    # ojo: tu bucket real para pre-examen depende de _causa_bucket
+    # por eso cubro varias claves
+        restantes = limites["restantes"].get(bucket, None)
+        if restantes is not None and restantes <= 0:
+            tope = LIMITES_ANUALES.get(bucket) or LIMITES_ANUALES.get("preexamen") or LIMITES_ANUALES.get("pre_examen")
+            warning = f"DOCENTE EXCEDIDO DE FALTAS PARA ESTA CAUSA (Tope: {tope}). Se registra igual (corresponde descuento)."
 
          
 
@@ -2796,7 +2804,7 @@ def api_inasistencias():
 
     # ----- Insertar -----
     docs = []
-    for fecha_iso in dias_a_insertar:
+    for fecha_iso in dias_a_insertar: 
         docs.append({
             "docente_id": docente_id,
             "fecha": fecha_iso,

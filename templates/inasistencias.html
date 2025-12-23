@@ -29,6 +29,21 @@
 
 </div>
 
+<!-- ✅ Toast WARNING (fuera del modal, para que no se rompa el layout) -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+  <div id="toastWarning"
+       class="toast align-items-center text-bg-warning border-0"
+       role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body" id="toastWarningBody"></div>
+      <button type="button"
+              class="btn-close btn-close-white me-2 m-auto"
+              data-bs-dismiss="toast"
+              aria-label="Cerrar"></button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal de carga de inasistencias -->
 <div class="modal fade" id="modalInasistencia" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -45,29 +60,18 @@
           <div class="row mb-3">
             <div class="col-md-6">
               <label for="inas-desde" class="form-label">Desde</label>
-              <input type="date"
-                     class="form-control"
-                     id="inas-desde"
-                     name="desde"
-                     required>
+              <input type="date" class="form-control" id="inas-desde" name="desde" required>
             </div>
             <div class="col-md-6">
               <label for="inas-hasta" class="form-label">Hasta</label>
-              <input type="date"
-                     class="form-control"
-                     id="inas-hasta"
-                     name="hasta"
-                     required>
+              <input type="date" class="form-control" id="inas-hasta" name="hasta" required>
             </div>
           </div>
 
           <!-- Docente -->
           <div class="mb-3">
             <label for="inas-docente" class="form-label">Docente</label>
-            <select id="inas-docente"
-                    name="docente_id"
-                    class="form-select"
-                    required>
+            <select id="inas-docente" name="docente_id" class="form-select" required>
               <option value="">Seleccione...</option>
               <!-- opciones cargadas por JS desde /api/docentes -->
             </select>
@@ -100,25 +104,13 @@
             <label class="form-label">Suplente (opcional)</label>
             <div class="row g-2">
               <div class="col-md-4">
-                <input type="text"
-                       class="form-control"
-                       id="inas-suplente-nombre"
-                       name="suplente_nombre"
-                       placeholder="Nombre y apellido">
+                <input type="text" class="form-control" id="inas-suplente-nombre" name="suplente_nombre" placeholder="Nombre y apellido">
               </div>
               <div class="col-md-4">
-                <input type="text"
-                       class="form-control"
-                       id="inas-suplente-dni"
-                       name="suplente_dni"
-                       placeholder="DNI">
+                <input type="text" class="form-control" id="inas-suplente-dni" name="suplente_dni" placeholder="DNI">
               </div>
               <div class="col-md-4">
-                <input type="text"
-                       class="form-control"
-                       id="inas-suplente-curso"
-                       name="suplente_curso"
-                       placeholder="Curso / asignatura">
+                <input type="text" class="form-control" id="inas-suplente-curso" name="suplente_curso" placeholder="Curso / asignatura">
               </div>
             </div>
           </div>
@@ -126,11 +118,7 @@
           <!-- Observaciones -->
           <div class="mb-3">
             <label for="inas-observaciones" class="form-label">Observaciones</label>
-            <textarea class="form-control"
-                      id="inas-observaciones"
-                      name="observaciones"
-                      rows="2"
-                      placeholder="Notas internas, aclaraciones, etc."></textarea>
+            <textarea class="form-control" id="inas-observaciones" name="observaciones" rows="2" placeholder="Notas internas, aclaraciones, etc."></textarea>
           </div>
 
         </div>
@@ -147,6 +135,7 @@
     </div>
   </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -157,13 +146,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectDocente  = document.getElementById('inas-docente');
   const desdeInput     = document.getElementById('inas-desde');
   const hastaInput     = document.getElementById('inas-hasta');
-    // Al cargar la página, abrir el formulario de inasistencias
-  const modalEl = document.getElementById('modalInasistencia');
-  if (modalEl) {
-    const modal = new bootstrap.Modal(modalEl);
-    modal.show();
-  }
 
+  // ✅ Toast helper (AFUERA del submit, así no queda “apagado” ni raro)
+  function showWarningToast(msg) {
+    const el = document.getElementById("toastWarning");
+    const body = document.getElementById("toastWarningBody");
+    if (!el || !body) { alert(msg); return; }
+    body.textContent = msg;
+    const t = bootstrap.Toast.getOrCreateInstance(el, { delay: 7000 });
+    t.show();
+  }
 
   // --- Helper: fecha de hoy en YYYY-MM-DD ---
   function hoyISO() {
@@ -179,6 +171,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!desdeInput.value) desdeInput.value = hoy;
   if (!hastaInput.value) hastaInput.value = hoy;
 
+  // (Opcional) abrir modal al entrar
+  const modalElAuto = document.getElementById('modalInasistencia');
+  if (modalElAuto) {
+    const modal = new bootstrap.Modal(modalElAuto);
+    modal.show();
+  }
+
   // --- Cargar docentes en el combo desde /api/docentes ---
   fetch('{{ url_for("api_docentes") }}')
     .then(r => r.json())
@@ -186,44 +185,17 @@ document.addEventListener('DOMContentLoaded', () => {
       lista.forEach(d => {
         const opt = document.createElement('option');
         opt.value = d._id;
-        // si el JSON sólo tiene nombre,apellido: ajustá este texto a lo que ya comprobaste que viene bien
         opt.textContent = `${d.apellido || ''}, ${d.nombre || ''} — ${d.cargo || ''}`;
         selectDocente.appendChild(opt);
       });
-    }) 
+    })
     .catch(err => {
       console.error('Error cargando docentes:', err);
       alerta.textContent = 'No se pudieron cargar los docentes.';
       alerta.classList.remove('d-none');
     });
 
-  // --- Helper: generar array de fechas entre desde y hasta (CORREGIDO) ---
-  function rangoFechas(desdeStr, hastaStr) {
-    const out = [];
-    if (!desdeStr || !hastaStr) return out;
-
-    // Split manual para evitar conversión a UTC
-    const p1 = desdeStr.split('-'); 
-    const p2 = hastaStr.split('-');
-
-    // new Date(año, mes-1, dia) crea la fecha en HORA LOCAL (00:00 de Argentina)
-    const d1 = new Date(p1[0], p1[1] - 1, p1[2]);
-    const d2 = new Date(p2[0], p2[1] - 1, p2[2]);
-
-    if (isNaN(d1) || isNaN(d2) || d1 > d2) return out;
-
-    let d = new Date(d1);
-    while (d <= d2) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      out.push(`${y}-${m}-${dd}`);
-      d.setDate(d.getDate() + 1);
-    }
-    return out;
-  }
-
-  // --- Enviar la inasistencia a /api/inasistencias por cada día del rango ---
+  // --- Enviar inasistencia (UNA sola llamada, usando desde/hasta) ---
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     alerta.classList.add('d-none');
@@ -234,13 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!desde || !hasta) {
       alerta.textContent = 'Debe completar las fechas "Desde" y "Hasta".';
-      alerta.classList.remove('d-none');
-      return;
-    }
-
-    const fechas = rangoFechas(desde, hasta);
-    if (!fechas.length) {
-      alerta.textContent = 'Rango de fechas inválido.';
       alerta.classList.remove('d-none');
       return;
     }
@@ -260,42 +225,44 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const observaciones = document.getElementById('inas-observaciones').value || '';
-
     const suplenteNombre = document.getElementById('inas-suplente-nombre').value || '';
     const suplenteDni    = document.getElementById('inas-suplente-dni').value || '';
     const suplenteCurso  = document.getElementById('inas-suplente-curso').value || '';
 
     try {
-      // disparo un POST por cada fecha del rango
-      for (const fecha of fechas) {
-        const payload = {
-          docente_id: docenteId,
-          fecha: fecha,
-          causa: causa,
-          observaciones: observaciones,
-          suplente: {
-            apellido: suplenteNombre,   // usamos un único campo "nombre y apellido"
-            dni: suplenteDni,
-            curso_asignado: suplenteCurso,
-            asignatura: suplenteCurso
-          }
-        };
+      // ✅ Mandamos UNA sola vez (tu backend soporta desde/hasta)
+      const payload = {
+        docente_id: docenteId,
+        desde: desde,
+        hasta: hasta,
+        causa: causa,
+        observaciones: observaciones,
 
-        const resp = await fetch('{{ url_for("api_inasistencias") }}', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
+        // ✅ Campos que tu backend ya lee (api_inasistencias)
+        sup_nombre: suplenteNombre,
+        sup_dni: suplenteDni,
+        sup_curso: suplenteCurso,
+        sup_asignatura: suplenteCurso
+      };
 
-        const data = await resp.json();
-        if (!resp.ok || !data.ok) {
-          throw new Error(data.error || 'No se pudo guardar la inasistencia');
-        }
+      const resp = await fetch('{{ url_for("api_inasistencias") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok || !data.ok) {
+        throw new Error(data.error || 'No se pudo guardar la inasistencia');
       }
 
-      // Si todo salió bien:
+      // ✅ si el backend mandó warning (tope excedido, etc) -> mostrar
+      if (data.warning) {
+        showWarningToast(data.warning);
+      }
+
+      // éxito: reset + cerrar modal
       form.reset();
       desdeInput.value = hoyISO();
       hastaInput.value = hoyISO();
@@ -304,14 +271,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const modal   = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
       modal.hide();
 
-      // Si querés refrescar resumen/historial en esta misma vista, podés descomentar:
+      // si querés refrescar:
       // location.reload();
 
     } catch (err) {
       console.error(err);
       alerta.textContent = err.message;
       alerta.classList.remove('d-none');
-    } 
+    }
   });
 });
 </script>

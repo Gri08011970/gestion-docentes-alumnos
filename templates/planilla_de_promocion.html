@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Planilla de Promoción Anual - {{ curso }}° {{ seccion }}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print_anexos.css') }}">
+<style>
+    .hoja-promocion { background: white; padding: 1.5cm; margin: auto; font-family: Arial; font-size: 12px; line-height: 1.2; border: 1px solid #eee; margin-bottom: 20px; width: 21cm; }
+    .table-promocion { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .table-promocion th, .table-promocion td { border: 1px solid black; padding: 4px; text-align: center; }
+    .text-start { text-align: left !important; }
+    @media print { .no-print { display: none; } .hoja-promocion { border: none; margin: 0; width: 100%; } .page-break { page-break-after: always; } }
+</style>
+
+<div class="container no-print mt-3 mb-4">
+    <div class="alert alert-info d-flex justify-content-between align-items-center">
+        <span><strong>Modo Vista Previa:</strong> Los campos subrayados son editables antes de imprimir.</span>
+        <button onclick="window.print()" class="btn btn-primary">Imprimir Planilla</button>
+    </div>
+</div>
+
+<div class="hoja-promocion">
+    <div class="text-center">
+        <h5 class="fw-bold mb-0">PLANILLA DE PROMOCIÓN ANUAL</h5>
+        <p>AÑO LECTIVO {{ anio }}</p>
+    </div>
+    
+    <div class="row mb-3">
+        <div class="col-6">Distrito: <strong>LA MATANZA</strong></div>
+        <div class="col-6 text-end">Escuela Primaria N° <strong>91</strong></div>
+        <div class="col-12">Nombre: <strong>PROVINCIAS ARGENTINAS</strong></div>
+    </div>
+
+    <table class="table-promocion">
+        <thead class="table-light">
+            <tr>
+                <th rowspan="2">ALUMNAS/OS</th>
+                <th colspan="2">CICLO LECTIVO (22/12)</th>
+                <th colspan="3">PERIODO EXTENDIDO</th>
+                <th>TOTAL FINAL</th>
+            </tr>
+            <tr>
+                <th>Inscriptos</th>
+                <th>Promueven</th>
+                <th>Inscriptos</th>
+                <th>Promueven</th>
+                <th>Recursan</th>
+                <th>Promueven</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>TOTAL</td>
+                <td>{{ resumen.total }}</td>
+                <td contenteditable="true">{{ resumen.promueven }}</td>
+                <td contenteditable="true">0</td>
+                <td contenteditable="true">0</td>
+                <td contenteditable="true">0</td>
+                <td contenteditable="true">{{ resumen.promueven }}</td>
+            </tr>
+            <tr>
+                <td>PORCENTAJE</td>
+                <td>100%</td>
+                <td contenteditable="true">{{ resumen.porcentaje_promocion }}%</td>
+                <td colspan="4"></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="mt-5">
+        <p>Observaciones: <span class="border-bottom d-inline-block w-75" contenteditable="true"></span></p>
+        <div class="row mt-5 pt-4">
+            <div class="col-6 text-center">__________________________<br>Firma del Docente</div>
+            <div class="col-6 text-center">__________________________<br>Firma del Directivo</div>
+        </div>
+    </div>
+</div>
+
+<div class="page-break"></div>
+
+<div class="hoja-promocion">
+    <div class="text-center mb-3">
+        <h6 class="fw-bold">REVERSO: LISTADO DE ALUMNOS - {{ curso }}° "{{ seccion }}" - Turno: {{ turno }}</h6>
+    </div>
+
+    <table class="table-promocion">
+        <thead>
+            <tr>
+                <th style="width: 40px;">N°</th>
+                <th>APELLIDO Y NOMBRE</th>
+                <th>DOCUMENTO N°</th>
+                <th style="width: 50px;">EDAD</th>
+                <th>CALIFICACIÓN FINAL</th>
+                <th>OBSERVACIONES</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in alumnos %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td class="text-start">{{ a.apellido }}, {{ a.nombre }}</td>
+                <td>{{ a.dni }}</td>
+                <td>{{ a.edad_calculada }}</td> <td contenteditable="true">P</td>
+                <td contenteditable="true">P</td>
+                <td contenteditable="true"></td>
+            </tr>
+            {% endfor %}
+            {% for i in range(alumnos|length, 35) %}
+            <tr>
+                <td>{{ i + 1 }}</td>
+                <td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -86,8 +86,21 @@
           </a>
         </li>
         <li>
+          <a class="dropdown-item" href="{{ url_for('entrega_mercaderia') }}">Entrega mercadería</a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('listas_estudiantes') }}">Listas</a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('prom_rec') }}">Prom/Rec</a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('matricula_2026_view') }}">Matrícula inicial 2026</a>
+
+        </li>
+        <li>
           <a class="dropdown-item" href="{{ url_for('mapa_recorridos') }}">
-            Mapa y recorridos domiciliarios
+            Visitas domiciliarias
           </a>
         </li>
       </ul>
@@ -137,7 +150,36 @@
         </li>
       </ul>
     </li>
+    <li class="nav-item dropdown">
+      <a class="nav-link dropdown-toggle" href="#" id="eoeDropdown"
+         role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        EOE
+      </a>
+      <ul class="dropdown-menu" aria-labelledby="eoeDropdown">
+        <li>
+          <a class="dropdown-item" href="{{ url_for('eoe_ausentismo') }}">
+            <i class="fas fa-user-clock me-2"></i> Control de ausentismo crítico
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('calificaciones_gestionar') }}">
+            <i class="fas fa-folder-open me-2"></i> Judiciales y Acompañantes
+          </a>
+        </li>
+        <li>
+          <hr class="dropdown-divider">
+        </li>
+        <li>
+      <a class="dropdown-item" href="{{ url_for('mapa_recorridos') }}">
+        <i class="fas fa-file-signature me-2"></i> Actas de visita domiciliaria
+      </a>
+    </li>
   </ul>
+</li>
+      </ul>
+    </li>
+  </ul>
+  
 
   <!-- BLOQUE CENTRO: PARTE DIARIO -->
   <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
@@ -195,6 +237,7 @@
             Set 4 — Generar por docente
           </a>
         </li>
+        <li><a class="dropdown-item" href="{{ url_for('planilla_promocion', curso='4', seccion='B') }}">Planilla de Promoción</a></li>
         <li>
           <a class="dropdown-item text-muted" href="#">
             Proyección de matrícula — En construcción

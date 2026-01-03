@@ -1,27 +1,34 @@
-from flask import (
-    Flask, render_template, request, redirect,
-    url_for, jsonify, abort, send_file
-) 
+# =================================================================
+# BLOQUE 1: IMPORTACIONES (Librerías y Módulos)
+# =================================================================
 
-from flask_pymongo import PyMongo
-from bson.objectid import ObjectId
-
-from datetime import datetime, date, timedelta, timezone
-from dateutil.relativedelta import relativedelta
-
-from io import BytesIO
-#from weasyprint import HTML 
-
-from collections import defaultdict
-
+# 1.1. Librerías Estándar de Python
+import io
 import os
+import re
 import unicodedata
 import calendar
+from io import BytesIO
+from collections import defaultdict
+from datetime import datetime, date, timedelta, timezone
+from urllib.parse import quote,urlencode, urlparse, parse_qs
 
-from urllib.parse import quote
+# 1.2. Librerías de Terceros (Flask, Mongo, Utilidades)
+from flask import (
+    Flask, render_template, request, redirect,
+    url_for, jsonify, abort, send_file, flash
+)
+from flask_pymongo import PyMongo
+from bson import ObjectId
+from dateutil.relativedelta import relativedelta
 
+# 1.3. Manejo de Importaciones Opcionales o Condicionales
+try:
+    from openpyxl import Workbook
+except Exception:
+    Workbook = None
 
-
+# Blueprint de Salidas
 try:
     from salidas_blueprint import salidas_bp
 except ImportError:
@@ -31,32 +38,31 @@ except ImportError:
             pass
     salidas_bp = DummyBlueprint()
 
-# Si tienes notify (para email), asegúrate de que esté importado
+# Sistema de Notificaciones (Email)
 try:
-    from notify import send_email
+    from notify import send_email 
 except ImportError:
     def send_email(*args, **kwargs):
         print("WARN: Función send_email no disponible. No se enviará email.")
 
-from urllib.parse import quote
+# =================================================================
+# BLOQUE 2: CONFIGURACIÓN DE APP, MONGO Y BLUEPRINTS
+# =================================================================
 
-from urllib.parse import quote
-
-# ----------------- Config Flask + Mongo -----------------
 app = Flask(__name__)
 
-# Función para usar strftime como filtro de Jinja en las plantillas
+app.secret_key = os.environ.get("SECRET_KEY", "EP91_super_secret_2025_cambiar_en_prod")
 
-# Registrar el filtro 'strftime' en el entorno de Jinja (se registra más abajo tras definir datetimeformat)
-
+# Configuración de base de datos
 app.config["MONGO_URI"] = os.environ.get("MONGO_URI", "mongodb://localhost:27017/escuela_db")
 
-# UNA sola instancia de PyMongo
+# Inicialización de PyMongo (Instancia Única)
 mongo = PyMongo(app)
-# Exponer en app.mongo para blueprints: usar SIEMPRE la MISMA conexión
+
+# Exponer la base de datos para que sea accesible desde Blueprints
 app.mongo = mongo.db
 
-# Registrar blueprint de salidas
+# Registro de rutas modulares (Blueprints)
 app.register_blueprint(salidas_bp, url_prefix="/salidas")
 
 # ----------------- Collections -----------------
@@ -76,6 +82,7 @@ COL_CURSOS          = mongo.db.cursos  # Agregado para evitar error de definici�
 COL_CONFIG          = mongo.db.config   # Colección para configuraciones generales (ej. _id: "config_general")COL_CERTIFICADOS    = mongo.db["certificados_pendientes"]
 COL_CERTIFICADOS    = mongo.db.certificados_pendientes
 COL_CALENDARIO_ESCOLAR = mongo.db.calendario_escolar
+COL_MERCADERIA      = mongo.db.entrega_mercaderia
 
 # ----------------- Authentication Placeholder -----------------
 
@@ -164,7 +171,7 @@ def filtro_activos():
     ]}
 
 
-def _insert_movimiento_si_no_duplicado(doc, segundos=5):
+def _insert_movimiento_si_no_duplicado(doc, segundos=5): 
     """
     Evita duplicados si el form se envía 2 veces.
     Considera duplicado: mismo alumno_id + tipo + campos clave dentro de los últimos X segundos.
@@ -176,7 +183,7 @@ def _insert_movimiento_si_no_duplicado(doc, segundos=5):
             "alumno_id": doc.get("alumno_id"),
             "tipo": doc.get("tipo"),
             "fecha": {"$gte": desde},
-        }
+        } 
 
         # Campos opcionales que hacen “único” al movimiento
         for k in ("curso_origen", "curso_destino", "curso", "motivo", "escuela_destino"):
@@ -199,60 +206,26 @@ def _insert_movimiento_si_no_duplicado(doc, segundos=5):
         except Exception:
             pass
         return True
-
-@app.route('/')
-def index():
-    user = get_current_user()
-    
-    # Obtener un resumen de docentes y cursos
-    docentes_count = COL_DOCENTES.count_documents({})
-    cursos_count = COL_CURSOS.count_documents({})
-    
-    # Obtener el estado actual del SET4 (asumiendo que hay una configuración para el año)
-    config = COL_CONFIG.find_one({"_id": "config_general"})
-    set4_estado = config.get("set4_estado", "No iniciado") if config else "No iniciado"
-    
-    # Obtener alertas (vencimientos de licencias, etc.)
-    # Esto es una simulación. En realidad se haría una consulta más compleja.
-    alertas = []
-    
-    # Simulación de alerta de vencimiento de licencias
-    docentes_con_licencia = COL_DOCENTES.find({"licencia_vto": {"$exists": True, "$ne": ""}})
-    for doc in docentes_con_licencia:
-        try:
-            vto_date = datetime.strptime(doc['licencia_vto'], '%Y-%m-%d').date()
-            if vto_date < date.today() + timedelta(days=30):
-                dias_restantes = (vto_date - date.today()).days
-                alertas.append({
-                    "tipo": "Vencimiento",
-                    "mensaje": f"La licencia de {doc['nombre']} vence en {dias_restantes} días ({doc['licencia_vto']}).",
-                    "nivel": "warning" if dias_restantes > 0 else "danger"
-                })
-        except ValueError:
-            # Ignorar si el formato de fecha es incorrecto
-            pass
-
-    return render_template('index.html', 
-                           user=user, 
-                           docentes_count=docentes_count, 
-                           cursos_count=cursos_count,
-                           set4_estado=set4_estado,
-                           alertas=alertas)
-
-@app.route("/mapa/escuela")
-def ver_mapa_escuela():
-    """
-    Abre en una nueva pestaña el mapa centrado en la escuela.
-    """
-    direccion = "Tomás Edison 2164, Isidro Casanova, Buenos Aires, Argentina"
-    url = f"https://www.google.com/maps/search/?api=1&query={quote(direccion)}"
-    return redirect(url)
   
 # ----------------- Helpers genéricos -----------------
+
 def to_json(doc):
     d = dict(doc)
     d["_id"] = str(d["_id"])
     return d
+
+def mongo_ping_ok(timeout_ms=1000):
+    """Devuelve True si MongoDB responde al ping, False en caso contrario."""
+    try:
+        # Flask-PyMongo expone el cliente en distintos atributos según versión
+        client = getattr(mongo, "cx", None) or getattr(mongo, "mongo_client", None) or getattr(mongo, "client", None)
+        if not client:
+            return False
+        # comando ping simple
+        client.admin.command("ping")
+        return True
+    except Exception:
+        return False
 
 def matriz_5x5_vacia():
     return [["" for _ in range(5)] for _ in range(5)] 
@@ -276,45 +249,35 @@ def today_datetime():
     """Retorna la fecha y hora actual con info de zona horaria (UTC)"""
     return datetime.now(timezone.utc)
 
-def get_dias_habiles(year, month):
-    """
-    Calcula los días hábiles (Lunes a Viernes) para un mes/año dado.
-    Retorna una lista de objetos date (solo los días hábiles).
-    Esta función es crucial para la vista de asistencia.
-    """
-    dias_habiles = []
-    # CORRECCIÓN: Usar date(year, month, 1) para el primer día
-    current_date = date(year, month, 1)
-    
-    # Calcular el último día del mes
-    # Si es Diciembre (12), el siguiente mes es Enero del próximo año
-    if month == 12: 
-        # El último día de Diciembre siempre es 31
-        last_day = date(year, month, 31)
-    else:
-        # El último día del mes es el día anterior al primero del mes siguiente
-        last_day = date(year, month + 1, 1) - timedelta(days=1)
-    
-    while current_date <= last_day:
-        # 0=Lunes, 6=Domingo. Consideramos Lunes (0) a Viernes (4) como hábiles.
-        if 0 <= current_date.weekday() <= 4:
-            dias_habiles.append(current_date)
-        current_date += timedelta(days=1)
-    
-    return dias_habiles
-
 
 def datetimeformat(value, format='%Y-%m-%d'):
     if isinstance(value, datetime) or isinstance(value, date):
         return value.strftime(format)
     return value
 
+
+def parse_curso(curso_str: str):
+    """
+    Convierte '1°A' -> (1, 'A') | '3°B' -> (3, 'B')
+    Devuelve (None, None) si no matchea.
+    """
+    if not curso_str:
+        return None, None
+    s = curso_str.strip().upper().replace(" ", "")
+    m = re.match(r"^([1-6])°([AB])$", s)
+    if not m:
+        return None, None
+    return int(m.group(1)), m.group(2)
+
+def build_curso(grado: int, seccion: str):
+    return f"{grado}°{seccion.upper()}"
+
 # Registrar filtro Jinja tras definir la función
 app.jinja_env.filters['strftime'] = datetimeformat
   
 
 def dias_restantes(f_limite_str):
-    if not f_limite_str:
+    if not f_limite_str: 
         return None
     try:
         f = datetime.strptime(f_limite_str[:10], "%Y-%m-%d").date()
@@ -344,177 +307,7 @@ LEG_CAMPOS = [
     ("dni_autorizados", "DNI de autorizados a retirar"),
 ]
 
-# --------- Helpers Inasistencias (normalización y topes) ----------
-import unicodedata
 
-def _normalizar_texto(txt: str) -> str:
-    """
-    Pone en minúsculas y saca tildes para poder comparar causas
-    sin preocuparnos por acentos.
-    """
-    if not txt:
-        return ""
-    txt = txt.strip().lower()
-    # quitar tildes
-    txt = unicodedata.normalize("NFD", txt)
-    txt = "".join(c for c in txt if unicodedata.category(c) != "Mn")
-    return txt
-
-
-def _norm(s: str) -> str:
-    """
-    Versión corta: simplemente delega en _normalizar_texto.
-    (así evitamos el lío del maketrans y el ValueError)
-    """
-    return _normalizar_texto(s)
-
-
-def _es_citacion_otro_est(c_norm: str) -> bool:
-    """
-    Devuelve True si la causa normalizada corresponde a
-    'citacion / convocatoria en otro establecimiento'.
-    """
-    c = c_norm
-    return (
-        ("citacion" in c or "convocatoria" in c)
-        and (
-            "otro establecimiento" in c
-            or "otros establecimientos" in c
-            or "otro est" in c
-        )
-    )
-
-
-def _is_preexamen(causa_norm: str) -> bool:
-    return "pre" in causa_norm and "examen" in causa_norm
-
-
-def _causa_bucket(causa_norm: str) -> str:
-    c2 = causa_norm
-
-    if "enfermedad personal" in c2:
-        return "enfermedad_personal"
-    if "enfermedad familiar" in c2:
-        return "enfermedad_familiar"
-    if "particular" in c2:
-        return "particulares"
-
-    # Citación / convocatoria en otro establecimiento (semáforo VERDE)
-    if _es_citacion_otro_est(c2):
-        return "convocatoria_otros_establecimientos"
-
-    if "injustificada" in c2:
-        return "injustificadas"
-
-    return "otras"
-
-
-def _color_for_causa(causa: str) -> str:
-    """
-    Color para pintar tanto historial como calendario anual:
-    - VERDE: citación/convocatoria en otro establecimiento
-    - ROJO: todas las demás causas
-    (devolvemos códigos HEX porque el template usa background-color: {{ celda.color }})
-    """
-    c2 = _normalizar_texto(causa)
-
-    if _es_citacion_otro_est(c2):
-        return "#28a745"   # verde
-
-    return "#dc3545"       # rojo
-
-
-def _parse_date(valor):
-    """
-    Intenta convertir lo que venga a date:
-    - date => se devuelve tal cual
-    - '2025-11-27'
-    - '27/11/2025'
-    """
-    if isinstance(valor, date):
-        return valor
-    if not valor:
-        return None
-
-    s = str(valor).strip()
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
-        try:
-            return datetime.strptime(s, fmt).date()
-        except ValueError:
-            continue
-    return None
-
-
-def _year_bounds(d):
-    base = d or date.today()
-    return date(base.year, 1, 1), date(base.year, 12, 31)
-
-
-def _maybe_oid(x): 
-    if isinstance(x, ObjectId):
-        return x
-    try:
-        return ObjectId(str(x))
-    except Exception:
-        return str(x)
-
-
-LIMITES_ANUALES = {
-    "preexamen": 12,
-    "enfermedad_personal": 25,
-    "enfermedad_familiar": 20,
-    "particulares": 6,
-}
-
-
-def _limites_restantes(docente_id_raw, referencia_fecha=None):
-    docente_id = _maybe_oid(docente_id_raw)
-    y1, y2 = _year_bounds(referencia_fecha)
-
-    # NOTA: guardamos 'fecha' como ISO "YYYY-MM-DD". Si la tuvieras como date, hay que adaptar el filtro.
-    q = {"docente_id": docente_id, "fecha": {"$gte": y1.isoformat(), "$lte": y2.isoformat()}}
-
-    cont = {
-        "preexamen": 0,
-        "enfermedad_personal": 0,
-        "enfermedad_familiar": 0,
-        "particulares": 0,
-        "injustificadas": 0,
-        "otras": 0
-    }
-    meses_particulares = {}
-
-    for ins in COL_INASISTENCIAS.find(q):
-        causa_norm = _norm(ins.get("causa"))
-        bucket = _causa_bucket(causa_norm)
-        fecha_s = ins.get("fecha")
-        d = _parse_date(fecha_s)
-
-        if _is_preexamen(causa_norm): 
-            cont["preexamen"] += 1
-
-        if bucket in cont: 
-            cont[bucket] += 1
-        else:
-            cont["otras"] += 1
-
-        if bucket == "particulares" and d:
-            key = f"{d.year}-{d.month:02d}"
-            meses_particulares[key] = meses_particulares.get(key, 0) + 1
-
-    restantes = {
-        "preexamen": max(0, LIMITES_ANUALES["preexamen"] - cont["preexamen"]),
-        "enfermedad_personal": max(0, LIMITES_ANUALES["enfermedad_personal"] - cont["enfermedad_personal"]),
-        "enfermedad_familiar": max(0, LIMITES_ANUALES["enfermedad_familiar"] - cont["enfermedad_familiar"]),
-        "particulares": max(0, LIMITES_ANUALES["particulares"] - cont["particulares"]),
-    }
-    particulares_mes_lleno = {k: (v >= 1) for k, v in meses_particulares.items()}
-
-    return {
-        "consumos": cont,
-        "restantes": restantes,
-        "particulares_mes_lleno": particulares_mes_lleno
-    }
 def _split_cargos(docente):
     cargo_raw = (docente.get("cargo") or "").strip()
     return [c.strip().upper() for c in cargo_raw.split(",") if c.strip()]
@@ -538,6 +331,7 @@ def dias_semana_con_horas_docente(docente):
 
     for r in range(5):      # horas
         for c in range(5):  # días
+           
             try:
                 val = matriz[r][c]
             except Exception:
@@ -546,6 +340,198 @@ def dias_semana_con_horas_docente(docente):
                 dias.add(c)
 
     return dias
+
+            # --------- Helpers Inasistencias (normalización y topes) ----------
+
+def _normalizar_texto(txt: str) -> str:
+    if not txt:
+        return ""
+    txt = txt.strip().lower()
+    txt = unicodedata.normalize("NFD", txt)
+    txt = "".join(c for c in txt if unicodedata.category(c) != "Mn")
+    txt = re.sub(r"\s+", " ", txt).strip()
+    return txt
+
+def _norm(s: str) -> str:
+    return _normalizar_texto(s)
+
+def _parse_date(valor):
+    if isinstance(valor, date):
+        return valor
+    if not valor:
+        return None
+    s = str(valor).strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+def _year_bounds(d):
+    base = d or date.today()
+    return date(base.year, 1, 1), date(base.year, 12, 31)
+
+def _maybe_oid(x):
+    if isinstance(x, ObjectId):
+        return x
+    try:
+        return ObjectId(str(x))
+    except Exception:
+        return str(x)
+
+def _is_preexamen(causa_norm: str) -> bool:
+    c = causa_norm
+    return ("pre" in c) and ("examen" in c)
+
+def _es_citacion_otro_est(c_norm: str) -> bool:
+    """
+    Más robusto:
+    - acepta citacion/citación/convocatoria/comision/omision/servicio
+    - y acepta 'otro establecimiento' o abreviados
+    """
+    c = c_norm
+    es_llamado = any(k in c for k in ("citacion", "convocatoria", "comision", "omision", "servicio"))
+    es_otro_est = any(k in c for k in ("otro establecimiento", "otros establecimientos", "otro est", "establec"))
+    return es_llamado and es_otro_est
+
+def _es_art(c_norm: str) -> bool:
+    """
+    IMPORTANTÍSIMO:
+    'particular' contiene 'art', por eso NO usamos 'art in c'.
+    Detectamos ART como palabra o formas típicas: 'licencia art', 'por art', 'art.'
+    """
+    c = c_norm
+    if re.search(r"\bart\b", c):   # palabra ART
+        return True
+    if "licencia art" in c or "por art" in c or "art." in c:
+        return True
+    return False
+
+
+
+def _causa_bucket(causa_norm: str) -> str:
+    c2 = causa_norm
+
+    # ✅ específicos primero (evita falsos positivos)
+    # ART: palabra completa (art) para no confundir con "pARTiculares"
+    if re.search(r"\bart\b", c2):
+        return "art"
+
+    if "paro" in c2:
+        return "paro"
+    if "duelo" in c2:
+        return "duelo"
+    if _is_preexamen(c2):
+        return "preexamen"
+    if "examen" in c2:
+        return "examen"
+
+    if "enfermedad personal" in c2:
+        return "enfermedad_personal"
+    if "enfermedad familiar" in c2:
+        return "enfermedad_familiar"
+
+    # ✅ particulares antes que cualquier substring raro
+    if "particular" in c2:
+        return "particulares"
+
+    if _es_citacion_otro_est(c2):
+        return "convocatoria_otros_establecimientos"
+
+    if "injustificada" in c2:
+        return "injustificadas"
+
+    if "licencia extraordinaria" in c2:
+        return "licencia_extraordinaria"
+
+    return "otras"
+
+def _color_for_causa(causa: str) -> str:
+    c = _normalizar_texto(causa)
+    if _es_citacion_otro_est(c):
+        return "#28a745"  # verde
+    return "#dc3545"      # rojo
+
+LIMITES_ANUALES = {
+    "preexamen": 12,
+    "enfermedad_personal": 25,
+    "enfermedad_familiar": 20,
+    "particulares": 6,
+}
+
+def _contar_por_bucket_docente_anio(docente_id_raw, referencia_fecha=None):
+    """
+    Cuenta consumos por bucket en el año (para topes/alertas y SET4).
+    """
+    docente_id = _maybe_oid(docente_id_raw)
+    y1, y2 = _year_bounds(referencia_fecha)
+
+    q = {"docente_id": docente_id, "fecha": {"$gte": y1.isoformat(), "$lte": y2.isoformat()}}
+
+    cont = {
+        "preexamen": 0,
+        "enfermedad_personal": 0,
+        "enfermedad_familiar": 0,
+        "particulares": 0,
+        "citacion": 0,
+        "paro": 0,
+        "art": 0,
+        "duelo": 0,
+        "examen": 0,
+        "licencia_extraordinaria": 0,
+        "injustificadas": 0,
+        "otras": 0,
+    }
+
+    meses_particulares = {}  # yyyy-mm -> cantidad
+
+    for ins in COL_INASISTENCIAS.find(q):
+        causa_norm = _norm(ins.get("causa") or "")
+        bucket = _causa_bucket(causa_norm)
+
+        if bucket in cont:
+            cont[bucket] += 1
+        else:
+            cont["otras"] += 1
+
+        if bucket == "particulares":
+            d = _parse_date(ins.get("fecha"))
+            if d:
+                key = f"{d.year}-{d.month:02d}"
+                meses_particulares[key] = meses_particulares.get(key, 0) + 1
+
+    return cont, meses_particulares
+
+def _limites_restantes(docente_id_raw, referencia_fecha=None):
+    """
+    Retorna un dict con:
+      - 'restantes': dict(bucket -> cantidad restante en el año o None si no aplica)
+      - 'particulares_mes_lleno': dict('YYYY-MM' -> bool) indicando si ya hay una inasistencia en ese mes
+      - 'usados' y 'meses_particulares' para información adicional
+    """
+    cont, meses_particulares = _contar_por_bucket_docente_anio(docente_id_raw, referencia_fecha=referencia_fecha)
+
+    restantes = {}
+    # Para buckets definidos en LIMITES_ANUALES, calculamos lo que queda; si no está definido, ponemos None
+    for bucket in cont.keys():
+        if bucket in LIMITES_ANUALES:
+            top = LIMITES_ANUALES.get(bucket, 0)
+            usados = cont.get(bucket, 0)
+            restantes[bucket] = max(top - usados, 0)
+        else:
+            restantes[bucket] = None
+
+    # Map de meses con particulares ya ocupados (True si hay al menos 1 inasistencia en ese mes)
+    particulares_mes_lleno = {k: (v >= 1) for k, v in meses_particulares.items()}
+
+    return {
+        "restantes": restantes,
+        "particulares_mes_lleno": particulares_mes_lleno,
+        "usados": cont,
+        "meses_particulares": meses_particulares,
+    }
+   
 
 def _no_laborables_set(anio: int):
     """
@@ -593,6 +579,7 @@ def dias_base_mes_para_docente(docente, anio, mes, no_laborables=None):
         return 0
 
     return sum(1 for d in dias_habiles if d.weekday() in dias_con_horas)
+
 def docente_esperado_en_fecha(docente, fdate, no_laborables=None):
     """
     True si el docente debería concurrir ese día (para cálculo diario).
@@ -606,7 +593,7 @@ def docente_esperado_en_fecha(docente, fdate, no_laborables=None):
     if fdate.isoformat() in no_laborables:
         return False
 
-    # Grupo A => concurre todos los días hábiles
+    # Grupo A => concurre todos los días  hábles 
     if docente_concurre_todos_los_dias(docente):
         return fdate.weekday() < 5  # L-V
 
@@ -614,6 +601,583 @@ def docente_esperado_en_fecha(docente, fdate, no_laborables=None):
     return fdate.weekday() in dias_semana_con_horas_docente(docente)
 
 
+def norm_curso(curso: str) -> str:
+    """
+    Normaliza cursos para que queden consistentes.
+    Acepta: '1A', '1°A', '1ºA', '1 A' -> devuelve '1°A'
+            '6B' -> '6°B'
+    Si no matchea, devuelve strip tal cual.
+    """
+    s = (curso or "").strip().upper()
+    s = s.replace("º", "°")
+    s = re.sub(r"\s+", "", s)  # saca espacios
+
+    m = re.match(r"^(\d+)(°)?([A-Z])$", s)
+    if m:
+        n = m.group(1)
+        letra = m.group(3)
+        return f"{n}°{letra}"
+    return (curso or "").strip()
+
+def motivo_salida_valido(raw: str) -> str:
+    """
+    Devuelve motivo limpio o '' si es un placeholder.
+    Evita que al editar se marque como baja por error.
+    """
+    s = (raw or "").strip().upper()
+    placeholders = {
+        "", "-", "—", "SELECCIONE", "SELECCIONE...", "SELECCIONAR",
+        "NINGUNO", "N/A", "NO", "SIN"
+    }
+    if s in placeholders:
+        return ""
+    return s
+
+def es_alta_real(escuela_procedencia: str) -> bool:
+    """
+    Alta real = viene de otra escuela (no EP91) y no está vacío.
+    """
+    s = (escuela_procedencia or "").strip().upper()
+    if not s:
+        return False
+    # detecta variantes de EP 91
+    if "EP" in s and "91" in s:
+        return False
+    if "E.P" in s and "91" in s:
+        return False
+    return True
+
+def _es_procedencia_externa(valor):
+    """
+    Devuelve True si la escuela de procedencia NO es EP 91.
+    Vacío o EP 91 => matrícula inicial (no alta real)
+    """
+    v = (valor or "").strip().upper()
+    if not v:
+        return False
+
+    v = v.replace("N°", "N").replace("Nº", "N") 
+
+    if "EP" in v and "91" in v:
+        return False
+    if "E.P." in v and "91" in v:
+        return False
+    if "E.P" in v and "91" in v:
+        return False
+
+    return True
+
+def periodos_mar2026_feb2027():
+    # 12 meses: 2026-03 ... 2027-02
+    out = []
+    y, m = 2026, 3
+    for _ in range(12):
+        out.append(f"{y:04d}-{m:02d}")
+        m += 1
+        if m == 13:
+            m = 1
+            y += 1
+    return out
+
+def label_periodo(p):
+    # p = "YYYY-MM"
+    meses = {
+        1:"Ene",2:"Feb",3:"Mar",4:"Abr",5:"May",6:"Jun",
+        7:"Jul",8:"Ago",9:"Sep",10:"Oct",11:"Nov",12:"Dic"
+    }
+    y = int(p[:4]); m = int(p[5:7])
+    return f"{meses.get(m,'Mes')} {y}"
+
+def ordenar_curso_key(curso_str: str):
+    """
+    Ordena tipo: 1°A, 1 A, 1A, 2°B...
+    """
+    s = (curso_str or "").strip().upper().replace("º", "").replace("°", "").replace(" ", "")
+    # ejemplo: "1A"
+    num = 99
+    sec = "Z"
+    if len(s) >= 2 and s[0].isdigit():
+        try:
+            num = int(s[0])
+        except:
+            num = 99
+        sec = s[1]
+    return (num, sec, s)
+
+def _orden_alumno(a):
+    """
+    Orden:
+      1) Turno mañana (A) -> 0, turno tarde (B) -> 1, otros -> 2
+      2) Grado 1..6
+      3) Sección (A/B)
+      4) Apellido, Nombre
+    """
+    curso = (a.get("curso") or "").upper().replace("º", "°").strip()
+    turno_rank = 2
+    seccion = ""
+    grado = 99
+
+    # Detectamos A/B como secciones válidas
+    # Importante: asumimos formato limpio tipo "1° A", "2° B", etc.
+    if "A" in curso:
+        seccion = "A"
+    if "B" in curso:
+        # si llegara a tener "A" y "B", gana B sólo si corresponde
+        # pero en tu caso no pasa; es defensivo
+        if curso.endswith("B") or " B" in curso:
+            seccion = "B"
+
+    # Turno por sección
+    if seccion == "A":
+        turno_rank = 0  # mañana
+    elif seccion == "B":
+        turno_rank = 1  # tarde
+
+    # Grado (1..6)
+    for g in ("1", "2", "3", "4", "5", "6"):
+        if curso.startswith(g):
+            grado = int(g)
+            break
+
+    return (
+        turno_rank,
+        grado,
+        seccion,
+        (a.get("apellido") or "").upper(),
+        (a.get("nombre") or "").upper()
+    )
+
+# ----------------- RESUMEN EDADES POR CURSO -----------------
+
+def _orden_curso(curso: str):
+    """
+    Ordena cursos como:
+      Turno mañana (A) 1°A..6°A, luego turno tarde (B) 1°B..6°B, luego el resto.
+    """
+    c = (curso or "").upper().replace("º", "°").replace(" ", "")
+    turno = 2
+    grado = 99
+    seccion = ""
+
+    if c[:1].isdigit():
+        try:
+            grado = int(c[0])
+        except ValueError:
+            grado = 99
+
+    if "A" in c:
+        turno = 0
+        seccion = "A"
+    elif "B" in c:
+        turno = 1
+        seccion = "B"
+
+    return (turno, grado, seccion, c)
+
+
+
+MESES_ES = [ 
+    None,          # índice 0 (no se usa)
+    "Enero", 
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+]
+
+CURSOS = ["1º", "2º", "3º", "4º", "5º", "6º"]
+
+def calcular_matricula_mensual(mes, anio):
+    """
+    Matrícula activa en el mes/anio dado.
+
+    Activo = ingresó antes o durante el mes y
+             NO tiene EGRESO ni PASE A OTRA ESCUELA efectivo
+             antes o dentro de ese mes.
+
+    Separa por curso (1º..6º) y sección A/B (A = mañana, B = tarde).
+    """
+
+    # 1. Rango del mes (fechas NAIVE, sin tz)
+    try:
+        primer_dia = datetime(anio, mes, 1)
+        ultimo_dia = primer_dia + relativedelta(months=1) - timedelta(seconds=1)
+    except ValueError:
+        # Si vino algo raro en mes/año, usamos la fecha actual
+        hoy = today()
+        mes = hoy.month
+        anio = hoy.year
+        primer_dia = datetime(anio, mes, 1)
+        ultimo_dia = primer_dia + relativedelta(months=1) - timedelta(seconds=1)
+
+    # 2. Estructura base del parte
+    estructura_parte = {}
+    for curso in CURSOS:
+        estructura_parte[f"{curso} A"] = {"VARONES": 0, "MUJERES": 0, "TOTAL": 0}
+        estructura_parte[f"{curso} B"] = {"VARONES": 0, "MUJERES": 0, "TOTAL": 0}
+
+    # 3. Alumnos desde Mongo
+    alumnos = mongo.db.alumnos.find({})
+
+    # Helper local para parsear fechas que puedan venir como str o datetime
+    def parse_fecha(valor, default=None):
+        if isinstance(valor, datetime):
+            return valor
+        if isinstance(valor, str) and valor.strip():
+            try:
+                # 'YYYY-MM-DD' o 'YYYY-MM-DDTHH:MM:SS'
+                return datetime.fromisoformat(valor.strip())
+            except ValueError:
+                pass
+        return default
+
+    inicio_clases = datetime(1900, 1, 1) 
+
+    for alumno in alumnos:
+        # === 3.1 Fechas de ingreso / salida ===
+        fecha_ingreso = parse_fecha(alumno.get("fecha_ingreso"), default=inicio_clases)
+        fecha_salida  = parse_fecha(alumno.get("fecha_salida"),  default=None)
+
+        if fecha_ingreso is None:
+            fecha_ingreso = inicio_clases
+
+        motivo = (alumno.get("motivo_salida") or "").strip().upper()
+
+        # Es baja definitiva si tiene EGRESO o PASE y fecha_salida efectiva
+        es_baja_definitiva = (
+    fecha_salida is not None
+    and fecha_salida <= ultimo_dia
+)
+
+    # Activo en el mes si ingresó antes/durante y no tiene baja definitiva
+        esta_activo = (fecha_ingreso <= ultimo_dia) and not es_baja_definitiva
+        if not esta_activo:
+            continue
+
+        # === 3.2 Curso y sección desde "curso" (1°A, 2°B, etc.) ===
+        curso_raw = (alumno.get("curso") or "").upper().replace("º", "°").replace(" ", "")
+        if not curso_raw:
+            continue
+
+        grado_str = None
+        for g in ("1", "2", "3", "4", "5", "6"):
+            if curso_raw.startswith(g):
+                grado_str = f"{g}º"
+                break
+        if grado_str is None:
+            continue
+
+        if "A" in curso_raw:
+            seccion = "A"
+        elif "B" in curso_raw:
+            seccion = "B"
+        else:
+            continue
+
+        clave_curso = f"{grado_str} {seccion}"
+        if clave_curso not in estructura_parte:
+            continue
+
+        # === 3.3 Sexo ===
+        sexo = (alumno.get("sexo") or "").strip().upper()
+        if sexo not in ("M", "F"):
+            continue
+
+        if sexo == "M":
+            estructura_parte[clave_curso]["VARONES"] += 1
+        else:
+            estructura_parte[clave_curso]["MUJERES"] += 1
+
+        estructura_parte[clave_curso]["TOTAL"] += 1
+
+    # 4. Totales por turno y general
+    totales = defaultdict(lambda: {"VARONES": 0, "MUJERES": 0, "TOTAL": 0})
+    for curso_seccion, datos in estructura_parte.items():
+        if curso_seccion.endswith(" A"):
+            turno = "MAÑANA"
+        elif curso_seccion.endswith(" B"):
+            turno = "TARDE"
+        else:
+            continue
+
+        totales[turno]["VARONES"] += datos["VARONES"]
+        totales[turno]["MUJERES"] += datos["MUJERES"]
+        totales[turno]["TOTAL"]   += datos["TOTAL"]
+
+    totales["GENERAL"]["VARONES"] = totales["MAÑANA"]["VARONES"] + totales["TARDE"]["VARONES"]
+    totales["GENERAL"]["MUJERES"] = totales["MAÑANA"]["MUJERES"] + totales["TARDE"]["MUJERES"]
+    totales["GENERAL"]["TOTAL"]   = totales["MAÑANA"]["TOTAL"]   + totales["TARDE"]["TOTAL"]
+
+    # 5. Lista de cursos para la plantilla
+    lista_cursos = []
+    for curso in CURSOS:
+        lista_cursos.append({
+            "curso":  curso,
+            "manana": estructura_parte[f"{curso} A"],
+            "tarde":  estructura_parte[f"{curso} B"],
+        })
+
+    # Nombre del mes en castellano (MESES_ES debe estar definido arriba)
+    nombre_mes = MESES_ES[mes]
+
+    return { 
+        "mes": nombre_mes,
+        "mes_numero": mes,
+        "anio": anio,
+        "fecha_emision": today().strftime("%d/%m/%Y"),
+        "cursos": lista_cursos,
+        "totales": totales,
+    }
+
+def _anio_range(anio: int):
+    desde = datetime(anio, 1, 1, 0, 0, 0)
+    hasta = datetime(anio + 1, 1, 1, 0, 0, 0)
+    return desde, hasta
+
+def _str_norm(x: str) -> str:
+    return (x or "").strip().upper()
+
+def _es_ep91(txt: str) -> bool:
+    t = _str_norm(txt)
+    # contemplamos variantes: "E.P. 91", "EP 91", "E.P N° 91", etc.
+    return bool(re.search(r"\bE\.?\s*P\.?\s*(N|N°|NUM|NUMERO)?\s*\.?\s*91\b", t))
+
+def _es_alta_real(mov: dict) -> bool:
+    """
+    Alta real: escuela_origen existe y NO es EP91 (ni vacío).
+    Si está vacío o es EP91 => matrícula inicial.
+    """
+    esc = mov.get("escuela_origen") or mov.get("escuela_procedencia") or ""
+    if not esc.strip():
+        return False
+    if _es_ep91(esc):
+        return False
+    return True
+
+@app.route("/resumen/movimientos")
+def resumen_movimientos():
+    # año seleccionado
+    anio_param = (request.args.get("anio") or "").strip()
+    try:
+        anio = int(anio_param) if anio_param else date.today().year
+    except ValueError:
+        anio = date.today().year
+
+    d1, d2 = _anio_range(anio)
+
+    movs = list(COL_MOVIMIENTOS.find({
+        "fecha": {"$gte": d1, "$lt": d2}
+    }).sort([("fecha", -1)]))
+
+    entradas_reales = []
+    matricula_inicial = []
+    pases = []
+    egresos = []
+    cambios_turno = []
+    otras_bajas = []
+
+    for m in movs:
+        tipo = _str_norm(m.get("tipo"))
+        motivo = _str_norm(m.get("motivo") or m.get("motivo_salida"))
+
+        if tipo == "ALTA":
+            if _es_alta_real(m):
+                entradas_reales.append(m)
+            else:
+                matricula_inicial.append(m)
+
+        elif tipo == "CAMBIO_TURNO":
+            cambios_turno.append(m)
+
+        elif tipo in ("BAJA", "SALIDA"):
+            # clasificamos por motivo
+            if "PASE" in motivo:
+                pases.append(m)
+            elif "EGRESO" in motivo:
+                egresos.append(m)
+            else:
+                otras_bajas.append(m)
+        else:
+            otras_bajas.append(m)
+
+    # años disponibles (para el selector)
+    anios_disponibles = sorted(
+        { (m.get("fecha").year if isinstance(m.get("fecha"), datetime) else None)
+          for m in COL_MOVIMIENTOS.find({}, {"fecha": 1}) },
+        reverse=True
+    )
+    anios_disponibles = [a for a in anios_disponibles if a]
+
+    return render_template(
+        "resumen_movimientos.html",
+        anio=anio,
+        anios_disponibles=anios_disponibles,
+        entradas_reales=entradas_reales,
+        matricula_inicial=matricula_inicial,
+        pases=pases,
+        egresos=egresos,
+        cambios_turno=cambios_turno,
+        otras_bajas=otras_bajas,
+    )
+
+# --- SET4 helpers/route/pdf/mail ---
+def _fetch_set4_context(docente_id, desde, hasta):
+    d = COL_DOCENTES.find_one({"_id": ObjectId(docente_id)})
+    if not d: return None, None, None
+
+    # Inicializamos todos los contadores que tu calendario espera ver
+    totales = {
+        "enfermedad_personal": 0,
+        "enfermedad_familiar": 0,
+        "particulares": 0,
+        "citacion": 0,
+        "injustificadas": 0,
+        "duelo": 0,
+        "examen": 0,
+        "paro": 0,
+        "pre_examen": 0,
+        "ART": 0,
+        "otras": 0,
+        "suma": 0
+    }
+
+    q = {"docente_id": ObjectId(docente_id), "fecha": {"$gte": desde, "$lte": hasta}}
+    inasistencias_lista = []
+    
+    for ins in COL_INASISTENCIAS.find(q).sort("fecha", 1):
+        causa = (ins.get("causa") or "").lower()
+        
+        # Lógica de discriminación detallada
+        if "personal" in causa and "enfermedad" in causa:
+            totales["enfermedad_personal"] += 1
+        elif "familiar" in causa and "enfermedad" in causa:
+            totales["enfermedad_familiar"] += 1
+        elif "particular" in causa:
+            totales["particulares"] += 1
+        elif "citacion" in causa or "citación" in causa:
+            totales["citacion"] += 1
+        elif "injustificada" in causa:
+            totales["injustificadas"] += 1
+        elif "duelo" in causa:
+            totales["duelo"] += 1
+        elif "examen" in causa and "pre" not in causa:
+            totales["examen"] += 1
+        elif "pre" in causa and "examen" in causa:
+            totales["pre_examen"] += 1
+        elif "paro" in causa:
+            totales["paro"] += 1
+        elif "art" in causa:
+            totales["ART"] += 1
+        else:
+            totales["otras"] += 1
+        
+        inasistencias_lista.append(ins)
+
+    totales["suma"] = sum(v for k, v in totales.items() if k != "suma")
+    
+    periodo = {"desde": desde, "hasta": hasta}
+    return d, periodo, (totales, inasistencias_lista)
+
+def _fetch_set4_context_oficial(docente_id, anio):
+    # 1. Buscamos al docente
+    d = COL_DOCENTES.find_one({"_id": ObjectId(docente_id)})
+    if not d: return None, None, None
+
+    desde = f"{anio}-01-01"
+    hasta = f"{anio}-12-31"
+    
+    # 2. Buscamos todas sus inasistencias del año
+    q = {"docente_id": ObjectId(docente_id), "fecha": {"$gte": desde, "$lte": hasta}}
+    
+    # Inicializamos los 4 grupos oficiales + el total
+    totales = {
+        "enfermedad": 0,      # Aquí sumaremos Personal y Familiar
+        "privadas": 0,        # Aquí las Causas Particulares
+        "otras": 0,           # Aquí: Paro, Duelo, Examen, ART, etc.
+        "injustificadas": 0,  # Injustificadas
+        "suma": 0
+    }
+
+    inasistencias_lista = []
+    for ins in COL_INASISTENCIAS.find(q).sort("fecha", 1):
+        causa = (ins.get("causa") or "").lower()
+        
+        if "enfermedad" in causa:
+            totales["enfermedad"] += 1
+        elif "particular" in causa:
+            totales["privadas"] += 1
+        elif "injustificada" in causa:
+            totales["injustificadas"] += 1
+        else:
+            # Todo lo demás (Paro, Citación, Duelo, etc.) va a "Otras"
+            totales["otras"] += 1
+            
+        inasistencias_lista.append(ins)
+
+    totales["suma"] = totales["enfermedad"] + totales["privadas"] + totales["otras"] + totales["injustificadas"]
+    
+    periodo = {"desde": f"01/01/{anio}", "hasta": f"31/12/{anio}"}
+    return d, periodo, (totales, inasistencias_lista)
+
+# =================================================================
+# BLOQUE : RUTAS
+# =================================================================
+
+@app.route('/')
+def index(): 
+    user = get_current_user()
+    
+    # Obtener un resumen de docentes y cursos 
+    docentes_count = COL_DOCENTES.count_documents({})
+    cursos_count = COL_CURSOS.count_documents({})
+    
+    # Obtener el estado actual del SET4 (asumiendo que hay una configuración para el año)
+    config = COL_CONFIG.find_one({"_id": "config_general"})
+    set4_estado = config.get("set4_estado", "No iniciado") if config else "No iniciado"
+    
+    # Obtener alertas (vencimientos de licencias, etc.)
+    # Esto es una simulación. En realidad se haría una consulta más compleja.
+    alertas = []
+    
+    # Simulación de alerta de vencimiento de licencias
+    docentes_con_licencia = COL_DOCENTES.find({"licencia_vto": {"$exists": True, "$ne": ""}})
+    for doc in docentes_con_licencia:
+        try:
+            vto_date = datetime.strptime(doc['licencia_vto'], '%Y-%m-%d').date()
+            if vto_date < date.today() + timedelta(days=30):
+                dias_restantes = (vto_date - date.today()).days
+                alertas.append({
+                    "tipo": "Vencimiento",
+                    "mensaje": f"La licencia de {doc['nombre']} vence en {dias_restantes} días ({doc['licencia_vto']}).",
+                    "nivel": "warning" if dias_restantes > 0 else "danger"
+                })
+        except ValueError:
+            # Ignorar si el formato de fecha es incorrecto
+            pass
+
+    return render_template('index.html', 
+                           user=user, 
+                           docentes_count=docentes_count, 
+                           cursos_count=cursos_count,
+                           set4_estado=set4_estado,
+                           alertas=alertas)
+
+@app.route("/mapa/escuela")
+def ver_mapa_escuela():
+    """
+    Abre en una nueva pestaña el mapa centrado en la escuela.
+    """
+    direccion = "Tomás Edison 2164, Isidro Casanova, Buenos Aires, Argentina"
+    url = f"https://www.google.com/maps/search/?api=1&query={quote(direccion)}"
+    return redirect(url)
+  
 @app.route("/calendario_escolar", methods=["GET", "POST"])
 def calendario_escolar():
     # Año a mostrar
@@ -670,6 +1234,7 @@ def eliminar_calendario_escolar(id):
     return redirect(url_for("calendario_escolar"))
 
 # ----------------- DOCENTES -----------------
+
 @app.route("/docentes")
 def listar_docentes():
     docentes = []
@@ -701,12 +1266,11 @@ def nuevo_docente():
 def editar_docente(id):
     updates = request.form.to_dict()
 
-    # Cargos múltiples
-    cargos = request.form.getlist("cargo")
-    if cargos:
-        updates["cargo"] = ", ".join(c for c in cargos if c)
+    # ✅ siempre procesar cargo si vino el campo (aunque quede vacío)
+    if "cargo" in request.form:
+        cargos = [c.strip() for c in request.form.getlist("cargo") if c.strip()]
+        updates["cargo"] = ", ".join(cargos) if cargos else ""
 
-    # nunca sobrescribir la carga horaria
     updates.pop("carga_horaria", None)
 
     try:
@@ -714,7 +1278,8 @@ def editar_docente(id):
     except Exception:
         abort(400)
 
-    return redirect(url_for("listar_docentes")) 
+    return redirect(url_for("listar_docentes"))
+
 
 
 @app.route("/docentes/<id>/eliminar", methods=["POST"])
@@ -746,152 +1311,40 @@ def docente_carga_horaria(id):
     COL_DOCENTES.update_one({"_id": ObjectId(id)}, {"$set": {"carga_horaria": matriz}})
     return jsonify({"status": "ok"})
 
-
-# --- SET4 helpers/route/pdf/mail ---
-def _fetch_set4_context(docente_id, desde, hasta):
-    d = COL_DOCENTES.find_one({"_id": ObjectId(docente_id)})
-    if not d:
-        return None, None, None
-
-    # Construir la consulta con docente_id y, si se proporcionan, el rango de fechas
-    q = {"docente_id": _maybe_oid(docente_id)}
-    if desde and hasta:
-        q["fecha"] = {"$gte": desde, "$lte": hasta}
-
-
-    totales = {
-    "enfermedad_personal": 0,
-    "enfermedad_familiar": 0, 
-    "particulares": 0,
-    "citacion": 0,
-    "injustificadas": 0,
-    "pre_examen": 0,
-    "duelo": 0,
-    "examen": 0,
-    "paro": 0,
-    "otras": 0, 
-    "suma": 0 
-}
-
-    
-    lista = [] 
-    for ins in COL_INASISTENCIAS.find(q).sort("fecha", 1): 
-        causa_raw = ins.get("causa", "") or ""
-        c2 = _normalizar_texto(causa_raw)
-        if "enfermedad personal" in c2:
-             totales["enfermedad_personal"] += 1
-
-        elif "enfermedad familiar" in c2:
-             totales["enfermedad_familiar"] += 1
-
-        elif "particular" in c2:
-             totales["particulares"] += 1
-
-        elif "pre" in c2 and "examen" in c2:
-              totales["pre_examen"] += 1
-
-        elif "duelo" in c2:
-             totales["duelo"] += 1
-
-        elif "examen" in c2:
-             totales["examen"] += 1
-
-        elif "paro" in c2:
-             totales["paro"] += 1
-
-        elif "citacion" in c2 and "otro" in c2 and "establecimiento" in c2:
-             totales["citacion"] += 1
-
-        elif "injustificada" in c2:
-            totales["injustificadas"] += 1
-
-        else:
-            totales["otras"] += 1
-
-
-        lista.append({
-            "fecha": ins.get("fecha", ""),
-            "causa": causa_raw,
-            "observaciones": ins.get("observaciones", "")
-        })
-
-    totales["suma"] = sum(v for k, v in totales.items() if k != "suma")
-
-    periodo = {"desde": desde or "", "hasta": hasta or ""}
-    return d, periodo, (totales, lista)
-
 @app.route("/docentes/<id>/set4")
 def docente_set4(id):
     try:
         _ = ObjectId(id)
     except:
         abort(404)
-    desde = request.args.get("desde")
-    hasta = request.args.get("hasta")
-    d, periodo, pack = _fetch_set4_context(id, desde, hasta)
-    if not d:
+    
+    # Obtenemos el año del parámetro 'anio' o de la fecha 'desde'
+    anio = request.args.get("anio")
+    desde = request.args.get("desde") # Por si viene de un filtro de fechas
+    
+    if not anio:
+        if desde:
+            anio = desde.split("-")[0] # Extrae '2025' de '2025-01-01'
+        else:
+            anio = date.today().year
+
+    # AHORA SI: Pasamos solo 2 argumentos como espera la función
+    d, periodo, pack = _fetch_set4_context_oficial(id, anio)
+    
+    if not d: 
         abort(404)
+        
     totales, inasistencias = pack
+    
     return render_template("set4_calificacion.html",
-                           docente=d, periodo=periodo,
-                           totales=totales, inasistencias=inasistencias)
+                           docente=d, 
+                           periodo=periodo,
+                           totales=totales, 
+                           inasistencias=inasistencias)
 
-# @app.route("/docentes/<id>/set4.pdf")
-# def docente_set4_pdf(id):
-#     try:
-#         _ = ObjectId(id)
-#     except:
-#         abort(404)
-#     desde = request.args.get("desde")
-#     hasta = request.args.get("hasta")
-#     d, periodo, pack = _fetch_set4_context(id, desde, hasta)
-#     if not d:
-#         abort(404)
-#     totales, inasistencias = pack
-#     html = render_template("set4_calificacion.html",
-#                            docente=d, periodo=periodo,
-#                            totales=totales, inasistencias=inasistencias)
-#     pdf_io = BytesIO()
-#     HTML(string=html, base_url=request.host_url).write_pdf(pdf_io)
-#     pdf_io.seek(0)
-#     filename = f"SET4_{d.get('apellido','')}_{d.get('nombre','')}_{(desde or '')}_{(hasta or '')}.pdf"
-#     return send_file(pdf_io, mimetype="application/pdf",
-#                      as_attachment=True, download_name=filename)
-
-# @app.route("/api/set4_mail", methods=["POST"])
-# def set4_mail():
-#     docente_id = request.args.get("docente") or request.args.get("id")
-#     if not docente_id:
-#         return jsonify({"ok": False, "error": "docente_id requerido"}), 400
-#     try:
-#         _ = ObjectId(docente_id)
-#     except:
-#         return jsonify({"ok": False, "error": "docente_id inválido"}), 400
-#     desde = request.args.get("desde")
-#     hasta = request.args.get("hasta")
-#     d, periodo, pack = _fetch_set4_context(docente_id, desde, hasta)
-#     if not d:
-#         return jsonify({"ok": False, "error": "docente no encontrado"}), 404
-#     totales, inasistencias = pack
-#     html = render_template("set4_calificacion.html",
-#                            docente=d, periodo=periodo,
-#                            totales=totales, inasistencias=inasistencias)
-#     pdf_io = BytesIO()
-#     HTML(string=html, base_url=request.host_url).write_pdf(pdf_io)
-#     pdf_io.seek(0)
-#     pdf_bytes = pdf_io.read()
-#     subject = f"SET4 - {d.get('apellido','')}, {d.get('nombre','')} ({desde} a {hasta})"
-#     body = f"""
-#     <p>Adjunto SET4 del docente <b>{d.get('apellido','')}, {d.get('nombre','')}</b>.</p>
-#     <p>Período: {desde} a {hasta}</p>
-#     <p>Ver en sistema: /docentes/{docente_id}/set4?desde={desde}&hasta={hasta}</p>
-#     """
-#     ok, err = send_email(subject, body, to_list=None,
-#                          attachment=("SET4.pdf", pdf_bytes, "application/pdf"))
-#     return jsonify({"ok": ok, "error": err if not ok else None})
 
 @app.route("/docentes/<id>/inasistencias_anuales")
-def docente_inasistencias_anuales(id):
+def docente_inasistencias_anuales(id): 
     """
     Hoja anual de inasistencias para un docente (formato SET4):
     - Calendario L-V (enero–diciembre) del año elegido
@@ -994,57 +1447,388 @@ def docente_inasistencias_anuales(id):
         fecha_impresion=fecha_impresion,
     )
 
+# ----------------- INASISTENCIAS (robusto) -----------------
 
+@app.route("/inasistencias")
+def ver_inasistencias():
+    return render_template("inasistencias.html")
+
+
+@app.route("/api/inasistencias/<id>", methods=["GET"])
+def api_inasistencia_get(id):
+    try:
+        oid = ObjectId(id)
+    except Exception:
+        return jsonify(ok=False, error="ID inválido"), 400
+
+    ins = COL_INASISTENCIAS.find_one({"_id": oid})
+    if not ins:
+        return jsonify(ok=False, error="Inasistencia no encontrada"), 404
+
+    ins["_id"] = str(ins["_id"])
+    ins["docente_id"] = str(ins.get("docente_id"))
+    return jsonify(ok=True, data=ins)
+
+
+@app.route("/api/inasistencias/<id>", methods=["PUT"])
+def api_inasistencia_update(id):
+    try:
+        oid = ObjectId(id)
+    except Exception:
+        return jsonify(ok=False, error="ID inválido"), 400
+
+    data = request.get_json(silent=True) or {}
+
+    updates = {}
+    for campo in ("fecha", "causa", "observaciones"):
+        if campo in data and data[campo] is not None:
+            if campo == "fecha":
+                d = _parse_date(data.get("fecha"))
+                if not d:
+                    return jsonify(ok=False, error="Fecha inválida"), 400
+                updates["fecha"] = d.isoformat()
+            else:
+                updates[campo] = (data.get(campo) or "").strip()
+
+    # suplente opcional
+    sup = data.get("suplente_info") or data.get("suplente") or {}
+    if isinstance(sup, dict):
+        sup_clean = {
+            "nombre": (sup.get("nombre") or "").strip(),
+            "dni": (sup.get("dni") or "").strip(),
+            "curso": (sup.get("curso") or "").strip(),
+            "asignatura": (sup.get("asignatura") or "").strip(),
+        }
+        sup_clean = {k: v for k, v in sup_clean.items() if v}
+        updates["suplente_info"] = sup_clean
+
+    if not updates:
+        return jsonify(ok=False, error="Sin cambios"), 400
+
+    COL_INASISTENCIAS.update_one({"_id": oid}, {"$set": updates})
+    return jsonify(ok=True)
+
+
+@app.route("/api/inasistencias/<id>", methods=["DELETE"])
+def api_inasistencia_delete(id):
+    try:
+        oid = ObjectId(id)
+    except Exception:
+        return jsonify(ok=False, error="ID inválido"), 400
+
+    res = COL_INASISTENCIAS.delete_one({"_id": oid})
+    return jsonify(ok=bool(res.deleted_count), deleted=int(res.deleted_count))
+
+
+# SOLO POST: crear inasistencias (desde/hasta)
+@app.route("/api/inasistencias", methods=["POST"])
+def api_inasistencias():
+    data = request.get_json(silent=True) or {}
+
+    docente_id_raw = data.get("docente_id") or data.get("docente")
+    if not docente_id_raw:
+        return jsonify(ok=False, error="Docente requerido."), 400
+
+    docente_id = _maybe_oid(docente_id_raw)
+
+    desde = _parse_date(data.get("desde") or data.get("fecha"))
+    hasta = _parse_date(data.get("hasta") or data.get("fecha"))
+
+    if not desde:
+        return jsonify(ok=False, error="Fecha 'desde' requerida."), 400
+    if not hasta:
+        hasta = desde
+    if hasta < desde:
+        desde, hasta = hasta, desde
+
+    causa = (data.get("causa") or "").strip()
+    if not causa:
+        return jsonify(ok=False, error="Causa requerida."), 400
+
+    observ = (data.get("observaciones") or "").strip()
+
+    suplente_info = {
+        "nombre": (data.get("sup_nombre") or data.get("suplente_nombre") or "").strip(),
+        "dni": (data.get("sup_dni") or "").strip(),
+        "curso": (data.get("sup_curso") or "").strip(),
+        "asignatura": (data.get("sup_asignatura") or "").strip(),
+    }
+    suplente_info = {k: v for k, v in suplente_info.items() if v}
+
+    causa_norm = _norm(causa)
+    bucket = _causa_bucket(causa_norm)
+
+    # ---- Topes y reglas ----
+    cont_anual, meses_particulares = _contar_por_bucket_docente_anio(docente_id, referencia_fecha=desde)
+
+    warning = None
+
+    # ✅ REGLA ESTRICTA: CAUSAS PARTICULARES = 1 DÍA POR MES y máx 6 al año
+    if bucket == "particulares":
+        # 1) no permito rango multi-día
+        if desde != hasta:
+            return jsonify(ok=False, error="Causas particulares: debe ser UN (1) solo día (1 por mes)."), 400
+
+        # 2) no más de 1 por mes
+        key_mes = f"{desde.year}-{desde.month:02d}"
+        if meses_particulares.get(key_mes, 0) >= 1:
+            return jsonify(ok=False, error="Ya hay una inasistencia por 'causas particulares' en este mes."), 400
+
+        # 3) no más de 6 al año
+        if cont_anual.get("particulares", 0) >= LIMITES_ANUALES["particulares"]:
+            return jsonify(ok=False, error="Se alcanzó el tope anual de 'causas particulares' (6)."), 400
+
+    # ✅ ADVERTENCIA (NO BLOQUEA) para enfermedad/preexamen si excede el tope
+    if bucket in ("enfermedad_personal", "enfermedad_familiar", "preexamen"):
+        tope = LIMITES_ANUALES.get(bucket)
+        if tope is not None and cont_anual.get(bucket, 0) >= tope:
+            warning = f"Docente excedido en esta inasistencia: VER cuadro resumen y alertas ({cont_anual.get(bucket,0)+1}/{tope})."
+
+        # ✅ No permitir fechas futuras (te advierte y NO deja guardar)
+    if desde > date.today():
+        return jsonify(ok=False, error="Fecha inválida: no se pueden cargar inasistencias futuras."), 400
+
+    # ---- Evitar más de una inasistencia por día (IDEMPOTENTE) ----
+    dias_a_insertar = []
+    dcur = desde
+    while dcur <= hasta:
+        fecha_iso = dcur.isoformat()
+
+        existente = COL_INASISTENCIAS.find_one({"docente_id": docente_id, "fecha": fecha_iso})
+        if existente:
+            # si ya existe exactamente lo mismo, lo tomo como reintento (no error)
+            same = (
+                (existente.get("causa") or "").strip() == causa and
+                (existente.get("observaciones") or "").strip() == observ and
+                (existente.get("suplente_info") or {}) == suplente_info
+            )
+            if same:
+                dcur += timedelta(days=1)
+                continue
+
+            msg = f"Ya hay una inasistencia cargada para este docente el {dcur.strftime('%d/%m/%Y')}."
+            return jsonify(ok=False, error=msg), 400
+
+        dias_a_insertar.append(fecha_iso)
+        dcur += timedelta(days=1)
+    # ---- Insertar inasistencias ----
+        docs = [{
+        "docente_id": docente_id,
+        "fecha": f,
+        "causa": causa,
+        "observaciones": observ,
+        "suplente_info": suplente_info,
+    } for f in dias_a_insertar]
+
+    if docs:
+        COL_INASISTENCIAS.insert_many(docs)
+
+    return jsonify(ok=True, inserted=len(docs), warning=warning)
+
+
+@app.route("/inasistencias/<id>/editar", methods=["GET", "POST"])
+def editar_inasistencia(id):
+    try:
+        oid = ObjectId(id)
+    except Exception:
+        abort(404)
+
+    ins = COL_INASISTENCIAS.find_one({"_id": oid})
+    if not ins:
+        abort(404)
+
+    if request.method == "POST":
+        data = request.form.to_dict()
+
+        # Normalizamos nombres de campos según lo que guardás en /api_inasistencias
+        update = {
+            "fecha": data.get("fecha", "").strip(),
+            "docente_id": data.get("docente_id", ins.get("docente_id")),
+            "causa": data.get("causa", "").strip(),
+            "suplente_nombre": data.get("suplente_nombre", "").strip(),
+            "suplente_dni": data.get("suplente_dni", "").strip(),
+            "suplente_curso": data.get("suplente_curso", "").strip(),
+            "observaciones": data.get("observaciones", "").strip(),
+        }
+
+        COL_INASISTENCIAS.update_one({"_id": oid}, {"$set": update})
+        # Después de editar, te vuelvo al historial, con los mismos filtros que tenías si querés
+        return redirect(url_for("historial_inasistencias"))
+
+    # GET → cargo docentes para el combo y muestro plantilla
+    docentes = list(COL_DOCENTES.find().sort([("apellido", 1), ("nombre", 1)])) 
+    # Convertimos ObjectId a string
+    ins["_id"] = str(ins["_id"])
+    return render_template("inasistencias_editar.html",
+                           inasistencia=ins,
+                           docentes=docentes)
+
+# ----------------- HISTORIAL INASISTENCIAS (vista + APIs) -----------------
+
+@app.get("/inasistencias/historial")
+def historial_inasistencias():
+    if not mongo_ping_ok():
+        return render_template("db_down.html"), 503
+
+    docentes = list(COL_DOCENTES.find().sort([("apellido", 1), ("nombre", 1)]))
+    docentes = [{"_id": str(d["_id"]), "apellido": d.get("apellido",""), "nombre": d.get("nombre","")} for d in docentes]
+
+    return render_template("historial_inasistencias.html", docentes=docentes)
+
+
+def _historial_query_from_args(args):
+    q = {}
+
+    docente_id = (args.get("docente_id") or "").strip()
+    desde = (args.get("desde") or "").strip()
+    hasta = (args.get("hasta") or "").strip()
+    causa = (args.get("causa") or "").strip()
+
+    # Docente
+    if docente_id and docente_id.upper() != "TODOS":
+        q["docente_id"] = _maybe_oid(docente_id) 
+
+    # Fechas (guardadas como ISO yyyy-mm-dd)
+    if desde and hasta:
+        q["fecha"] = {"$gte": desde, "$lte": hasta}
+    elif desde:
+        q["fecha"] = {"$gte": desde}
+    elif hasta:
+        q["fecha"] = {"$lte": hasta}
+
+    # Causa
+    if causa and causa.upper() != "TODAS":
+        # match flexible, case-insensitive
+        q["causa"] = {"$regex": causa, "$options": "i"}
+
+    return q
+
+
+@app.get("/api/historial_lista")
+def api_historial_lista():
+    if not mongo_ping_ok():
+        return jsonify({"ok": False, "error": "db_down"}), 503
+
+    q = _historial_query_from_args(request.args)
+
+    # 1) Traigo todas las inasistencias del query
+    ins_list = list(COL_INASISTENCIAS.find(q).sort("fecha", 1))
+
+    # 2) Junto los docente_id (como ObjectId) para resolver nombres en 1 sola query
+    docente_oids = []
+    for ins in ins_list:
+        did = ins.get("docente_id")
+        if did:
+            try:
+                docente_oids.append(_maybe_oid(did))
+            except Exception:
+                pass
+
+    docente_oids = [d for d in docente_oids if d is not None]
+
+    docentes_map = {}
+    if docente_oids:
+        for d in COL_DOCENTES.find({"_id": {"$in": docente_oids}}, {"apellido": 1, "nombre": 1, "cargo": 1}):
+            docentes_map[str(d["_id"])] = {
+                "nombre": d.get("nombre", ""),
+                "apellido": d.get("apellido", ""),
+                "cargo": d.get("cargo", ""),
+            }
+
+    rows = []
+    for ins in ins_list:
+        did_raw = ins.get("docente_id")
+        did_str = ""
+        if did_raw is not None:
+            try:
+                did_str = str(did_raw)
+            except Exception:
+                did_str = ""
+
+        d = docentes_map.get(did_str, {}) 
+        docente_nombre = ""
+        if d:
+            docente_nombre = f"{d.get('apellido','')}, {d.get('nombre','')}".strip(", ")
+
+        rows.append({
+            "_id": str(ins.get("_id")),
+            "fecha": ins.get("fecha", ""),
+            "causa": ins.get("causa", ""),
+            "observaciones": ins.get("observaciones", ""),
+            "suplente_info": ins.get("suplente_info") or {},
+            "docente_id": did_str,
+            "docente_nombre": docente_nombre,
+            "edit_url": f"/inasistencias/{str(ins.get('_id'))}/editar",
+        })
+
+    return jsonify({"ok": True, "items": rows})
+
+@app.get("/api/historial_resumen")
+def api_historial_resumen():
+    if not mongo_ping_ok():
+        return jsonify({"ok": False, "error": "db_down"}), 503
+
+    q = _historial_query_from_args(request.args)
+
+    por = {
+        "enfermedad_personal": 0,
+        "enfermedad_familiar": 0,
+        "enfermedad_cronica": 0,
+        "particulares": 0,
+        "citacion_otro_establecimiento": 0,
+        "injustificadas": 0,
+        "pre_examen": 0,
+        "duelo": 0,
+        "examen": 0,
+        "paro": 0,
+        "art": 0,
+        "licencia_extraordinaria": 0,
+        "otras": 0,
+    }
+
+    def bucket_from_causa(causa: str) -> str:
+        c = _normalizar_texto(causa or "")
+        if "enfermedad personal" in c:
+            return "enfermedad_personal"
+        if "enfermedad familiar" in c:
+            return "enfermedad_familiar"
+        if "cronica" in c:
+            return "enfermedad_cronica"
+        if "causas particulares" in c or ("particular" in c):
+            return "particulares"
+        if "citacion" in c and "otro" in c and "establecimiento" in c:
+            return "citacion_otro_establecimiento"
+        if "injust" in c:
+            return "injustificadas"
+        if "pre" in c and "examen" in c:
+            return "pre_examen"
+        if "duelo" in c:
+            return "duelo"
+        if "examen" in c and "pre" not in c:
+            return "examen"
+        if "paro" in c:
+            return "paro"
+        if "art" == c or " art " in f" {c} ":
+            return "art"
+        if "licencia extraordinaria" in c:
+            return "licencia_extraordinaria"
+        return "otras"
+
+    total = 0
+    for ins in COL_INASISTENCIAS.find(q, {"causa": 1}):
+        total += 1
+        b = bucket_from_causa(ins.get("causa", ""))
+        por[b] = por.get(b, 0) + 1
+
+    return jsonify({"ok": True, "total": total, "por_causa": por})
 
 # ----------------- ALUMNOS -----------------
 
-def _orden_alumno(a):
-    """
-    Orden:
-      1) Turno mañana (A) -> 0, turno tarde (B) -> 1, otros -> 2
-      2) Grado 1..6
-      3) Sección (A/B)
-      4) Apellido, Nombre
-    """
-    curso = (a.get("curso") or "").upper().replace("º", "°").strip()
-    turno_rank = 2
-    seccion = ""
-    grado = 99
-
-    # Detectamos A/B como secciones válidas
-    # Importante: asumimos formato limpio tipo "1° A", "2° B", etc.
-    if "A" in curso:
-        seccion = "A"
-    if "B" in curso:
-        # si llegara a tener "A" y "B", gana B sólo si corresponde
-        # pero en tu caso no pasa; es defensivo
-        if curso.endswith("B") or " B" in curso:
-            seccion = "B"
-
-    # Turno por sección
-    if seccion == "A":
-        turno_rank = 0  # mañana
-    elif seccion == "B":
-        turno_rank = 1  # tarde
-
-    # Grado (1..6)
-    for g in ("1", "2", "3", "4", "5", "6"):
-        if curso.startswith(g):
-            grado = int(g)
-            break
-
-    return (
-        turno_rank,
-        grado,
-        seccion,
-        (a.get("apellido") or "").upper(),
-        (a.get("nombre") or "").upper()
-    )
 @app.route("/alumnos")
 def listar_alumnos():
     # ----------------- PARÁMETROS -----------------
     q = (request.args.get("q") or "").strip()
-    curso_sel = (request.args.get("curso") or "").strip()
+    curso_sel = (request.args.get("curso") or "").strip() 
     turno_sel = (request.args.get("turno") or "").strip()
     ver_historico = (request.args.get("historico") == "1")
 
@@ -1064,31 +1848,35 @@ def listar_alumnos():
             {"apellido_nombre": regex},
         ]
 
-    # Filtro por curso / turno
+     # Filtro por curso / turno
     if curso_sel:
-        filtro["curso"] = {"$regex": f"^{curso_sel}$", "$options": "i"}
+       filtro["curso"] = {"$regex": rf"^\s*{re.escape(curso_sel)}\s*$", "$options": "i"}
     elif turno_sel:
-        if turno_sel.lower() == "mañana":
-            filtro["curso"] = {"$regex": "A$", "$options": "i"}
-        elif turno_sel.lower() == "tarde":
-            filtro["curso"] = {"$regex": "B$", "$options": "i"}
+      ts = turno_sel.strip().lower()
+      if ts == "mañana":
+        filtro["curso"] = {"$regex": r"A\s*$", "$options": "i"}
+      elif ts == "tarde":
+        filtro["curso"] = {"$regex": r"B\s*$", "$options": "i"}
 
     # ----------------- CONSULTA A MONGO -----------------
+
     if ver_historico and curso_sel:
-        # Activos + históricos del curso
-        alumnos_cur = COL_ALUMNOS.find({
-            **filtro,
+        cond_historico = {
             "$or": [
-                {"fecha_salida": {"$in": [None, "", False]}},
-                {"curso_origen": curso_sel},
-                {"curso": curso_sel},
+                {"fecha_salida": {"$in": [None, "", False]}},  # activos
+                {"curso_origen": curso_sel},                   # vinieron de este curso
+                {"curso": curso_sel},                          # o estaban en este curso
             ]
-        })
+        }
+        if filtro:
+            alumnos_cur = COL_ALUMNOS.find({"$and": [filtro, cond_historico]})
+        else:
+            alumnos_cur = COL_ALUMNOS.find(cond_historico)
     else:
-        # Solo activos (comportamiento normal)
         alumnos_cur = COL_ALUMNOS.find({**filtro_activos(), **filtro})
 
-    alumnos = [to_json(a) for a in alumnos_cur]
+    # Convert cursor to list
+    alumnos = list(alumnos_cur)
 
     # ----------------- FLAGS PARA EL TEMPLATE -----------------
     for a in alumnos:
@@ -1123,7 +1911,7 @@ def listar_alumnos():
     alumnos.sort(key=_orden_alumno)
 
     # ----------------- EDAD / FECHAS -----------------
-    from datetime import datetime, date
+   
     REF = date(datetime.now().year, 6, 30)
 
     for a in alumnos:
@@ -1163,37 +1951,944 @@ def listar_alumnos():
         ver_historico=ver_historico,
         hoy_str=today().strftime("%Y-%m-%d"),
     )
+@app.route("/alumnos/nuevo", methods=["POST"])
+def nuevo_alumno():
+    data = request.form.to_dict()
 
+    # 1) Fecha: del form viene como "fecha_nac"
+    fecha_nac = (data.pop("fecha_nac", "") or "").strip()
+    if fecha_nac:
+        data["fecha_nacimiento"] = fecha_nac
 
-# app.py ~ Después de def listar_alumnos(): (Ej: Línea 430)
+    # 2) Responsable: "tutor" → "responsable"
+    tutor = (data.pop("tutor", "") or "").strip()
+    if tutor:
+        data["responsable"] = tutor
 
-def get_dias_mes(year, month):
-    """
-    Genera una lista de días del mes, filtrando Sábados y Domingos.
-    Esto representa los posibles "días hábiles" si la escuela abre.
-    """
-    dias = []
+    # 3) No guardamos edad_30jun
+    data.pop("edad_30jun", None)
+
+    # 4) RECURSANTES
+    recursante_str = (data.pop("recursante", "") or "NO").strip().upper()
+    data["recursante"] = (recursante_str == "SI")
+
+    # 5) Normalizamos sexo
+    sexo = (data.get("sexo") or "").strip().upper()
+    if sexo:
+        data["sexo"] = sexo
+
+    # 6) Escuela de procedencia ya viene como "escuela_procedencia"
+    escuela_procedencia = (data.get("escuela_procedencia") or "").strip()
+    if escuela_procedencia:
+        data["escuela_procedencia"] = escuela_procedencia
+        # Fecha de ingreso: si no viene, usamos hoy
+    if not data.get("fecha_ingreso"):
+        data["fecha_ingreso"] = today().strftime("%Y-%m-%d")
+
+    # Normalizamos campos de movimiento de salida (para altas normalmente quedan vacíos)
+    motivo_salida = (data.get("motivo_salida") or "").strip()
+    destino_salida = (data.get("destino_salida") or "").strip()
+    data["motivo_salida"] = motivo_salida
+    data["destino_salida"] = destino_salida
+
+    # Un alumno nuevo NO debe tener fecha de salida
+    data.pop("fecha_salida", None)
+
+    # -------- Insertamos alumno --------
+    res = COL_ALUMNOS.insert_one(data)  
+    alumno_id = res.inserted_id
+
+   
+    # -------- Registramos movimiento inicial (ALTA real o MATRÍCULA) --------
     try:
-        current_date = date(year, month, 1)
-    except ValueError:
-        return [] # Manejo de errores de mes o año inválido
-        
-    # Lista de días hábiles de la semana (Lunes=0, Domingo=6)
-    DIAS_HABILITADOS = [0, 1, 2, 3, 4] # Lunes a Viernes
+          proc = (escuela_procedencia or "").strip()
 
-    while current_date.month == month:
-        if current_date.weekday() in DIAS_HABILITADOS:
-            dias.append({
-                "fecha": current_date,
-                # Formato de día de la semana para la cabecera (Lun, Mar, etc.)
-                "dia_semana": current_date.strftime("%a").capitalize().replace('.', ''), 
-                "num_dia": current_date.day,
+          if _es_procedencia_externa(proc):
+        # ✅ ALTA REAL (viene de otra escuela)
+           _insert_movimiento_si_no_duplicado({
+            "alumno_id": alumno_id,
+            "tipo": "ALTA",
+            "curso": (data.get("curso") or "").strip(),
+            "apellido": (data.get("apellido") or "").strip(),
+            "nombre": (data.get("nombre") or "").strip(),
+            "dni": (data.get("dni") or "").strip(),
+            "escuela_origen": proc,
+            "escuela_destino": "E.P. N° 91",
+            "fecha": datetime.utcnow(),
+        })
+          else:
+        # 🟦 MATRÍCULA INICIAL (ya era de EP 91 o no se especifica procedencia)
+           _insert_movimiento_si_no_duplicado({
+            "alumno_id": alumno_id,
+            "tipo": "MATRICULA",
+            "curso": (data.get("curso") or "").strip(),
+            "apellido": (data.get("apellido") or "").strip(),
+            "nombre": (data.get("nombre") or "").strip(),
+            "dni": (data.get("dni") or "").strip(),
+            "fecha": datetime.utcnow(),
+        })
+    except Exception as e:
+         print("Error registrando movimiento inicial:", e)
+    return redirect(url_for("listar_alumnos"))    
+
+@app.route("/alumnos/<id>/editar", methods=["POST"])
+def editar_alumno(id):
+    alumno = COL_ALUMNOS.find_one({"_id": ObjectId(id)})
+    if not alumno:
+        abort(404)
+
+    updates_form = request.form.to_dict()
+
+    set_fields = {}
+    unset_fields = {}
+    updates = {}
+
+    # ----------------- DATOS BÁSICOS -----------------
+    # fecha nac
+    fecha_nac = (updates_form.pop("fecha_nac", "") or "").strip()
+    if fecha_nac:
+        set_fields["fecha_nacimiento"] = fecha_nac
+    else:
+        # si querés permitir vaciarlo:
+        # unset_fields["fecha_nacimiento"] = ""
+        pass
+
+    # tutor/responsable
+    tutor = (updates_form.pop("tutor", "") or "").strip()
+    if tutor:
+        set_fields["responsable"] = tutor
+    else:
+        # permitir vaciarlo si vienen espacios:
+        if "tutor" in request.form:
+            set_fields["responsable"] = ""
+
+    # no guardamos edad calculada
+    updates_form.pop("edad_30jun", None)
+
+    recursante_str = (updates_form.pop("recursante", "") or "NO").strip().upper()
+    set_fields["recursante"] = (recursante_str == "SI")
+
+    sexo = (updates_form.get("sexo") or "").strip().upper()
+    if sexo:
+        set_fields["sexo"] = sexo
+
+    # Copiamos el resto de campos comunes (limpiando strings)
+    for k in (
+        "apellido","nombre","dni","cuil","nacionalidad",
+        "ocupacion","domicilio","localidad","telefono",
+        "lugar_nacimiento","escuela_procedencia","observaciones"
+    ):
+        if k in updates_form:
+            set_fields[k] = (updates_form.get(k) or "").strip()
+
+    # ----------------- CURSO ACTUAL / DESTINO -----------------
+    curso_actual = (alumno.get("curso") or "").strip()
+    curso_form = (updates_form.get("curso") or "").strip()
+    curso_destino = (updates_form.get("curso_destino") or "").strip()
+
+    # ----------------- MOVIMIENTOS -----------------
+    motivo_salida = (updates_form.get("motivo_salida") or "").strip().upper()
+    destino_salida = (updates_form.get("destino_salida") or "").strip()
+    fecha_salida_form = (updates_form.get("fecha_salida") or "").strip()
+
+    # Normalizamos fecha (si no mandan, la ponemos hoy cuando corresponda)
+    fecha_hoy = datetime.utcnow().strftime("%Y-%m-%d")
+    if motivo_salida == "CAMBIO DE TURNO":
+    # cambio de curso, alumno sigue activo
+        set_fields["curso"] = curso_destino or curso_actual or curso_form
+        set_fields["fecha_salida"] = None
+
+    # histórico para pintarlo gris en el curso viejo
+        set_fields["curso_origen"] = curso_actual
+        set_fields["fecha_cambio_curso"] = fecha_salida_form or today().strftime("%Y-%m-%d")
+
+    # ✅ no dejar “motivo_salida” persistente
+        set_fields["motivo_salida"] = ""
+        set_fields["destino_salida"] = ""
+        set_fields["curso_destino"] = ""
+
+
+
+    elif motivo_salida:
+        # baja definitiva
+        set_fields["curso"] = curso_form or curso_actual
+        set_fields["fecha_salida"] = fecha_salida_form or fecha_hoy
+
+        set_fields["motivo_salida"] = motivo_salida
+        set_fields["destino_salida"] = destino_salida
+
+        # si tenía histórico de cambio, lo limpiamos (no aplica más)
+        unset_fields["curso_origen"] = ""
+        unset_fields["fecha_cambio_curso"] = ""
+
+    else:
+        # ACTIVO (sin movimiento)
+        set_fields["curso"] = curso_form or curso_actual
+        set_fields["fecha_salida"] = None
+
+        # 🔥 CLAVE: limpiar TODO rastro de histórico/movimiento en DB
+        unset_fields["curso_origen"] = ""
+        unset_fields["fecha_cambio_curso"] = ""
+        unset_fields["motivo_salida"] = ""
+        unset_fields["destino_salida"] = ""
+        unset_fields["curso_destino"] = ""
+
+    # ----------------- GUARDAR -----------------
+    update_doc = {"$set": set_fields}
+    if unset_fields:
+        update_doc["$unset"] = unset_fields
+
+    COL_ALUMNOS.update_one({"_id": ObjectId(id)}, update_doc)
+
+    # ----------------- REGISTRAR MOVIMIENTO (si corresponde) -----------------
+    try:
+        # CAMBIO_TURNO
+        if motivo_salida == "CAMBIO DE TURNO" and curso_destino and curso_destino != curso_actual:
+            _insert_movimiento_si_no_duplicado({
+                "alumno_id": ObjectId(id),
+                "tipo": "CAMBIO_TURNO",
+                "curso_origen": curso_actual,
+                "curso_destino": curso_destino,
+                "apellido": (alumno.get("apellido") or "").strip(),
+                "nombre": (alumno.get("nombre") or "").strip(),
+                "dni": (alumno.get("dni") or "").strip(),
+                "fecha": datetime.utcnow(),
             })
-        current_date += timedelta(days=1)
-    return dias
+
+        # BAJA (pase/egreso/otras)
+        elif motivo_salida and motivo_salida != "CAMBIO DE TURNO":
+            _insert_movimiento_si_no_duplicado({
+                "alumno_id": ObjectId(id),
+                "tipo": "BAJA",
+                "motivo": motivo_salida,
+                "curso": curso_actual,
+                "apellido": (alumno.get("apellido") or "").strip(),
+                "nombre": (alumno.get("nombre") or "").strip(),
+                "dni": (alumno.get("dni") or "").strip(),
+                "escuela_origen": "E.P. N° 91",
+                "escuela_destino": destino_salida,
+                "fecha": datetime.utcnow(),
+            })
+
+    except Exception as e: 
+        print("Error registrando movimiento:", e)
+
+    return redirect(url_for("listar_alumnos"))
+
+@app.route("/alumnos/<id>/eliminar", methods=["POST"])
+def eliminar_alumno(id):
+    if not mongo_ping_ok():
+        return render_template("db_down.html"), 503
+
+    try:
+        oid = ObjectId(id)
+    except Exception:
+        abort(404)
+
+    # ✅ SOLO si viene hard=1 => borrado real
+    hard_delete = (request.form.get("hard") or "").strip() == "1"
+
+    # ✅ Para volver a la lista con los mismos filtros
+    q = (request.form.get("q") or "").strip()
+    curso = (request.form.get("curso") or "").strip()
+    turno = (request.form.get("turno") or "").strip()
+    historico = (request.form.get("historico") or "").strip()  # "1" o ""
+
+    if hard_delete:
+        # BORRADO REAL
+        COL_ALUMNOS.delete_one({"_id": oid})
+
+        # Limpieza relacionada
+        try:
+            COL_ASISTENCIA.delete_many({"alumno_id": oid})
+        except Exception:
+            pass
+
+        try:
+            COL_CALIFICACIONES.delete_many({"alumno_id": str(oid)})
+        except Exception:
+            pass
+
+        flash("✅ Alumno eliminado definitivamente.", "success")
+    else:
+        # BAJA LÓGICA (histórico)
+        COL_ALUMNOS.update_one(
+            {"_id": oid},
+            {"$set": {
+                "activo": False,
+                "fecha_salida": date.today().isoformat(),
+                "sale_a": "ELIMINADO",
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        flash("✅ Alumno pasado a histórico (baja lógica).", "success")
+
+    # ✅ Volver a listar con filtros (sin depender del referrer)
+    params = {}
+    if q:
+        params["q"] = q
+    if curso:
+        params["curso"] = curso
+    if turno:
+        params["turno"] = turno
+    if historico:
+        params["historico"] = historico
+
+    url = url_for("listar_alumnos")
+    if params:
+        url = f"{url}?{urlencode(params)}"
+
+    return redirect(url)
+
+@app.post("/alumnos/eliminar_demos")
+def eliminar_demos_alumnos():
+    if not mongo_ping_ok(): 
+        return render_template("db_down.html"), 503 
+    
+    if (request.form.get("confirm_demos") or "").strip().upper() != "SI":
+        abort(403)
+
+    patrones = ["demo", "prueba", "test", "xxxx", "asdf"]
+    q_or = []
+    for p in patrones:
+        q_or.append({"apellido": {"$regex": p, "$options": "i"}})
+        q_or.append({"nombre": {"$regex": p, "$options": "i"}})
+
+    # Solo histórico (para que no borre reales activos por accidente)
+    q = {"$and": [{"activo": {"$ne": True}}, {"$or": q_or}]}
+
+    ids = [a["_id"] for a in COL_ALUMNOS.find(q, {"_id": 1})]
+
+    if ids:
+        COL_ALUMNOS.delete_many({"_id": {"$in": ids}})
+        try:
+            COL_ASISTENCIA.delete_many({"alumno_id": {"$in": ids}})
+        except Exception:
+            pass
+        try:
+            COL_CALIFICACIONES.delete_many({"alumno_id": {"$in": [str(i) for i in ids]}})
+        except Exception:
+            pass
+
+    flash(f"✅ Eliminados demos: {len(ids)}", "success")
+    return redirect(url_for("listar_alumnos", historico="1"))
+
+@app.route("/alumnos/<id>/certificado")
+def certificado_finalizacion(id):
+    a = COL_ALUMNOS.find_one({"_id": ObjectId(id)})
+    if not a:
+        abort(404) 
+
+    # Fecha de finalización configurable (.env), ej: CERT_FECHA_FIN=2025-12-22
+    fecha_fin_str = os.getenv("CERT_FECHA_FIN", "2025-12-22")
+    fecha_fin = datetime.strptime(fecha_fin_str, "%Y-%m-%d").date()
+
+    alumno = to_json(a)
+
+    dni = (alumno.get("dni") or "").strip()
+    anexo = f"{dni}/069" if dni else "____/069"
+
+    ctx = { 
+        "alumno": alumno,
+        "fecha_fin": fecha_fin,
+        "fecha_fin_larga": fecha_larga_castellano(fecha_fin),
+        "anexo": anexo,
+    }
+    return render_template("certificado_finalizacion.html", **ctx)
+
+@app.get("/estudiantes/matricula_2026", endpoint="matricula_2026_view")
+def matricula_2026_view():
+    if not mongo_ping_ok():
+        return render_template("db_down.html"), 503
+    return render_template("matricula_2026.html")
 
 
-# Pequeña ruta para seleccionar el curso y mes por defecto
+@app.get("/estudiantes/matricula_2026/preview", endpoint="matricula_2026_preview")
+def matricula_2026_preview():
+    if not mongo_ping_ok():
+        return jsonify({"ok": False, "error": "db_down"}), 503
+
+    alumnos = list(COL_ALUMNOS.find({"activo": {"$ne": False}}))
+
+    cambios = []
+    sin_estado = []
+    no_parseados = []
+    sexto = []
+
+    for a in alumnos:
+        curso_actual = (a.get("curso") or "").strip()
+        grado, sec = parse_curso(curso_actual)
+
+        if grado is None:
+            no_parseados.append(a)
+            continue
+
+        estado = (a.get("prom_rec_2026_2027") or "").strip().upper()
+
+        if grado == 6:
+            sexto.append(a)
+            continue
+
+        if estado not in ("PROM", "REC"):
+            sin_estado.append(a)
+            continue
+
+        curso_nuevo = curso_actual if estado == "REC" else build_curso(grado + 1, sec)
+
+        # Si querés ver también los REC aunque no cambien, dejalo igual:
+        cambios.append({
+            "id": str(a["_id"]),
+            "apellido": a.get("apellido", ""),
+            "nombre": a.get("nombre", ""),
+            "dni": a.get("dni", ""),
+            "curso_actual": curso_actual,
+            "curso_nuevo": curso_nuevo,
+            "estado": estado, 
+            "cambia": (curso_nuevo != curso_actual)
+        })
+
+    # Orden lindo: por curso actual, apellido, nombre
+    def sort_key(x):
+        g, s = parse_curso(x.get("curso_actual", ""))
+        return (g or 99, s or "Z", x.get("apellido",""), x.get("nombre",""))
+
+    cambios.sort(key=sort_key)
+
+    return jsonify({
+        "ok": True,
+        "items": cambios,
+        "stats": {
+            "total": len(alumnos),
+            "candidatos": len(cambios),
+            "cambios_reales": sum(1 for x in cambios if x.get("cambia")),
+            "sin_estado": len(sin_estado),
+            "no_parseados": len(no_parseados),
+            "sexto": len(sexto)
+        }
+    })
+
+
+@app.post("/estudiantes/matricula_2026/aplicar", endpoint="matricula_2026_aplicar")
+def matricula_2026_aplicar():
+    if not mongo_ping_ok():
+        return jsonify({"ok": False, "error": "db_down"}), 503
+
+    data = request.get_json(silent=True) or {}
+    if (data.get("confirm") or "").strip().upper() != "SI":
+        return jsonify({"ok": False, "error": "confirm_required"}), 400
+
+    alumnos = list(COL_ALUMNOS.find({"activo": {"$ne": False}}))
+
+    updates = 0
+    saltados = {"sin_estado": 0, "no_parseados": 0, "sexto": 0}
+
+    for a in alumnos:
+        curso_actual = (a.get("curso") or "").strip()
+        grado, sec = parse_curso(curso_actual)
+
+        if grado is None:
+            saltados["no_parseados"] += 1
+            continue
+
+        if grado == 6:
+            saltados["sexto"] += 1
+            continue
+
+        estado = (a.get("prom_rec_2026_2027") or "").strip().upper()
+        if estado not in ("PROM", "REC"):
+            saltados["sin_estado"] += 1
+            continue 
+
+        curso_nuevo = curso_actual if estado == "REC" else build_curso(grado + 1, sec)
+
+        if curso_nuevo != curso_actual:
+            COL_ALUMNOS.update_one(
+                {"_id": a["_id"]},
+                {"$set": {
+                    "curso": curso_nuevo,
+                    "matricula_actualizada_2026": True,
+                    "matricula_origen": curso_actual,
+                    "updated_at": datetime.utcnow()
+                }}
+            )
+            updates += 1 
+
+    return jsonify({"ok": True, "actualizados": updates, "saltados": saltados})
+
+# ----------------- CALIFICACIONES APIs -----------------
+
+@app.route("/api/asignaturas_escala", methods=["GET","POST"])
+def api_asignaturas_escala():
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        asignatura = (data.get("asignatura") or "").strip()
+        escala = (data.get("escala") or "").strip().lower()
+        if escala not in ("conceptual","numerica") or not asignatura:
+            return jsonify({"error":"Datos inválidos"}), 400
+        COL_CFG_ASIGNATURAS.update_one(
+            {"asignatura": asignatura},
+            {"$set": {"asignatura": asignatura, "escala": escala}},
+            upsert=True
+        )
+        return jsonify({"status":"ok"})
+    cfg = { c.get("asignatura"): c.get("escala","conceptual")
+            for c in COL_CFG_ASIGNATURAS.find({}) }
+    return jsonify(cfg)
+
+@app.route("/api/alumnos_por_curso")
+def api_alumnos_por_curso():
+    curso = (request.args.get("curso") or "").strip()
+    if not curso:
+        return jsonify([])
+
+    alumnos = []
+    q = {**filtro_activos(), "curso": {"$regex": f"^{curso}$", "$options": "i"}}
+
+    for a in COL_ALUMNOS.find(q).sort([("apellido", 1), ("nombre", 1)]):
+        aj = to_json(a)
+
+        # ✅ AGREGADO: Datos de EOE para la ficha del alumno
+        aj["causa_judicial"] = a.get("causa_judicial") or "-"
+        aj["venc_judicial"] = a.get("venc_judicial") or ""
+        aj["acompanante"] = a.get("acompanante") or "-"
+        aj["horario_acomp"] = a.get("horario_acomp") or ""
+
+        # Cálculo de edad
+        if aj.get("fecha_nacimiento"):
+            aj["edad_30jun"] = calcular_edad(aj["fecha_nacimiento"])
+
+        # Manejo de autorizados a retirar
+        autorizados_src = a.get("autorizados") or []
+        if isinstance(autorizados_src, list):
+            aj["autorizados_retirar"] = [
+                {
+                    "nombre": aut.get("nombre", ""),
+                    "vinculo": aut.get("parentesco", ""),
+                    "dni": aut.get("dni", ""),
+                }
+                for aut in autorizados_src
+                if (aut.get("nombre") or "").strip()
+            ]
+
+        alumnos.append(aj)
+
+    return jsonify(alumnos)
+
+@app.route("/api/calificaciones", methods=["GET"])
+def api_calificaciones_list():
+    docente_id = (request.args.get("docente_id") or "").strip()
+    asignatura = (request.args.get("asignatura") or "").strip()
+    curso = (request.args.get("curso") or "").strip()
+    trimestre_raw = (request.args.get("trimestre") or "").strip()
+    anio_raw = (request.args.get("anio") or "").strip()
+
+    # ✅ Trimestre: "1","2","3" o "all" o vacío
+    trimestre = trimestre_raw.lower()
+
+    q = {}
+
+    # ✅ IDs como STRING (Opción 1)
+    if docente_id:
+        q["docente_id"] = docente_id
+    if asignatura:
+        q["asignatura"] = asignatura
+
+    # ✅ Año: si viene, lo usamos; si no viene, default al año actual
+    try:
+        q["anio"] = int(anio_raw) if anio_raw else datetime.now().year
+    except ValueError:
+        q["anio"] = datetime.now().year
+
+    # ✅ Trimestre: solo filtrar si es 1/2/3
+    if trimestre and trimestre != "all":
+        try:
+            tri_int = int(trimestre)
+            if tri_int in (1, 2, 3):
+                q["trimestre"] = tri_int
+        except ValueError:
+            pass
+
+    # ✅ Curso: NO filtres por q["curso"], filtrá por alumno_id IN ids
+    if curso:
+        alumnos_ids = [
+            str(a["_id"])
+            for a in COL_ALUMNOS.find(
+                {**filtro_activos(), "curso": {"$regex": f"^{curso}$", "$options": "i"}},
+                {"_id": 1}
+            )
+        ]
+
+        # si no hay alumnos en ese curso → no hay calificaciones para devolver
+        if not alumnos_ids:
+            return jsonify([])
+
+        q["alumno_id"] = {"$in": alumnos_ids}
+
+    registros = [to_json(c) for c in COL_CALIFICACIONES.find(q)]
+    return jsonify(registros)
+
+
+@app.route("/api/calificaciones", methods=["POST"])
+def api_calificaciones_upsert():
+    data = request.get_json(silent=True) or {}
+
+    alumno_id  = (data.get("alumno_id") or "").strip()
+    docente_id = (data.get("docente_id") or "").strip()
+    asignatura = (data.get("asignatura") or "").strip()
+    curso      = (data.get("curso") or "").strip()   # snapshot (opcional)
+    escala     = (data.get("escala") or "").strip().lower()
+    valor      = (data.get("valor") or "").strip()
+    observaciones = (data.get("observaciones") or "").strip()
+
+    # año (si no viene, usamos actual)
+    try:
+        anio = int(data.get("anio") or datetime.now().year)
+    except Exception:
+        anio = datetime.now().year
+
+    # trimestre
+    try:
+        trimestre = int(data.get("trimestre") or 0)
+    except Exception:
+        trimestre = 0
+
+    if not all([alumno_id, docente_id, asignatura, trimestre, escala, valor]):
+        return jsonify({"error": "Campos obligatorios faltantes"}), 400
+
+    if trimestre not in (1, 2, 3):
+        return jsonify({"error": "Trimestre inválido"}), 400
+
+    if escala not in ("conceptual", "numerica"):
+        return jsonify({"error": "Escala inválida"}), 400
+
+    if escala == "numerica":
+        try:
+            n = float(valor.replace(",", "."))
+        except Exception:
+            return jsonify({"error": "Nota numérica inválida"}), 400
+        if n < 1 or n > 10:
+            return jsonify({"error": "Nota fuera de rango (1 a 10)"}), 400
+        valor = str(n).rstrip("0").rstrip(".")
+
+    # ✅ KEY: ahora incluye anio (para que el GET por año encuentre)
+    key = {
+        "alumno_id": alumno_id,
+        "docente_id": docente_id,
+        "asignatura": asignatura,
+        "trimestre": trimestre,
+        "anio": anio,
+    }
+
+    COL_CALIFICACIONES.update_one(
+        key,
+        {"$set": {
+            "escala": escala,
+            "valor": valor,
+            "observaciones": observaciones,
+            "curso": curso,
+            "anio": anio,
+            "updated_at": datetime.utcnow()
+        }, "$setOnInsert": {"created_at": datetime.utcnow()}},
+        upsert=True
+    )
+
+    cal = COL_CALIFICACIONES.find_one(key)
+    return jsonify(to_json(cal))
+
+
+@app.route("/api/calificaciones/<id>", methods=["DELETE"])
+def api_calificaciones_delete(id):
+    COL_CALIFICACIONES.delete_one({"_id": ObjectId(id)})
+    return jsonify({"status":"ok"})
+
+def obtener_alerta_ausentismo(alumno_id, mes, anio):
+    asistencia = COL_ASISTENCIAS.find_one({"alumno_id": ObjectId(alumno_id), "month": int(mes), "year": int(anio)})
+    if not asistencia:
+        return None, 0
+
+    dias = asistencia.get("dias", {})
+    valores = list(dias.values()) # Ej: ['P', 'A', 'A', 'A', 'P']
+    
+    total_inasistencias = valores.count('A')
+    
+    # Lógica de seguidas
+    max_seguidas = 0
+    contador = 0
+    for v in valores:
+        if v == 'A':
+            contador += 1
+            max_seguidas = max(max_seguidas, contador)
+        else:
+            contador = 0
+            
+    if max_seguidas >= 3:
+        return "3 o más seguidas", total_inasistencias
+    if total_inasistencias >= 5:
+        return "5 o más alternadas", total_inasistencias
+        
+    return None, total_inasistencias
+
+@app.route('/eoe/ausentismo')
+def eoe_ausentismo():
+    hoy = datetime.now()
+    mes_actual = hoy.month
+    anio_actual = hoy.year
+    curso_sel = request.args.get('curso', '')
+    
+    # 1. Obtener lista de cursos para el selector
+    cursos = sorted(COL_ALUMNOS.distinct("curso")) 
+    
+    # 2. Filtro base: alumnos activos
+    query = {"historico": {"$ne": True}}
+    if curso_sel:
+        query["curso"] = curso_sel
+    
+    alumnos_raw = list(COL_ALUMNOS.find(query).sort([("apellido", 1), ("nombre", 1)]))
+    alumnos_con_datos = []
+
+    # 3. Calcular inasistencias reales para cada alumno 
+    for alu in alumnos_raw:
+        # Llamamos a tu función lógica
+        alerta, total_faltas = obtener_alerta_ausentismo(str(alu["_id"]), mes_actual, anio_actual)
+        
+        # Agregamos los datos calculados al objeto del alumno
+        alu["total_faltas"] = total_faltas
+        alu["alerta_texto"] = alerta if alerta else "Sin alerta"
+        
+        # Opcional: Si quieres que la lista SOLO muestre alumnos con al menos 1 falta, 
+        # envuelve el append en un: if total_faltas > 0:
+        alumnos_con_datos.append(alu)
+    
+    return render_template("ausentismo.html", 
+                           alumnos=alumnos_con_datos, 
+                           cursos=cursos, 
+                           curso_sel=curso_sel,
+                           hoy=hoy.strftime('%d/%m/%Y'),
+                           hoy_mes=mes_actual, 
+                           hoy_anio=anio_actual)
+
+@app.route('/eoe/judiciales')
+def eoe_judiciales():
+    curso_sel = request.args.get('curso', '')
+    # 1. Lista de cursos para el selector
+    cursos = sorted(COL_ALUMNOS.distinct("curso"))
+    
+    # 2. Filtrar alumnos
+    query = {"historico": {"$ne": True}}
+    if curso_sel:
+        query["curso"] = curso_sel
+    
+    alumnos = list(COL_ALUMNOS.find(query).sort([("apellido", 1), ("nombre", 1)]))
+    
+    # 3. Fecha de hoy en formato ISO (YYYY-MM-DD) para comparar con los inputs de tipo date
+    hoy_iso = datetime.now().strftime('%Y-%m-%d')
+    
+    return render_template("judiciales_acompañantes.html", 
+                           alumnos=alumnos, 
+                           cursos=cursos, 
+                           curso_sel=curso_sel,
+                           hoy_iso=hoy_iso)
+
+@app.route("/api/eoe/actualizar_judicial", methods=["POST"])
+def actualizar_judicial():
+    data = request.json
+    id_alumno = data.get("id")
+    campo = data.get("campo") # ej: 'causa_judicial'
+    valor = data.get("valor")
+    
+    COL_ALUMNOS.update_one(
+        {"_id": ObjectId(id_alumno)},
+        {"$set": {campo: valor}}
+    )
+    return jsonify({"status": "ok"})
+# ==============================
+# ESTUDIANTES · MERCADERÍA / LISTAS / PROM-REC
+# ==============================
+
+@app.get("/estudiantes/entrega_mercaderia", endpoint="entrega_mercaderia")
+def entrega_mercaderia_view():
+    if not mongo_ping_ok():
+        return render_template("db_down.html"), 503
+
+    curso_filtrado = (request.args.get("curso") or "").strip()
+
+    alumnos_q = {"activo": {"$ne": False}}
+    if curso_filtrado:
+        alumnos_q["curso"] = curso_filtrado
+
+    alumnos = list(
+        COL_ALUMNOS.find(alumnos_q).sort([("curso", 1), ("apellido", 1), ("nombre", 1)])
+    )
+
+    periodos = periodos_mar2026_feb2027()
+    periodos_labels = [{"key": p, "label": label_periodo(p)} for p in periodos]
+
+    # Pre-carga entregas existentes
+    entregas_map = {}
+    q_ent = {"periodo": {"$in": periodos}}
+    for e in COL_MERCADERIA.find(q_ent, {"alumno_id": 1, "periodo": 1, "recibido": 1}):
+        aid = str(e.get("alumno_id"))
+        entregas_map.setdefault(aid, {})[e["periodo"]] = bool(e.get("recibido"))
+
+    grupos = {}
+    for a in alumnos:
+        curso = (a.get("curso") or "").strip()
+        grupos.setdefault(curso, []).append(a)
+
+    # Para el dropdown: siempre mostrar todos los cursos existentes (aunque estés filtrando)
+    # Si preferís que muestre solo los cursos del filtro, avisame.
+    todos = list(
+        COL_ALUMNOS.find({"activo": {"$ne": False}}, {"curso": 1}).sort([("curso", 1)])
+    )
+    cursos_unicos = sorted({(x.get("curso") or "").strip() for x in todos if (x.get("curso") or "").strip()}, key=ordenar_curso_key)
+
+    cursos_ordenados = sorted(grupos.keys(), key=ordenar_curso_key)
+
+    return render_template(
+        "entrega_mercaderia.html",
+        grupos=grupos,
+        cursos_ordenados=cursos_ordenados,
+        cursos_unicos=cursos_unicos,
+        periodos=periodos_labels,
+        entregas_map=entregas_map,
+        curso_filtrado=curso_filtrado
+    )
+
+
+@app.post("/estudiantes/entrega_mercaderia/toggle", endpoint="entrega_mercaderia_toggle")
+def entrega_mercaderia_toggle():
+    if not mongo_ping_ok():
+        return jsonify({"ok": False, "error": "db_down"}), 503
+
+    data = request.get_json(silent=True) or {}
+    alumno_id = (data.get("alumno_id") or "").strip()
+    periodo = (data.get("periodo") or "").strip()
+    recibido = bool(data.get("recibido"))
+
+    if not alumno_id or not periodo:
+        return jsonify({"ok": False, "error": "missing"}), 400
+
+    try:
+        oid = ObjectId(alumno_id)
+    except Exception:
+        return jsonify({"ok": False, "error": "bad_id"}), 400
+
+    if not COL_ALUMNOS.find_one({"_id": oid}, {"_id": 1}):
+        return jsonify({"ok": False, "error": "not_found"}), 404
+
+    COL_MERCADERIA.update_one(
+        {"alumno_id": oid, "periodo": periodo},
+        {"$set": {"recibido": recibido, "updated_at": datetime.utcnow()}},
+        upsert=True
+    )
+
+    return jsonify({"ok": True})
+
+
+@app.get("/estudiantes/listas", endpoint="listas_estudiantes")
+def listas_estudiantes_view():
+    if not mongo_ping_ok():
+        return render_template("db_down.html"), 503
+
+    curso_filtrado = (request.args.get("curso") or "").strip()
+
+    q = {"activo": {"$ne": False}}
+    if curso_filtrado:
+        q["curso"] = curso_filtrado
+
+    alumnos = list(
+        COL_ALUMNOS.find(q).sort([("curso", 1), ("apellido", 1), ("nombre", 1)])
+    )
+
+    grupos = {}
+    for a in alumnos:
+        curso = (a.get("curso") or "").strip()
+        grupos.setdefault(curso, []).append(a)
+
+    todos = list(
+        COL_ALUMNOS.find({"activo": {"$ne": False}}, {"curso": 1}).sort([("curso", 1)])
+    )
+    cursos_unicos = sorted({(x.get("curso") or "").strip() for x in todos if (x.get("curso") or "").strip()}, key=ordenar_curso_key)
+
+    cursos_ordenados = sorted(grupos.keys(), key=ordenar_curso_key)
+
+    return render_template(
+        "listas.html",
+        grupos=grupos,
+        cursos_ordenados=cursos_ordenados,
+        cursos_unicos=cursos_unicos,
+        curso_filtrado=curso_filtrado
+    )
+
+
+@app.get("/estudiantes/prom_rec", endpoint="prom_rec")
+def prom_rec_view():
+    if not mongo_ping_ok():
+        return render_template("db_down.html"), 503
+
+    curso_filtrado = (request.args.get("curso") or "").strip()
+
+    q = {"activo": {"$ne": False}}
+    if curso_filtrado:
+        q["curso"] = curso_filtrado
+
+    alumnos = list(
+        COL_ALUMNOS.find(q).sort([("curso", 1), ("apellido", 1), ("nombre", 1)])
+    )
+
+    grupos = {}
+    for a in alumnos:
+        curso = (a.get("curso") or "").strip()
+        grupos.setdefault(curso, []).append(a)
+
+    todos = list(
+        COL_ALUMNOS.find({"activo": {"$ne": False}}, {"curso": 1}).sort([("curso", 1)])
+    )
+    cursos_unicos = sorted({(x.get("curso") or "").strip() for x in todos if (x.get("curso") or "").strip()}, key=ordenar_curso_key)
+
+    cursos_ordenados = sorted(grupos.keys(), key=ordenar_curso_key)
+
+    return render_template(
+        "prom_rec.html",
+        grupos=grupos,
+        cursos_ordenados=cursos_ordenados,
+        cursos_unicos=cursos_unicos,
+        curso_filtrado=curso_filtrado
+    )
+
+
+@app.post("/estudiantes/prom_rec/guardar", endpoint="prom_rec_guardar")
+def prom_rec_guardar():
+    if not mongo_ping_ok():
+        return jsonify({"ok": False, "error": "db_down"}), 503
+
+    data = request.get_json(silent=True) or {}
+    alumno_id = (data.get("alumno_id") or "").strip()
+    valor = (data.get("valor") or "").strip().upper()
+
+    if not alumno_id:
+        return jsonify({"ok": False, "error": "missing"}), 400
+
+    if valor not in ("PROM", "REC"):
+        return jsonify({"ok": False, "error": "bad_value"}), 400
+
+    try:
+        oid = ObjectId(alumno_id)
+    except Exception:
+        return jsonify({"ok": False, "error": "bad_id"}), 400
+
+    res = COL_ALUMNOS.update_one(
+        {"_id": oid},
+        {"$set": {"prom_rec_2026_2027": valor, "updated_at": datetime.utcnow()}}
+    )
+
+    if res.matched_count == 0:
+        return jsonify({"ok": False, "error": "not_found"}), 404
+
+    return jsonify({"ok": True})
+
+# Pequeña ruta para seleccionar el curso y mes por 
+
 @app.route("/asistencia", methods=["GET"])
 def seleccionar_asistencia():
     """Redirige al mes y curso por defecto."""
@@ -1268,11 +2963,11 @@ def asistencia_mensual(curso, year, month):
                 query = {
                     'alumno_id': ObjectId(alumno_id_str),
                     'fecha': asistencia_date_iso,
-                    'curso': curso,
+                    
                 }
 
                 if estado in ['P', 'A', 'X']:
-                    update = {'$set': {'estado': estado}}
+                    update = {'$set': {'estado': estado, "curso": curso}}
                     COL_ASISTENCIA.update_one(query, update, upsert=True)
                 elif estado == '':
                     COL_ASISTENCIA.delete_one(query)
@@ -1299,10 +2994,12 @@ def asistencia_mensual(curso, year, month):
     end_date_iso = last_day_of_month.isoformat()
 
     # Obtener asistencias del mes (lista, no cursor)
+    alumno_ids = [a["_id"] for a in alumnos]  # alumnos ya es la lista del curso actual
+
     asistencias_mes = list(COL_ASISTENCIA.find({
-        'curso': curso,
-        'fecha': {'$gte': start_date_iso, '$lte': end_date_iso}
-    }))
+    'alumno_id': {'$in': alumno_ids},
+    'fecha': {'$gte': start_date_iso, '$lte': end_date_iso}
+}))
 
     # Mapeo: alumno → {fecha → estado}
     asistencia_map = {}
@@ -1380,21 +3077,15 @@ def asistencia_mensual(curso, year, month):
 
     # Asistencias del trimestre
     tri_asist = COL_ASISTENCIA.find({
-        'curso': curso,
-        'fecha': {
-            '$gte': tri_start_date.isoformat(),
-            '$lte': tri_end_date.isoformat()
-        }
-    })
+    'alumno_id': {'$in': alumno_ids},
+    'fecha': {'$gte': tri_start_date.isoformat(), '$lte': tri_end_date.isoformat()}
+})
 
-    # Asistencias del año
-    year_asist = COL_ASISTENCIA.find({
-        'curso': curso,
-        'fecha': {
-            '$gte': year_start_date.isoformat(),
-            '$lte': year_end_date.isoformat()
-        } 
-    })
+    year_asist = COL_ASISTENCIA.find({ 
+    'alumno_id': {'$in': alumno_ids},
+    'fecha': {'$gte': year_start_date.isoformat(), '$lte': year_end_date.isoformat()}
+})
+
 
     resumen_trimestre = {}  # {alumno_id: {"P":x, "A":y, "D":z}}
     for reg in tri_asist:
@@ -1442,8 +3133,6 @@ def asistencia_mensual(curso, year, month):
         numero_trimestre=numero_trimestre,
     )
 
-
-
 @app.route("/alumnos/<id>/mapa")
 def mapa_alumno(id):
     a = COL_ALUMNOS.find_one({"_id": ObjectId(id)})
@@ -1479,235 +3168,40 @@ def calificaciones_gestion():
 
 @app.route("/calificaciones/gestionar")
 def calificaciones_gestionar():
-    """
-    Pantalla principal de gestión de calificaciones.
-    - Docentes para el combo
-    - Configuración de escalas por asignatura
-    - Lista fija de asignaturas (incluye MG)
-    """
-    docentes = [to_json(d) for d in COL_DOCENTES.find().sort([("apellido", 1), ("nombre", 1)])]
-
-    cfg_cur = {
-        c.get("asignatura"): c.get("escala", "conceptual")
-        for c in COL_CFG_ASIGNATURAS.find({})
-    }
-
+    # 1. Obtenemos listas básicas
+    docentes = list(COL_DOCENTES.find().sort([("apellido", 1), ("nombre", 1)]))
+    cursos = sorted(COL_ALUMNOS.distinct("curso"))
+    
+    # 2. Definimos las asignaturas (asegurando que coincidan con tu lista)
     asignaturas = [
         "Prácticas del Lenguaje",
         "Matemática",
         "Ciencias Sociales",
         "Ciencias Naturales",
         "Inglés",
-        "Danza",
-        "Artística",
-        "Música",
+        "Educación Plástica",
+        "Educación Musical",
         "Educación Física",
-        "Quinta Hora",
-        
+        "Quinta Hora"
     ]
+
+    # 3. Traemos las escalas guardadas para que el JS sepa cuál usar
+    cfg_asignaturas = {}
+    for doc in COL_CONFIG.find({"tipo": "asignatura_escala"}):
+        cfg_asignaturas[doc["asignatura"]] = doc["escala"]
+
+    # 4. Fecha de hoy para comparar vencimientos en la ficha si fuera necesario
+    hoy_iso = datetime.now().strftime('%Y-%m-%d')
 
     return render_template(
         "calificaciones_gestion.html",
         docentes=docentes,
-        cfg_asignaturas=cfg_cur,
+        cursos=cursos,
         asignaturas=asignaturas,
+        cfg_asignaturas=cfg_asignaturas,
+        hoy_iso=hoy_iso # Agregamos esto por seguridad
     )
-
-
-# ----------------- RESUMEN EDADES POR CURSO -----------------
-
-
-
-def _orden_curso(curso: str):
-    """
-    Ordena cursos como:
-      Turno mañana (A) 1°A..6°A, luego turno tarde (B) 1°B..6°B, luego el resto.
-    """
-    c = (curso or "").upper().replace("º", "°").replace(" ", "")
-    turno = 2
-    grado = 99
-    seccion = ""
-
-    if c[:1].isdigit():
-        try:
-            grado = int(c[0])
-        except ValueError:
-            grado = 99
-
-    if "A" in c:
-        turno = 0
-        seccion = "A"
-    elif "B" in c:
-        turno = 1
-        seccion = "B"
-
-    return (turno, grado, seccion, c)
-
-
-
-MESES_ES = [ 
-    None,          # índice 0 (no se usa)
-    "Enero", 
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
-]
-
-CURSOS = ["1º", "2º", "3º", "4º", "5º", "6º"]
-
-def calcular_matricula_mensual(mes, anio):
-    """
-    Matrícula activa en el mes/anio dado.
-
-    Activo = ingresó antes o durante el mes y
-             NO tiene EGRESO ni PASE A OTRA ESCUELA efectivo
-             antes o dentro de ese mes.
-
-    Separa por curso (1º..6º) y sección A/B (A = mañana, B = tarde).
-    """
-
-    # 1. Rango del mes (fechas NAIVE, sin tz)
-    try:
-        primer_dia = datetime(anio, mes, 1)
-        ultimo_dia = primer_dia + relativedelta(months=1) - timedelta(seconds=1)
-    except ValueError:
-        # Si vino algo raro en mes/año, usamos la fecha actual
-        hoy = today()
-        mes = hoy.month
-        anio = hoy.year
-        primer_dia = datetime(anio, mes, 1)
-        ultimo_dia = primer_dia + relativedelta(months=1) - timedelta(seconds=1)
-
-    # 2. Estructura base del parte
-    estructura_parte = {}
-    for curso in CURSOS:
-        estructura_parte[f"{curso} A"] = {"VARONES": 0, "MUJERES": 0, "TOTAL": 0}
-        estructura_parte[f"{curso} B"] = {"VARONES": 0, "MUJERES": 0, "TOTAL": 0}
-
-    # 3. Alumnos desde Mongo
-    alumnos = mongo.db.alumnos.find({})
-
-    # Helper local para parsear fechas que puedan venir como str o datetime
-    def parse_fecha(valor, default=None):
-        if isinstance(valor, datetime):
-            return valor
-        if isinstance(valor, str) and valor.strip():
-            try:
-                # 'YYYY-MM-DD' o 'YYYY-MM-DDTHH:MM:SS'
-                return datetime.fromisoformat(valor.strip())
-            except ValueError:
-                pass
-        return default
-
-    inicio_clases = datetime(1900, 1, 1)
-
-    for alumno in alumnos:
-        # === 3.1 Fechas de ingreso / salida ===
-        fecha_ingreso = parse_fecha(alumno.get("fecha_ingreso"), default=inicio_clases)
-        fecha_salida  = parse_fecha(alumno.get("fecha_salida"),  default=None)
-
-        if fecha_ingreso is None:
-            fecha_ingreso = inicio_clases
-
-        motivo = (alumno.get("motivo_salida") or "").strip().upper()
-
-        # Es baja definitiva si tiene EGRESO o PASE y fecha_salida efectiva
-        es_baja_definitiva = (
-    fecha_salida is not None
-    and fecha_salida <= ultimo_dia
-)
-
-    
-
-        # Activo en el mes si ingresó antes/durante y no tiene baja definitiva
-        esta_activo = (fecha_ingreso <= ultimo_dia) and not es_baja_definitiva
-        if not esta_activo:
-            continue
-
-        # === 3.2 Curso y sección desde "curso" (1°A, 2°B, etc.) ===
-        curso_raw = (alumno.get("curso") or "").upper().replace("º", "°").replace(" ", "")
-        if not curso_raw:
-            continue
-
-        grado_str = None
-        for g in ("1", "2", "3", "4", "5", "6"):
-            if curso_raw.startswith(g):
-                grado_str = f"{g}º"
-                break
-        if grado_str is None:
-            continue
-
-        if "A" in curso_raw:
-            seccion = "A"
-        elif "B" in curso_raw:
-            seccion = "B"
-        else:
-            continue
-
-        clave_curso = f"{grado_str} {seccion}"
-        if clave_curso not in estructura_parte:
-            continue
-
-        # === 3.3 Sexo ===
-        sexo = (alumno.get("sexo") or "").strip().upper()
-        if sexo not in ("M", "F"):
-            continue
-
-        if sexo == "M":
-            estructura_parte[clave_curso]["VARONES"] += 1
-        else:
-            estructura_parte[clave_curso]["MUJERES"] += 1
-
-        estructura_parte[clave_curso]["TOTAL"] += 1
-
-    # 4. Totales por turno y general
-    totales = defaultdict(lambda: {"VARONES": 0, "MUJERES": 0, "TOTAL": 0})
-    for curso_seccion, datos in estructura_parte.items():
-        if curso_seccion.endswith(" A"):
-            turno = "MAÑANA"
-        elif curso_seccion.endswith(" B"):
-            turno = "TARDE"
-        else:
-            continue
-
-        totales[turno]["VARONES"] += datos["VARONES"]
-        totales[turno]["MUJERES"] += datos["MUJERES"]
-        totales[turno]["TOTAL"]   += datos["TOTAL"]
-
-    totales["GENERAL"]["VARONES"] = totales["MAÑANA"]["VARONES"] + totales["TARDE"]["VARONES"]
-    totales["GENERAL"]["MUJERES"] = totales["MAÑANA"]["MUJERES"] + totales["TARDE"]["MUJERES"]
-    totales["GENERAL"]["TOTAL"]   = totales["MAÑANA"]["TOTAL"]   + totales["TARDE"]["TOTAL"]
-
-    # 5. Lista de cursos para la plantilla
-    lista_cursos = []
-    for curso in CURSOS:
-        lista_cursos.append({
-            "curso":  curso,
-            "manana": estructura_parte[f"{curso} A"],
-            "tarde":  estructura_parte[f"{curso} B"],
-        })
-
-    # Nombre del mes en castellano (MESES_ES debe estar definido arriba)
-    nombre_mes = MESES_ES[mes]
-
-    return { 
-        "mes": nombre_mes,
-        "mes_numero": mes,
-        "anio": anio,
-        "fecha_emision": today().strftime("%d/%m/%Y"),
-        "cursos": lista_cursos,
-        "totales": totales,
-    }
-
-# app.py (Ruta para el Parte Diario)
+#  Ruta para el Parte Diario
 
 @app.route("/parte_diario", methods=["GET"])
 def parte_diario():
@@ -1813,6 +3307,51 @@ def resumen_edades():
         cursos=cursos,
         ref_fecha=ref_fecha,
     )
+@app.route("/resumen/nacionalidades")
+def resumen_nacionalidades():
+    """
+    Por curso, cuenta alumnos por nacionalidad (y sexo).
+    """
+    alumnos = list(COL_ALUMNOS.find(filtro_activos()))
+
+    # data[curso][nacionalidad][sexo] = count
+    data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    cursos_set = set()
+    nacs_set = set()
+
+    for a in alumnos:
+        curso = (a.get("curso") or "").strip()
+        if not curso:
+            continue
+        cursos_set.add(curso)
+        raw = (a.get("nacionalidad") or "").strip()
+        up = raw.upper().replace(".", "").strip()
+
+        if not up:
+            nac = "SIN DATO"
+        elif up in ("ARG", "ARGENTINA", "ARGENTINO", "ARGENTINOS", "ARGENTINAS"):
+            nac = "ARGENTINA"
+        else:
+            nac = up
+
+        nacs_set.add(nac)
+
+        sexo = (a.get("sexo") or "").strip().upper()
+        if sexo not in ("M", "F"):
+            sexo = "X"
+
+        data[curso][nac][sexo] += 1
+
+    cursos = sorted(cursos_set)
+    nacs = sorted(nacs_set)
+
+    return render_template(
+        "resumen_nacionalidades.html",
+        data=data,
+        cursos=cursos,
+        nacs=nacs,
+    )
+
 @app.route("/resumen/inasistencias")
 def resumen_inasistencias():
     anio_param = (request.args.get("anio") or "").strip()
@@ -1931,7 +3470,54 @@ def resumen_inasistencias():
         nota_dias_base="Días base (tabla mensual): suma institucional de días programados de todos los docentes (según cargo + carga horaria)."
     )
 
+# ----------------- RESUMEN CURSO -----------------
+@app.route("/api/resumen_curso")
+def api_resumen_curso():
+    curso = (request.args.get("curso") or "").strip()
+    if not curso:
+        return jsonify({"error": "curso requerido"}), 400
 
+    q = {"curso": {"$regex": f"^{curso}$", "$options": "i"}}
+    alumnos = list(COL_ALUMNOS.find({**filtro_activos(), **q}))
+
+
+    total = len(alumnos)
+    edades = {}
+    nac = {}
+    recursantes = 0
+    sobreedad = 0
+
+    for a in alumnos:
+        edad = None
+        if a.get("fecha_nacimiento"):
+            edad = calcular_edad(a["fecha_nacimiento"])
+            if edad is not None:
+                edades[edad] = edades.get(edad, 0) + 1
+
+        n = (a.get("nacionalidad") or "").strip().upper() or "SIN DATO"
+        nac[n] = nac.get(n, 0) + 1
+
+        if a.get("recursante"):
+            recursantes += 1
+
+        # sobreedad según grado (1°->6 años ... 6°->11)
+        curso_txt = (a.get("curso") or "")
+        grado = None
+        for g in ("1", "2", "3", "4", "5", "6"):
+            if curso_txt.startswith(g):
+                grado = int(g)
+                break
+        if grado and edad and edad > (5 + grado):
+            sobreedad += 1
+
+    return jsonify({
+        "curso": curso,
+        "total": total,
+        "edades_30jun": edades,
+        "nacionalidades": nac,
+        "recursantes": recursantes,
+        "sobreedad": sobreedad
+    })
 
 @app.route("/resumen/calificaciones") 
 def resumen_calificaciones():
@@ -1979,8 +3565,6 @@ def resumen_calificaciones():
             d_curso["desaprobados"] += 1
             d_asig["desaprobados"] += 1
 
-    # ... el resto igual ...
-
     # Transformar a listas ordenadas + porcentaje
     resumen_curso = []
     for (curso, asignatura, trimestre), vals in sorted(por_curso.items()):
@@ -2018,172 +3602,138 @@ def resumen_calificaciones():
         resumen_asig=resumen_asig,
     )
 
-@app.route("/alumnos/nuevo", methods=["POST"])
-def nuevo_alumno():
-    data = request.form.to_dict()
-
-    # 1) Fecha: del form viene como "fecha_nac"
-    fecha_nac = (data.pop("fecha_nac", "") or "").strip()
-    if fecha_nac:
-        data["fecha_nacimiento"] = fecha_nac
-
-    # 2) Responsable: "tutor" → "responsable"
-    tutor = (data.pop("tutor", "") or "").strip()
-    if tutor:
-        data["responsable"] = tutor
-
-    # 3) No guardamos edad_30jun
-    data.pop("edad_30jun", None)
-
-    # 4) RECURSANTES
-    recursante_str = (data.pop("recursante", "") or "NO").strip().upper()
-    data["recursante"] = (recursante_str == "SI")
-
-    # 5) Normalizamos sexo
-    sexo = (data.get("sexo") or "").strip().upper()
-    if sexo:
-        data["sexo"] = sexo
-
-    # 6) Escuela de procedencia ya viene como "escuela_procedencia"
-    escuela_procedencia = (data.get("escuela_procedencia") or "").strip()
-    if escuela_procedencia:
-        data["escuela_procedencia"] = escuela_procedencia
-        # Fecha de ingreso: si no viene, usamos hoy
-    if not data.get("fecha_ingreso"):
-        data["fecha_ingreso"] = today().strftime("%Y-%m-%d")
-
-    # Normalizamos campos de movimiento de salida (para altas normalmente quedan vacíos)
-    motivo_salida = (data.get("motivo_salida") or "").strip()
-    destino_salida = (data.get("destino_salida") or "").strip()
-    data["motivo_salida"] = motivo_salida
-    data["destino_salida"] = destino_salida
-
-    # Un alumno nuevo NO debe tener fecha de salida
-    data.pop("fecha_salida", None)
-
-    # -------- Insertamos alumno --------
-    res = COL_ALUMNOS.insert_one(data)  
-    alumno_id = res.inserted_id
-
-    # -------- Registramos movimiento ALTA --------
+@app.post("/movimientos/<id>/borrar")
+def borrar_movimiento(id):
+    anio = (request.args.get("anio") or "").strip()
     try:
-        COL_MOVIMIENTOS.insert_one({
-            "alumno_id": alumno_id,
-            "tipo": "ALTA",
-            "curso": (data.get("curso") or "").strip(),
-            "apellido": (data.get("apellido") or "").strip(),
-            "nombre": (data.get("nombre") or "").strip(),
-            "dni": (data.get("dni") or "").strip(),
+        oid = ObjectId(id)
+    except Exception:
+        abort(404)
 
-            # NUEVO: tomamos escuela de procedencia del alumno
-            "escuela_origen": escuela_procedencia,
-            "escuela_destino": "E.P. N° 91",
-
-            "con_pase": False,
-            "con_acta": False,
-            "fecha": datetime.now(),
-        })
-    except Exception as e:
-        print("Error registrando movimiento ALTA:", e)
-
-    return redirect(url_for("listar_alumnos"))
+    COL_MOVIMIENTOS.delete_one({"_id": oid})
+    # volvemos al resumen del mismo año
+    if anio:
+        return redirect(url_for("resumen_movimientos", anio=anio))
+    return redirect(url_for("resumen_movimientos"))
 
 
+@app.get("/resumen/movimientos/exportar.xlsx")
+def exportar_movimientos_excel():
+    anio_param = (request.args.get("anio") or "").strip()
+    try:
+        anio = int(anio_param) if anio_param else date.today().year
+    except ValueError:
+        anio = date.today().year
 
-@app.route("/resumen/nacionalidades")
-def resumen_nacionalidades():
-    """
-    Por curso, cuenta alumnos por nacionalidad (y sexo).
-    """
-    alumnos = list(COL_ALUMNOS.find(filtro_activos()))
+    d1, d2 = _anio_range(anio)
+    movs = list(COL_MOVIMIENTOS.find({
+        "fecha": {"$gte": d1, "$lt": d2}
+    }).sort([("fecha", -1)]))
 
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"Movimientos {anio}"
 
-    # data[curso][nacionalidad][sexo] = count
-    data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-    cursos_set = set()
-    nacs_set = set()
+    headers = ["Fecha", "Tipo", "Apellido", "Nombre", "DNI", "Curso", "Curso Origen", "Curso Destino", "Motivo", "Escuela Origen", "Escuela Destino"]
+    ws.append(headers)
 
-    for a in alumnos:
-        curso = (a.get("curso") or "").strip()
-        if not curso:
-            continue
-        cursos_set.add(curso)
-        raw = (a.get("nacionalidad") or "").strip()
-        up = raw.upper().replace(".", "").strip()
-
-        if not up:
-            nac = "SIN DATO"
-        elif up in ("ARG", "ARGENTINA", "ARGENTINO", "ARGENTINOS", "ARGENTINAS"):
-            nac = "ARGENTINA"
-        else:
-           nac = up
-
-        
-        nacs_set.add(nac)
-
-        sexo = (a.get("sexo") or "").strip().upper()
-        if sexo not in ("M", "F"):
-            sexo = "X"
-
-        data[curso][nac][sexo] += 1
-
-    cursos = sorted(cursos_set)
-    nacs = sorted(nacs_set)
-
-    return render_template(
-        "resumen_nacionalidades.html",
-        data=data,
-        cursos=cursos,
-        nacs=nacs,
-    )
-@app.route("/resumen/movimientos")
-def resumen_movimientos():
-    """
-    Movimientos separados:
-      - Entradas (ALTA)
-      - Salidas por PASE
-      - Egresos
-      - Cambios de turno
-      - Otras bajas
-    """
-    movs = list(COL_MOVIMIENTOS.find({}).sort([("fecha", -1)]))
-
-    entradas = []
-    pases = []
-    egresos = []
-    cambios_turno = []
-    otras_bajas = []
+    def fmt_fecha(x):
+        if isinstance(x, datetime):
+            return x.strftime("%d/%m/%Y %H:%M")
+        return str(x or "")
 
     for m in movs:
-        tipo = (m.get("tipo") or "").upper().strip()
-        motivo = (m.get("motivo") or m.get("motivo_salida") or "").upper().strip()
+        ws.append([
+            fmt_fecha(m.get("fecha")),
+            m.get("tipo",""),
+            m.get("apellido",""),
+            m.get("nombre",""),
+            m.get("dni",""),
+            m.get("curso",""),
+            m.get("curso_origen",""),
+            m.get("curso_destino",""),
+            m.get("motivo") or m.get("motivo_salida") or "",
+            m.get("escuela_origen",""),
+            m.get("escuela_destino",""),
+        ])
 
-        if tipo == "ALTA":
-            entradas.append(m)
+    bio = io.BytesIO()
+    wb.save(bio) 
+    bio.seek(0)
 
-        elif tipo == "CAMBIO_TURNO":
-            cambios_turno.append(m)
-
-        elif tipo in ("BAJA", "SALIDA"):
-            if "PASE" in motivo:
-                pases.append(m)
-            elif "EGRESO" in motivo:
-                egresos.append(m)
-            else:
-                otras_bajas.append(m)
-
-        else:
-            # Si aparece algún tipo raro, lo mandamos a "otras"
-            otras_bajas.append(m)
-
-    return render_template(
-        "resumen_movimientos.html",
-        entradas=entradas,
-        pases=pases,
-        egresos=egresos,
-        cambios_turno=cambios_turno,
-        otras_bajas=otras_bajas,
+    return send_file(
+        bio,
+        as_attachment=True,
+        download_name=f"movimientos_{anio}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+from datetime import datetime, date
+
+@app.route("/planillas/promocion")
+def planilla_promocion():
+    # 1. Obtenemos los parámetros de la URL (incluyendo el año del selector)
+    curso = request.args.get("curso", "4")
+    seccion = request.args.get("seccion", "B")
+    turno = request.args.get("turno", "T.T.")
+    anio_lectivo_str = request.args.get("anio", "2025")
+    anio_lectivo = int(anio_lectivo_str)
+    
+    # 2. BUSQUEDA INTELIGENTE: Filtramos por curso, sección y año lectivo
+    # Esto permite que convivan datos de 2025, 2026, etc.
+    query = {
+        "curso": curso, 
+        "seccion": seccion, 
+        "anio_lectivo": anio_lectivo 
+    }
+    
+    # Traemos los alumnos ordenados por apellido
+    alumnos_raw = list(COL_ALUMNOS.find(query).sort("apellido", 1))
+    
+    alumnos_procesados = []
+    fecha_hoy = date.today()
+    # La edad estadística se calcula siempre al 30 de junio del año de la planilla
+    fecha_corte = date(anio_lectivo, 6, 30)
+
+    # 3. Calculamos edades según la normativa
+    for a in alumnos_raw:
+        fnac_str = a.get('fecha_nacimiento')
+        edad_final = ""
+        
+        if fnac_str:
+            try:
+                # Soportamos formatos YYYY-MM-DD
+                fnac = datetime.strptime(fnac_str[:10], "%Y-%m-%d").date()
+                
+                if curso == "6":
+                    # Para 6to: Edad cronológica real a hoy (o al cierre del ciclo)
+                    # Si prefieres que para 6to también sea a hoy, queda así:
+                    edad_final = fecha_hoy.year - fnac.year - ((fecha_hoy.month, fecha_hoy.day) < (fnac.month, fnac.day))
+                else:
+                    # Para 1° a 5°: Edad al 30 de junio (Normativa Prov. Bs.As.)
+                    edad_final = fecha_corte.year - fnac.year - ((fecha_corte.month, fecha_corte.day) < (fnac.month, fnac.day))
+            except Exception:
+                edad_final = ""
+        
+        a['edad_calculada'] = edad_final
+        alumnos_procesados.append(a)
+
+    # 4. Creamos la variable resumen para el Anverso
+    total_inscriptos = len(alumnos_procesados)
+    resumen = {
+        "total": total_inscriptos,
+        "promueven": total_inscriptos, 
+        "porcentaje_promocion": 100 if total_inscriptos > 0 else 0
+    }
+
+    # 5. Enviamos todo al template
+    return render_template("planilla_de_promocion.html", 
+                           alumnos=alumnos_procesados, 
+                           curso=curso, 
+                           seccion=seccion, 
+                           turno=turno,
+                           anio=anio_lectivo,
+                           resumen=resumen)
 
 @app.route("/legajos")
 def legajos_cursos():
@@ -2230,7 +3780,6 @@ def legajo_actualizar(id):
     # Volvemos a la pantalla del curso con un flag ok=1
     return redirect(url_for("legajos_curso", curso=curso, ok="1"))
 
-
 @app.route("/autorizados")
 def autorizados_cursos():
     cursos = sorted(
@@ -2238,6 +3787,7 @@ def autorizados_cursos():
         key=lambda x: str(x)
     )
     return render_template("autorizados_cursos.html", cursos=cursos)
+
 @app.route("/autorizados/<curso>")
 def autorizados_curso(curso):
     q = {"curso": {"$regex": f"^{curso}$", "$options": "i"}}
@@ -2300,110 +3850,7 @@ def autorizados_alumno(id):
     autorizados = a.get("autorizados") or []
     return render_template("autorizados_alumno.html", alumno=a, autorizados=autorizados)
 
-@app.route("/alumnos/<id>/editar", methods=["POST"])
-def editar_alumno(id):
-    alumno = COL_ALUMNOS.find_one({"_id": ObjectId(id)})
-    if not alumno:
-        abort(404)
 
-    updates = request.form.to_dict()
-
-    # ----------------- DATOS BÁSICOS -----------------
-    fecha_nac = (updates.pop("fecha_nac", "") or "").strip()
-    if fecha_nac:
-        updates["fecha_nacimiento"] = fecha_nac
-
-    tutor = (updates.pop("tutor", "") or "").strip()
-    if tutor:
-        updates["responsable"] = tutor
-
-    updates.pop("edad_30jun", None)
-
-    recursante_str = (updates.pop("recursante", "") or "NO").strip().upper()
-    updates["recursante"] = (recursante_str == "SI")
-
-    sexo = (updates.get("sexo") or "").strip().upper()
-    if sexo:
-        updates["sexo"] = sexo
-
-    # ----------------- CURSO ACTUAL / DESTINO -----------------
-    curso_actual = (alumno.get("curso") or "").strip()
-    curso_form = (updates.get("curso") or "").strip()  # el "curso" normal del alumno
-    curso_destino = (updates.get("curso_destino") or "").strip()  # clave para CAMBIO DE TURNO
-
-    # ----------------- MOVIMIENTOS DE SALIDA -----------------
-    motivo_salida = (updates.get("motivo_salida") or "").strip().upper()
-    destino_salida = (updates.get("destino_salida") or "").strip()
-    fecha_salida_form = (updates.pop("fecha_salida", "") or "").strip()
-
-    updates["motivo_salida"] = motivo_salida
-    updates["destino_salida"] = destino_salida
-
-    # Regla:
-    # - CAMBIO DE TURNO => sigue activo (fecha_salida = None) y cambia el curso al curso_destino
-    # - Cualquier otro motivo no vacío => BAJA definitiva (fecha_salida = hoy o la del form)
-    if motivo_salida == "CAMBIO DE TURNO":
-        # si no cargaron destino, dejamos el curso igual (no rompemos nada)
-        updates["curso"] = curso_destino or curso_actual or curso_form
-        updates["fecha_salida"] = None
-
-        # para "histórico del curso" (mostrar en gris en el curso viejo)
-        updates["curso_origen"] = curso_actual
-        updates["fecha_cambio_curso"] = fecha_salida_form or today().strftime("%Y-%m-%d")
-
-    elif motivo_salida:
-        # baja definitiva
-        updates["curso"] = curso_form or curso_actual
-        updates["fecha_salida"] = fecha_salida_form or today().strftime("%Y-%m-%d")
-
-    else:
-        # alumno activo sin movimiento
-        updates["curso"] = curso_form or curso_actual
-        updates["fecha_salida"] = None
-
-        # si vuelve a activo, limpiamos histórico de cambio
-        updates.pop("curso_origen", None)
-        updates.pop("fecha_cambio_curso", None)
-
-        # ----------------- OTROS CAMPOS -----------------
-    if "escuela_procedencia" in updates:
-        updates["escuela_procedencia"] = (updates["escuela_procedencia"] or "").strip()
-
-    # ----------------- GUARDAR -----------------
-    COL_ALUMNOS.update_one({"_id": ObjectId(id)}, {"$set": updates})
-
-    # ----------------- REGISTRAR MOVIMIENTO -----------------
-    try:
-        if motivo_salida == "CAMBIO DE TURNO" and (curso_destino and curso_destino != curso_actual):
-            _insert_movimiento_si_no_duplicado({
-                "alumno_id": ObjectId(id),
-                "tipo": "CAMBIO_TURNO",
-                "curso_origen": curso_actual,
-                "curso_destino": curso_destino,
-                "apellido": (alumno.get("apellido") or "").strip(),
-                "nombre": (alumno.get("nombre") or "").strip(),
-                "dni": (alumno.get("dni") or "").strip(),
-                "fecha": datetime.utcnow(),
-            })
-
-        elif motivo_salida and motivo_salida != "CAMBIO DE TURNO":
-            _insert_movimiento_si_no_duplicado({
-                "alumno_id": ObjectId(id),
-                "tipo": "BAJA",
-                "motivo": motivo_salida,
-                "curso": curso_actual,
-                "apellido": (alumno.get("apellido") or "").strip(),
-                "nombre": (alumno.get("nombre") or "").strip(),
-                "dni": (alumno.get("dni") or "").strip(),
-                "escuela_origen": "E.P. N° 91",
-                "escuela_destino": destino_salida,
-                "fecha": datetime.utcnow(),
-            })
-
-    except Exception as e:
-        print("Error registrando movimiento:", e)
-
-    return redirect(url_for("listar_alumnos"))
 @app.route("/certificados", methods=["GET", "POST"])
 def certificados_pendientes():
     # Alta de nuevo certificado (desde el modal)
@@ -2455,100 +3902,13 @@ def certificados_pendientes():
         q=q,
     )
 
-
 @app.route("/certificados/<id>/eliminar", methods=["POST"])
 def eliminar_certificado(id):
     try:
         COL_CERTIFICADOS.delete_one({"_id": ObjectId(id)})
     except Exception:
         pass
-    return redirect(url_for("certificados_pendientes"))
-
-
-@app.route("/alumnos/<id>/eliminar", methods=["POST"])
-def eliminar_alumno(id):
-    COL_ALUMNOS.update_one(
-        {"_id": ObjectId(id)},
-        {"$set": {"fecha_salida": date.today().isoformat()}}
-    )
-    COL_CALIFICACIONES.delete_many({"alumno_id": id})
-    return redirect(url_for("listar_alumnos"))
-
-
-@app.route("/alumnos/<id>/certificado")
-def certificado_finalizacion(id):
-    a = COL_ALUMNOS.find_one({"_id": ObjectId(id)})
-    if not a:
-        abort(404)
-
-    # Fecha de finalización configurable (.env), ej: CERT_FECHA_FIN=2025-12-22
-    fecha_fin_str = os.getenv("CERT_FECHA_FIN", "2025-12-22")
-    fecha_fin = datetime.strptime(fecha_fin_str, "%Y-%m-%d").date()
-
-    alumno = to_json(a)
-
-    dni = (alumno.get("dni") or "").strip()
-    anexo = f"{dni}/069" if dni else "____/069"
-
-    ctx = { 
-        "alumno": alumno,
-        "fecha_fin": fecha_fin,
-        "fecha_fin_larga": fecha_larga_castellano(fecha_fin),
-        "anexo": anexo,
-    }
-    return render_template("certificado_finalizacion.html", **ctx)
-
-
-
-# ----------------- RESUMEN CURSO -----------------
-@app.route("/api/resumen_curso")
-def api_resumen_curso():
-    curso = (request.args.get("curso") or "").strip()
-    if not curso:
-        return jsonify({"error": "curso requerido"}), 400
-
-    q = {"curso": {"$regex": f"^{curso}$", "$options": "i"}}
-    alumnos = list(COL_ALUMNOS.find({**filtro_activos(), **q}))
-
-
-    total = len(alumnos)
-    edades = {}
-    nac = {}
-    recursantes = 0
-    sobreedad = 0
-
-    for a in alumnos:
-        edad = None
-        if a.get("fecha_nacimiento"):
-            edad = calcular_edad(a["fecha_nacimiento"])
-            if edad is not None:
-                edades[edad] = edades.get(edad, 0) + 1
-
-        n = (a.get("nacionalidad") or "").strip().upper() or "SIN DATO"
-        nac[n] = nac.get(n, 0) + 1
-
-        if a.get("recursante"):
-            recursantes += 1
-
-        # sobreedad según grado (1°->6 años ... 6°->11)
-        curso_txt = (a.get("curso") or "")
-        grado = None
-        for g in ("1", "2", "3", "4", "5", "6"):
-            if curso_txt.startswith(g):
-                grado = int(g)
-                break
-        if grado and edad and edad > (5 + grado):
-            sobreedad += 1
-
-    return jsonify({
-        "curso": curso,
-        "total": total,
-        "edades_30jun": edades,
-        "nacionalidades": nac,
-        "recursantes": recursantes,
-        "sobreedad": sobreedad
-    })
-
+    return redirect(url_for("certificados_pendientes")) 
 
 @app.route("/mapa/recorridos", methods=["GET"])
 def mapa_recorridos():
@@ -2578,7 +3938,7 @@ def mapa_recorridos():
             {"apellido": regex},
             {"nombre": regex},
             {"dni": regex},
-            {"curso": regex},
+            {"curso": regex}, 
             {"domicilio": regex},
             {"localidad": regex},
         ]
@@ -2587,13 +3947,17 @@ def mapa_recorridos():
     if curso_sel:
         filtro["curso"] = {"$regex": f"^{curso_sel}$", "$options": "i"}
     # Si NO hay curso elegido, permitimos filtrar por turno (A/B)
+    # Filtro por curso / turno
+    if curso_sel:
+       filtro["curso"] = {"$regex": f"^{curso_sel}$", "$options": "i"}
     elif turno_sel:
-        if turno_sel.lower() == "mañana":
-            filtro["curso"] = {"$regex": "A$", "$options": "i"}
-        elif turno_sel.lower() == "tarde":
-            filtro["curso"] = {"$regex": "B$", "$options": "i"}
+      if turno_sel.lower() == "mañana":
+        filtro["curso"] = {"$regex": r"A\s*$", "$options": "i"}
+      elif turno_sel.lower() == "tarde":
+        filtro["curso"] = {"$regex": r"B\s*$", "$options": "i"}
 
-    alumnos_cur = COL_ALUMNOS.find ({**filtro_activos(), **filtro})
+
+    alumnos_cur = COL_ALUMNOS.find ({**filtro_activos(), **filtro}) 
     alumnos = [to_json(a) for a in alumnos_cur]
 
     # Ordenar como en matrícula: turno, grado, sección, apellido, nombre
@@ -2607,6 +3971,7 @@ def mapa_recorridos():
         curso_sel=curso_sel,
         turno_sel=turno_sel,
         q=q,
+        es_eoe=True
     )
 
 
@@ -2641,619 +4006,6 @@ def mapa_recorridos_visitas():
         fecha=hoy,
     )
 
-  
-# ----------------- AUXILIARES -----------------
-@app.route("/auxiliares")
-def listar_auxiliares():
-    auxs = [to_json(a) for a in COL_AUX.find().sort([("apellido",1),("nombre",1)])]
-    return render_template("auxiliares.html", auxiliares=auxs)
-
-@app.route("/auxiliares/nuevo", methods=["POST"])
-def nuevo_auxiliar():
-    data = request.form.to_dict()
-    COL_AUX.insert_one(data) 
-    return redirect(url_for("listar_auxiliares"))
-
-@app.route("/auxiliares/<id>/editar", methods=["POST"])
-def editar_auxiliar(id):
-    updates = request.form.to_dict()
-    COL_AUX.update_one({"_id": ObjectId(id)}, {"$set": updates})
-    return redirect(url_for("listar_auxiliares"))
-
-@app.route("/auxiliares/<id>/eliminar", methods=["POST"])
-def eliminar_auxiliar(id): 
-    COL_AUX.delete_one({"_id": ObjectId(id)})
-    return redirect(url_for("listar_auxiliares"))
-
-# ----------------- INASISTENCIAS (robusto) -----------------
-@app.route("/inasistencias")
-def ver_inasistencias():
-    return render_template("inasistencias.html")
-
-@app.route("/api/inasistencias/<id>", methods=["GET"])
-def api_inasistencia_get(id):
-    try:
-        oid = ObjectId(id)
-    except Exception:
-        return jsonify(ok=False, error="ID inválido"), 400
-
-    ins = COL_INASISTENCIAS.find_one({"_id": oid})
-    if not ins:
-        return jsonify(ok=False, error="Inasistencia no encontrada"), 404
-
-    ins["_id"] = str(ins["_id"])
-    ins["docente_id"] = str(ins.get("docente_id"))
-    return jsonify(ok=True, data=ins)
-
-
-@app.route("/api/inasistencias/<id>", methods=["PUT"])
-def api_inasistencia_update(id):
-    try:
-        oid = ObjectId(id)
-    except Exception:
-        return jsonify(ok=False, error="ID inválido"), 400
-
-    data = request.get_json(force=True) or {}
-
-    updates = {}
-    for campo in ("fecha", "causa", "observaciones"):
-        if campo in data and data[campo] is not None:
-            updates[campo] = data[campo]
-
-    # opcional: actualizar suplente
-    sup_campos = ("nombre", "dni", "curso", "asignatura")
-    sup = data.get("suplente_info") or {}
-    sup = {k: v for k, v in sup.items() if k in sup_campos and v}
-    if sup:
-        updates["suplente_info"] = sup
-
-    if not updates:
-        return jsonify(ok=False, error="Sin cambios"), 400
-
-    COL_INASISTENCIAS.update_one({"_id": oid}, {"$set": updates})
-    return jsonify(ok=True)
-
-
-@app.route("/api/inasistencias/<id>", methods=["DELETE"])
-def api_inasistencia_delete(id):
-    try:
-        oid = ObjectId(id)
-    except Exception:
-        return jsonify(ok=False, error="ID inválido"), 400
-
-    res = COL_INASISTENCIAS.delete_one({"_id": oid}) 
-    return jsonify(ok=bool(res.deleted_count))
-
-
-# SOLO POST: crear inasistencias
-@app.route("/api/inasistencias", methods=["POST"]) 
-def api_inasistencias():
-    data = request.get_json(force=True) or {}
-
-    docente_id_raw = data.get("docente_id") or data.get("docente")
-    if not docente_id_raw:
-        return jsonify(ok=False, error="Docente requerido."), 400
-
-    docente_id = _maybe_oid(docente_id_raw)
-
-    # Fechas (aceptamos 'fecha', 'desde', 'hasta')
-    desde = _parse_date(data.get("desde") or data.get("fecha"))
-    hasta = _parse_date(data.get("hasta") or data.get("fecha"))
-
-    if not desde:
-        return jsonify(ok=False, error="Fecha 'desde' requerida."), 400
-    if not hasta:
-        hasta = desde
-    if hasta < desde:
-        desde, hasta = hasta, desde
-
-    causa = (data.get("causa") or "").strip()
-    observ = (data.get("observaciones") or "").strip()
-
-    suplente_info = {
-        "nombre": (data.get("sup_nombre") or data.get("suplente_nombre") or "").strip(),
-        "dni": (data.get("sup_dni") or "").strip(),
-        "curso": (data.get("sup_curso") or "").strip(),
-        "asignatura": (data.get("sup_asignatura") or "").strip(),
-    }
-    suplente_info = {k: v for k, v in suplente_info.items() if v}
-
-    # ----- Topes y causas particulares por mes -----
-
-    limites = _limites_restantes(docente_id, referencia_fecha=desde)
-    causa_norm = _norm(causa)
-    bucket = _causa_bucket(causa_norm)
-
-    if bucket == "particulares":
-        key_mes = f"{desde.year}-{desde.month:02d}"
-        if limites["particulares_mes_lleno"].get(key_mes):
-            return jsonify(
-                ok=False,
-                error="Ya hay una inasistencia por 'causas particulares' en este mes."
-            ), 400
-            
-    # --- NUEVO BLOQUE: Validar tope anual ---
-    # Si la causa tiene límite y ya no quedan días disponibles (restantes <= 0)
-    warning = None
-
-# --- ADVERTENCIA SIN BLOQUEO (excepto particulares) ---
-# Particulares NO se toca (tu regla 1 por mes / 6 anual sigue estricta)
-    if bucket in ("enfermedad_personal", "enfermedad_familiar", "preexamen", "pre_examen"):
-    # ojo: tu bucket real para pre-examen depende de _causa_bucket
-    # por eso cubro varias claves
-        restantes = limites["restantes"].get(bucket, None)
-        if restantes is not None and restantes <= 0:
-            tope = LIMITES_ANUALES.get(bucket) or LIMITES_ANUALES.get("preexamen") or LIMITES_ANUALES.get("pre_examen")
-            warning = f"DOCENTE EXCEDIDO DE FALTAS PARA ESTA CAUSA (Tope: {tope}). Se registra igual (corresponde descuento)."
-
-         
-
-    # ----- Evitar más de una inasistencia por día -----
-    dias_a_insertar = []
-    d = desde
-    while d <= hasta:
-        fecha_iso = d.isoformat()
-        existente = COL_INASISTENCIAS.find_one(
-            {"docente_id": docente_id, "fecha": fecha_iso}
-        )
-        if existente:
-            msg = f"Ya hay una inasistencia cargada para este docente el {d.strftime('%d/%m/%Y')}."
-            return jsonify(ok=False, error=msg), 400
-        dias_a_insertar.append(fecha_iso)
-        d += timedelta(days=1)
-
-    # ----- Insertar -----
-    docs = []
-    for fecha_iso in dias_a_insertar: 
-        docs.append({
-            "docente_id": docente_id,
-            "fecha": fecha_iso,
-            "causa": causa,
-            "observaciones": observ,
-            "suplente_info": suplente_info,
-        })
-
-    if docs:
-        COL_INASISTENCIAS.insert_many(docs)
-
-    return jsonify(ok=True, inserted=len(docs), warning=warning)
-
-
-# GET: listar para HISTORIAL / CALENDARIO 
-
-@app.route("/api/inasistencias/<id>", methods=["PATCH","DELETE"]) 
-def api_inasistencia_id(id):
-    # DELETE
-    if request.method == "DELETE":
-        COL_INASISTENCIAS.delete_one({"_id": ObjectId(id)})
-        return jsonify({"ok":"deleted"})
-    # PATCH (editar)
-    payload = request.get_json(silent=True) or {} 
-    fields = {}
-    if "fecha" in payload:
-        d = _parse_date(payload.get("fecha"))
-        if not d:
-         return jsonify({"ok": False, "error": "fecha invalida"}), 400
-        fields["fecha"] = d.isoformat()
-    if "causa" in payload:
-        causa = (payload.get("causa") or "").strip()
-        fields["causa"] = causa
-        fields["color"] = _color_for_causa(_norm(causa))
-    if "observaciones" in payload:
-        fields["observaciones"] = (payload.get("observaciones") or "").strip()
-    if "cubierto" in payload:
-        fields["cubierto"] = bool(payload.get("cubierto"))
-    if "cobertura_tipo" in payload:
-        fields["cobertura_tipo"] = (payload.get("cobertura_tipo") or "").strip().upper()
-    # Soportar tanto "suplente" como "suplente_info" en el payload 
-    
-    # Soportar tanto "suplente" como "suplente_info" en el payload
-    sup = payload.get("suplente") or payload.get("suplente_info")
-
-    if isinstance(sup, dict):
-         fields["suplente_info"] = {
-           "nombre": sup.get("nombre",""),
-            "dni": sup.get("dni",""),
-            "curso": sup.get("curso",""),
-            "asignatura": sup.get("asignatura",""),
-    }
-
-
-    if not fields:
-      return jsonify({"ok": False, "error": "sin cambios"}), 400
-    COL_INASISTENCIAS.update_one({"_id": ObjectId(id)}, {"$set": fields})
-    return jsonify({"ok":"updated"})
-
-@app.route("/inasistencias/<id>/editar", methods=["GET", "POST"])
-def editar_inasistencia(id):
-    try:
-        oid = ObjectId(id)
-    except Exception:
-        abort(404)
-
-    ins = COL_INASISTENCIAS.find_one({"_id": oid})
-    if not ins:
-        abort(404)
-
-    if request.method == "POST":
-        data = request.form.to_dict()
-
-        # Normalizamos nombres de campos según lo que guardás en /api_inasistencias
-        update = {
-            "fecha": data.get("fecha", "").strip(),
-            "docente_id": data.get("docente_id", ins.get("docente_id")),
-            "causa": data.get("causa", "").strip(),
-            "suplente_nombre": data.get("suplente_nombre", "").strip(),
-            "suplente_dni": data.get("suplente_dni", "").strip(),
-            "suplente_curso": data.get("suplente_curso", "").strip(),
-            "observaciones": data.get("observaciones", "").strip(),
-        }
-
-        COL_INASISTENCIAS.update_one({"_id": oid}, {"$set": update})
-        # Después de editar, te vuelvo al historial, con los mismos filtros que tenías si querés
-        return redirect(url_for("historial_inasistencias"))
-
-    # GET → cargo docentes para el combo y muestro plantilla
-    docentes = list(COL_DOCENTES.find().sort([("apellido", 1), ("nombre", 1)])) 
-    # Convertimos ObjectId a string
-    ins["_id"] = str(ins["_id"])
-    return render_template("inasistencias_editar.html",
-                           inasistencia=ins,
-                           docentes=docentes)
-
-
-# ----------------- HISTORIAL INASISTENCIAS (vista + APIs) -----------------
-
-@app.route("/historial/inasistencias")
-def historial_inasistencias():
-    docentes = [to_json(d) for d in COL_DOCENTES.find().sort([("apellido",1),("nombre",1)])]
-    return render_template("historial_inasistencias.html", docentes=docentes)
-@app.get("/api/historial_resumen")
-def api_historial_resumen():
-    """
-    Devuelve:
-      {
-        "total": N,
-        "topes": { clave: tope, ... },
-        "por_causa": { clave: cantidad, ... }
-      }
-    Las claves se usan tal cual en el front.
-    """
-    docente_id = (request.args.get("docente") or "").strip()
-    causa_filtro = (request.args.get("causa") or "").strip()
-    desde_s = (request.args.get("desde") or "").strip()
-    hasta_s = (request.args.get("hasta") or "").strip()
-
-    q = {}
-    if docente_id and docente_id != "TODOS":
-        q["docente_id"] = _maybe_oid(docente_id)
-
-    # rango de fechas
-    d1 = _parse_date(desde_s)
-    d2 = _parse_date(hasta_s)
-    if d1 and d2:
-        q["fecha"] = {"$gte": d1.isoformat(), "$lte": d2.isoformat()}
-    elif d1:
-        q["fecha"] = {"$gte": d1.isoformat()}
-    elif d2:
-        q["fecha"] = {"$lte": d2.isoformat()}
-
-    # Traemos de la DB
-    cursor = COL_INASISTENCIAS.find(q)
-
-    registros = []
-    causa_norm_filtro = _normalizar_texto(causa_filtro)
-
-    for ins in cursor:
-        causa_raw = ins.get("causa", "") or ""
-        c_norm = _normalizar_texto(causa_raw)
-
-        # filtro por causa (si no es "TODAS")
-        if causa_filtro and causa_filtro != "TODAS":
-            if causa_norm_filtro not in c_norm:
-                continue
-
-        registros.append(ins)
-
-    total = len(registros)
-
-    # --- Contadores por tipo (para el cuadrito de la izquierda) ---
-    # OJO: uso .get() para que no explote si LIMITES_ANUALES tiene otras claves
-    topes = {
-        "pre-examen": (LIMITES_ANUALES.get("pre-examen")
-                       or LIMITES_ANUALES.get("preexamen")
-                       or LIMITES_ANUALES.get("pre_examen")),
-        "enfermedad personal": (LIMITES_ANUALES.get("enfermedad personal")
-                                or LIMITES_ANUALES.get("enfermedad_personal")),
-        "enfermedad familiar": (LIMITES_ANUALES.get("enfermedad familiar")
-                                or LIMITES_ANUALES.get("enfermedad_familiar")),
-        "causas particulares": (LIMITES_ANUALES.get("causas particulares")
-                                or LIMITES_ANUALES.get("particulares")),
-        "duelo": "",
-        "examen": "",
-        "paro": "",
-        "otras": "",
-    }
-
-    # ✅ inicialización (lo que vos decías que “no tenías”)
-    por_causa = {k: 0 for k in topes.keys()}
-
-    # ✅ normalización + conteo
-    for ins in registros:
-        causa_raw = ins.get("causa", "") or ""
-        c_norm = _normalizar_texto(causa_raw)
-
-        # IMPORTANTE: pre-examen ANTES que examen
-        if "pre" in c_norm and "examen" in c_norm:
-            key = "pre-examen"
-        elif "duelo" in c_norm:
-            key = "duelo"
-        elif "paro" in c_norm:
-            key = "paro"
-        # examen (pero no pre-examen)
-        elif "examen" in c_norm:
-            key = "examen"
-        elif "enfermedad personal" in c_norm:
-            key = "enfermedad personal"
-        elif "enfermedad familiar" in c_norm:
-            key = "enfermedad familiar"
-        elif "particular" in c_norm:
-            key = "causas particulares"
-        else:
-            key = "otras"
-
-        por_causa[key] += 1
-
-    return jsonify({
-        "total": total,
-        "topes": topes,
-        "por_causa": por_causa,
-    })
-
-@app.route("/api/historial_lista")
-def api_historial_lista():
-    """
-    Devuelve la lista detallada para la tabla del historial
-    y opcionalmente para el calendario (modo=calendario).
-
-    Cada item para historial:
-      {
-        "_id": "...",
-        "fecha": "YYYY-MM-DD",
-        "docente_nombre": "Apellido, Nombre",
-        "causa": "...",
-        "suplente_info": {...} | {},
-        "observaciones": "...",
-        "color": "#xxxxxx"
-      }
-
-    Para modo=calendario agrega:
-      "title": causa,
-      "start": fecha
-    """
-    docente_id    = (request.args.get("docente") or "").strip()
-    causa_filtro  = (request.args.get("causa") or "").strip()
-    desde_s       = (request.args.get("desde") or "").strip()
-    hasta_s       = (request.args.get("hasta") or "").strip()
-    modo          = (request.args.get("modo") or "historial").strip()
-
-    # --- Filtro base por docente + fechas ---
-    q = {}
-    if docente_id and docente_id != "TODOS":
-        q["docente_id"] = _maybe_oid(docente_id)
-
-    d1 = _parse_date(desde_s)
-    d2 = _parse_date(hasta_s)
-    if d1 and d2:
-        q["fecha"] = {"$gte": d1.isoformat(), "$lte": d2.isoformat()}
-    elif d1:
-        q["fecha"] = {"$gte": d1.isoformat()}
-    elif d2:
-        q["fecha"] = {"$lte": d2.isoformat()}
-
-    # Traemos todo lo que cumple docente/fechas
-    base_cursor = COL_INASISTENCIAS.find(q)
-
-    causa_norm_filtro = _normalizar_texto(causa_filtro)
-    registros = []
-
-    for ins in base_cursor:
-        causa_raw = ins.get("causa", "") or ""
-        c_norm = _normalizar_texto(causa_raw)
-
-        # filtro por causa (si no es "TODAS")
-        if causa_filtro and causa_filtro != "TODAS":
-            if causa_norm_filtro not in c_norm:
-                continue
-
-        registros.append(ins)
-
-    # --- Orden: primero docente, luego fecha ---
-    def _sort_key(ins):
-        doc_id = ins.get("docente_id")
-        doc = COL_DOCENTES.find_one({"_id": _maybe_oid(doc_id)}) or {}
-        ape = (doc.get("apellido") or "").upper()
-        nom = (doc.get("nombre") or "").upper()
-        f   = _parse_date(ins.get("fecha"))
-        return (ape, nom, f or date.min)
-
-    registros.sort(key=_sort_key)
-
-    # Cache de nombres de docentes para no ir mil veces a la DB
-    cache_docentes = {}
-
-    def _nombre_docente(doc_id):
-        if not doc_id:
-            return ""
-        key = str(doc_id)
-        if key in cache_docentes:
-            return cache_docentes[key]
-        d = COL_DOCENTES.find_one({"_id": _maybe_oid(doc_id)}) or {}
-        nombre = f"{d.get('apellido','')}, {d.get('nombre','')}".strip(", ")
-        cache_docentes[key] = nombre
-        return nombre
-
-    out = []
-    for ins in registros:
-        doc_id        = ins.get("docente_id")
-        suplente_info = ins.get("suplente_info") or {}
-        causa_raw     = ins.get("causa", "")
-        fecha_raw     = ins.get("fecha", "")
-
-        item = {
-            "_id": str(ins.get("_id")),
-            "fecha": fecha_raw,
-            "docente_nombre": _nombre_docente(doc_id),
-            "causa": causa_raw,
-            "suplente_info": suplente_info,
-            "observaciones": ins.get("observaciones", ""),
-            "color": _color_for_causa(causa_raw),
-        }
-
-        if modo == "calendario":
-            item["title"] = causa_raw
-            item["start"] = fecha_raw
-
-        out.append(item)
-
-    return jsonify(out)
-
-
-# ----------------- CALIFICACIONES APIs -----------------
-
-@app.route("/api/asignaturas_escala", methods=["GET","POST"])
-def api_asignaturas_escala():
-    if request.method == "POST":
-        data = request.get_json(silent=True) or {}
-        asignatura = (data.get("asignatura") or "").strip()
-        escala = (data.get("escala") or "").strip().lower()
-        if escala not in ("conceptual","numerica") or not asignatura:
-            return jsonify({"error":"Datos inválidos"}), 400
-        COL_CFG_ASIGNATURAS.update_one(
-            {"asignatura": asignatura},
-            {"$set": {"asignatura": asignatura, "escala": escala}},
-            upsert=True
-        )
-        return jsonify({"status":"ok"})
-    cfg = { c.get("asignatura"): c.get("escala","conceptual")
-            for c in COL_CFG_ASIGNATURAS.find({}) }
-    return jsonify(cfg)
-@app.route("/api/alumnos_por_curso")
-def api_alumnos_por_curso():
-    curso = (request.args.get("curso") or "").strip()
-    if not curso:
-        return jsonify([])
-
-    alumnos = []
-    q = {**filtro_activos(), "curso": {"$regex": f"^{curso}$", "$options": "i"}}
-
-    for a in COL_ALUMNOS.find(q).sort([("apellido", 1), ("nombre", 1)]):
-        aj = to_json(a)
-
-        if aj.get("fecha_nacimiento"):
-            aj["edad_30jun"] = calcular_edad(aj["fecha_nacimiento"])
-
-        autorizados_src = a.get("autorizados") or []
-        if isinstance(autorizados_src, list):
-            aj["autorizados_retirar"] = [
-                {
-                    "nombre": aut.get("nombre", ""),
-                    "vinculo": aut.get("parentesco", ""),
-                    "dni": aut.get("dni", ""),
-                }
-                for aut in autorizados_src
-                if (aut.get("nombre") or "").strip()
-            ]
-
-        alumnos.append(aj)
-
-    return jsonify(alumnos)
-
-
-
-@app.route("/api/calificaciones")
-def api_calificaciones_list():
-    docente_id = (request.args.get("docente_id") or "").strip()
-    asignatura = (request.args.get("asignatura") or "").strip()
-    curso = (request.args.get("curso") or "").strip()
-    trimestre_raw = (request.args.get("trimestre") or "").strip()
-
-    # ✔ Aceptar "1", "2", "3" o "all"
-    trimestre = trimestre_raw  # ya viene como string
-
-    # --- Armar filtro ---
-    q = {}
-    if docente_id:
-        q["docente_id"] = docente_id
-    if asignatura:
-        q["asignatura"] = asignatura
-    if curso:
-        q["curso"] = curso
-
-    # ✔ Si NO es "all", se filtra por trimestre como entero.
-    # ✔ Si es "all", muestra todo el año.
-    if trimestre and trimestre != "all":
-        try:
-            q["trimestre"] = int(trimestre)
-        except ValueError:
-            # Si no es numérico, no filtramos por trimestre
-            pass
-
-    # --- Buscar en Mongo ---
-    registros = [to_json(c) for c in COL_CALIFICACIONES.find(q)]
-    return jsonify(registros)
-
-
-@app.route("/api/calificaciones", methods=["POST"])
-def api_calificaciones_upsert():
-    data = request.get_json(silent=True) or {}
-    alumno_id = (data.get("alumno_id") or "").strip()
-    docente_id = (data.get("docente_id") or "").strip()
-    asignatura = (data.get("asignatura") or "").strip()
-    curso = (data.get("curso") or "").strip()
-    try:
-        trimestre = int(data.get("trimestre") or 0)
-    except:
-        trimestre = 0
-    escala = (data.get("escala") or "").strip().lower()
-    valor = (data.get("valor") or "").strip()
-    observaciones = (data.get("observaciones") or "").strip()
-    if not all([alumno_id, docente_id, asignatura, curso, trimestre, escala, valor]):
-        return jsonify({"error":"Campos obligatorios faltantes"}), 400
-    if escala not in ("conceptual","numerica"):
-        return jsonify({"error":"Escala inválida"}), 400
-    if escala == "numerica":
-        try:
-            n = float(valor.replace(",",".")) 
-        except:
-            return jsonify({"error":"Nota numérica inválida"}), 400
-        if n < 1 or n > 10:
-            return jsonify({"error":"Nota fuera de rango (1 a 10)"}), 400
-        valor = str(n).rstrip("0").rstrip(".")
-    key = {
-        "alumno_id": alumno_id,
-        "docente_id": docente_id,
-        "asignatura": asignatura,
-        "curso": curso,
-        "trimestre": trimestre
-    }
-    COL_CALIFICACIONES.update_one(
-        key,
-        {"$set": {
-            "escala": escala,
-            "valor": valor,
-            "observaciones": observaciones,
-            "updated_at": datetime.utcnow()
-        }, "$setOnInsert": {"created_at": datetime.utcnow()}},
-        upsert=True
-    )
-    cal = COL_CALIFICACIONES.find_one(key)
-    return jsonify(to_json(cal))
-
-@app.route("/api/calificaciones/<id>", methods=["DELETE"])
-def api_calificaciones_delete(id):
-    COL_CALIFICACIONES.delete_one({"_id": ObjectId(id)})
-    return jsonify({"status":"ok"})
 
 # ----------------- ESTADOS ADMINISTRATIVOS -----------------
 def calc_fecha_limite_salida(fecha_salida_str, zona):
@@ -3387,6 +4139,31 @@ def api_estados_resumen():
         "hoy": today().strftime("%Y-%m-%d")
     })
 
+# ----------------- AUXILIARES -----------------
+
+@app.route("/auxiliares")
+def listar_auxiliares():
+    auxs = [to_json(a) for a in COL_AUX.find().sort([("apellido",1),("nombre",1)])]
+    return render_template("auxiliares.html", auxiliares=auxs)
+
+@app.route("/auxiliares/nuevo", methods=["POST"])
+def nuevo_auxiliar():
+    data = request.form.to_dict()
+    COL_AUX.insert_one(data) 
+    return redirect(url_for("listar_auxiliares"))
+
+@app.route("/auxiliares/<id>/editar", methods=["POST"])
+def editar_auxiliar(id):
+    updates = request.form.to_dict()
+    COL_AUX.update_one({"_id": ObjectId(id)}, {"$set": updates})
+    return redirect(url_for("listar_auxiliares"))
+
+@app.route("/auxiliares/<id>/eliminar", methods=["POST"])
+def eliminar_auxiliar(id): 
+    COL_AUX.delete_one({"_id": ObjectId(id)})
+    return redirect(url_for("listar_auxiliares"))
+
+
 # ----------------- ANEXOS (Punto 4) -----------------
 # ----------------- ANEXOS (Modelos oficiales exactos) -----------------
 
@@ -3483,7 +4260,6 @@ def anexos_render():
         return jsonify({"ok": False, "error": f"Tipo de anexo inválido: {tipo}"}), 400
 
     return render_template(tmpl, **ctx)
-
 
 
 # ----------------- Main -----------------

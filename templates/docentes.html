@@ -2,7 +2,6 @@
 {% block content %}
 <h2 class="mb-3">Docentes</h2>
 
-<!-- Botón: nuevo docente -->
 <button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#modalNuevoDocente">
   Agregar docente
 </button>
@@ -11,10 +10,10 @@
   <thead>
     <tr>
       <th>Nombre y Apellido</th>
-      <th>Cargo</th>
-      <th>Situación de Revista</th>
-      <th>Observaciones</th>
-      <th class="text-center">Carga horaria 5×5</th>
+      <th style="width: 150px;">Cargo</th>
+      <th style="width: 120px;">Situación de Revista</th>
+      <th style="width: 200px;">Observaciones</th>
+      <th style="width: 120px;" class="text-center">Carga 5×5</th>
       <th>Acciones</th>
     </tr>
   </thead>
@@ -22,18 +21,25 @@
     {% for d in docentes %}
     <tr>
       <td><strong>{{ d.get('apellido','') }}, {{ d.get('nombre','') }}</strong></td>
-      <td>
-        {%  set cargos = (d.get('asignatura','') or '').split(',') %}
-        {% for c in cargos %}
-           <div>{{ c.strip() }}</div>
-        {% endfor %}
-    </td>
-
       
-      <td>{{ d.get('situacion','') }}</td>
-      <td>{{ d.get('observaciones','') }}</td>
+      <td class="small">
+        {% if d.get('cargo') %}
+          {% for c in d.get('cargo','').split(',') %}
+            <div class="badge bg-light text-dark border">{{ c.strip() }}</div>
+          {% endfor %}
+        {% endif %}
+      </td>
+
+      <td class="small">{{ d.get('situacion','') }}</td>
+      
+      <td>
+        <div style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ d.get('observaciones','') }}">
+          {{ d.get('observaciones','') }}
+        </div>
+      </td>
+
       <td class="text-center">
-        <button class="btn btn-sm btn-outline-primary"
+        <button class="btn btn-sm btn-outline-primary py-0"
                 data-bs-toggle="modal"
                 data-bs-target="#modalCargaHoraria"
                 data-docente-id="{{ d['_id'] }}"
@@ -42,15 +48,15 @@
           Editar 5×5
         </button>
       </td>
+
       <td>
-        <div class="d-flex gap-2">
-          <!-- Botón Editar (abre modal) --> 
+        <div class="d-flex gap-1 align-items-center">
           <button type="button"
                   class="btn btn-sm btn-primary btn-edit-docente"
                   data-bs-toggle="modal"
                   data-bs-target="#modalEditarDocente"
                   data-id="{{ d['_id'] }}"
-                  data-nombre="{{ d.get('nombre','') }}"
+                  data-nombre="{{ d.get('nombre','') }}" 
                   data-apellido="{{ d.get('apellido','') }}"
                   data-cargo="{{ d.get('cargo','') }}"
                   data-situacion="{{ d.get('situacion','') }}"
@@ -58,14 +64,33 @@
                   data-observaciones="{{ d.get('observaciones','') }}">
             Editar
           </button>
-             <!-- Nuevo: ver inasistencias anuales -->
-                 <a href="{{ url_for('docente_inasistencias_anuales', id=d['_id']) }}"
-                   class="btn btn-sm btn-outline-secondary">
-                   Inasistencias
-                 </a>
-          <!-- Eliminar -->
+
+          <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown">
+              Imprimir
+            </button>
+            <ul class="dropdown-menu shadow">
+              <li>
+                <a class="dropdown-item" href="/docentes/{{ d._id }}/set4?anio=2025" target="_blank">
+                  📄 Planilla S.E.T. 4
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('docente_inasistencias_anuales', id=d._id) }}" target="_blank">
+                  📅 Calendario Anual
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <a href="{{ url_for('docente_inasistencias_anuales', id=d['_id']) }}"
+             class="btn btn-sm btn-outline-secondary">
+             Faltas
+          </a>
+
           <form action="{{ url_for('eliminar_docente', id=d['_id']) }}"
                 method="post"
+                class="m-0"
                 onsubmit="return confirm('¿Eliminar docente y sus inasistencias?');">
             <button class="btn btn-sm btn-danger">Eliminar</button>
           </form>
@@ -75,6 +100,8 @@
     {% endfor %}
   </tbody>
 </table>
+
+
 
 <!-- Modal: Nuevo Docente -->
 <div class="modal fade" id="modalNuevoDocente" tabindex="-1" aria-hidden="true">
@@ -360,7 +387,7 @@
     const form = modal.querySelector('form');
     form.action = `/docentes/${id}/editar`;
 
-    modal.querySelector('#edit-nombre').value = nombre;
+    modal.querySelector('#edit-nombre').value = nombre; 
     modal.querySelector('#edit-apellido').value = apellido;
 
     const selCargo = modal.querySelector('#edit-cargo');
@@ -369,7 +396,7 @@
     const selSit = modal.querySelector('#edit-situacion');
     if (selSit && situacion) selSit.value = situacion;
 
-    const inpFecha = modal.querySelector('#edit-fecha_ingreso');
+    const inpFecha = modal.querySelector('#edit-fecha_ingreso'); 
     if (inpFecha) inpFecha.value = fecha || "";
 
     const inpObs = modal.querySelector('#edit-observaciones');
@@ -378,4 +405,4 @@
 })();
 </script>
 
-{% endblock %}
+{% endblock %} 

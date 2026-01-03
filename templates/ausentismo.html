@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h3>Control de Ausentismo (EOE)</h3>
+    <div class="card mb-3 p-3 no-print">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label mb-1">Filtrar por Curso</label>
+      <select class="form-select" name="curso" id="cursoSelect">
+        <option value="">TODOS</option>
+        {% for c in cursos %}
+          <option value="{{ c }}" {% if curso_sel == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100">Aplicar</button>
+    </div>
+  </form>
+</div>
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Curso</th>
+                <th>Estudiante</th>
+                <th>Inasistencias</th>
+                <th>Acciones Realizadas</th>
+                <th>Ver Más</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for alu in alumnos %}
+            <tr>
+                <td>{{ hoy }}</td>
+                <td>{{ alu.curso }}</td>
+                <td>{{ alu.apellido }}, {{ alu.nombre }}</td>
+                <td>
+    <span class="badge {% if alu.alerta_texto != 'Sin alerta crítica' %}bg-danger{% else %}bg-secondary{% endif %}">
+        {{ alu.total_faltas }} — {{ alu.alerta_texto }}
+    </span>
+                </td>
+                <td><input type="text" class="form-control form-control-sm" placeholder="Entrevista, llamado..."></td>
+                <td>
+                    <a href="{{ url_for('asistencia_mensual', curso=alu.curso, month=hoy_mes, year=hoy_anio) }}" 
+                     class="btn btn-sm btn-outline-primary">Detalle</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

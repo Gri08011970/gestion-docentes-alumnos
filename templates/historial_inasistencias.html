@@ -1,354 +1,344 @@
 {% extends "base.html" %}
+{% block title %}Historial de Inasistencias{% endblock %}
+
 {% block content %}
-<h2 class="mb-3 d-flex align-items-center justify-content-between">
-  <span>Historial de Inasistencias</span>
-  <div class="d-flex gap-2">
-    <button id="btnFiltrar" class="btn btn-primary">Aplicar filtros</button>
-    <button class="btn btn-outline-secondary" onclick="imprimirDiv('historial-wrap')">Imprimir historial</button>
-  </div>
-</h2>
-<style>
-@media print {
-  /* Ocultar cosas que no queremos imprimir */
-  nav.navbar,
-  .btn,
-  .filtros-inasistencias,
-  footer {
-    display: none !important;
-  }
+<div class="container my-4">
+  <h2 class="mb-3">Historial de Inasistencias</h2>
 
-  body {
-    margin: 0;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    font-size: 11pt;
-  }
-
-  .print-container,
-  .container {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-  }
-
-  /* Que la tabla ocupe el ancho completo y respete bordes */
-  table.table {
-    width: 100% !important;
-    border-collapse: collapse;
-  }
-
-  table.table th,
-  table.table td {
-    border: 1px solid #000 !important;
-  }
-}
-</style>
-
-<div id="historial-wrap" class="row g-4">
-  <!-- Filtros -->
-  <div class="col-12">
-  <div class="card filtros-inasistencias">
+  <div class="card mb-3">
     <div class="card-body">
-      <form id="filtros" class="row g-2 align-items-end">
-          <div class="col-md-3">
-            <label class="form-label">Docente</label>
-            <select id="docente_id" class="form-select">
-              <option value="TODOS">TODOS</option>
-              {% for d in docentes %}
-              <option value="{{ d['_id'] }}">{{ d.get('apellido','') }}, {{ d.get('nombre','') }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">Desde</label>
-            <input type="date" id="desde" class="form-control">
-          </div>
-          <div class="col-md-2">
-            <label class="form-label">Hasta</label>
-            <input type="date" id="hasta" class="form-control">
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Causa</label>
-            <select id="causa" class="form-select">
-              <option value="TODAS">TODAS</option>
-              <option>enfermedad personal</option>
-              <option>enfermedad familiar</option>
-              <option>pre-examen</option>
-              <option>exámenes</option>
-              <option>causas particulares</option>
-              <option>citación otro establecimiento</option>
-              <option>duelo</option>
-              <option>licencia extraordinaria</option>
-              <option>ART</option>
-              <option>otros</option>
-            </select>
-          </div> 
-          
-        </form>
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label">Docente</label>
+          <select class="form-select" id="fDocente">
+            <option value="TODOS">TODOS</option>
+            {% for d in docentes %}
+              <option value="{{ d._id }}">{{ d.apellido }}, {{ d.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Desde</label>
+          <input class="form-control" type="date" id="fDesde">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Hasta</label>
+          <input class="form-control" type="date" id="fHasta">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Causa</label>
+          <select class="form-select" id="fCausa">
+            <option value="TODAS">TODAS</option>
+            <option value="enfermedad personal">Enfermedad personal</option>
+            <option value="enfermedad familiar">Enfermedad familiar</option>
+            <option value="enfermedad crónica">Enfermedad crónica</option>
+            <option value="particulares">Particulares</option>
+            <option value="causas particulares">Causas particulares</option>
+            <option value="citación a otro establecimiento">Citación a otro establecimiento</option>
+            <option value="injustificadas">Injustificadas</option>
+            <option value="pre-examen">Pre-examen</option>
+            <option value="pre-exámenes">Pre-exámenes</option>
+            <option value="duelo">Duelo</option>
+            <option value="examen">Examen</option>
+            <option value="paro">Paro</option>
+            <option value="ART">ART</option>
+            <option value="Licencia extraordinaria">Licencia extraordinaria</option>
+            <option value="otras">Otras</option>
+          </select>
+        </div>
+
+        <div class="col-md-1 d-grid">
+          <button class="btn btn-primary" id="btnAplicar">Aplicar</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Panel lateral: Resumen y Alertas -->
-  <div class="col-lg-4">
-    <div class="card h-100">
-      <div class="card-header bg-light">
-        <strong>Resumen y Alertas</strong>
-      </div>
-      <div class="card-body">
-        <div class="d-flex justify-content-between mb-2">
-          <span>Total de inasistencias</span>
-          <span id="res-total" class="badge text-bg-secondary">0</span>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-header fw-bold">Resumen y Alertas</div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span>Total de inasistencias</span>
+            <span class="badge text-bg-secondary" id="resTotal">0</span>
+          </div>
+          <hr>
+          <div id="resCausas" class="d-grid gap-2"></div>
         </div>
-        <hr>
-        <div id="res-causas" class="vstack gap-2">
-          <!-- badges por causa con tope -->
-        </div>
-        <hr>
-        
       </div>
     </div>
-  </div>
 
-  <!-- Tabla resultados -->
-  <div class="col-lg-8">
-    <div class="card">
-      <div class="card-header bg-light">
-        <strong>Resultados</strong>
-      </div>
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-sm align-middle">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Docente</th>
-                <th>Causa</th>
-                <th>Suplente</th>
-                <th>Obs.</th>
-                <th>Acciones</th>
-
-              </tr>
-            </thead>
-            <tbody id="tablaResultados">
-              <!-- filas -->
-            </tbody>
-          </table>
+    <div class="col-md-8">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-bold">Resultados</span>
+          <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">Imprimir historial</button>
         </div>
-        
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+              <thead class="table-info">
+                <tr>
+                  <th style="width:110px;">Fecha</th>
+                  <th>Docente</th>
+                  <th style="width:260px;">Causa</th>
+                  <th style="width:170px;">Suplente</th>
+                  <th>Obs.</th>
+                  <th style="width:120px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tblBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const selDocente = document.getElementById('docente_id');
-  const inpDesde   = document.getElementById('desde');
-  const inpHasta   = document.getElementById('hasta');
-  const selCausa   = document.getElementById('causa');
-  const btnFiltrar = document.getElementById('btnFiltrar');
+<!-- Modal EP91 confirm -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmModalTitle">Confirmar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="confirmModalBody">¿Confirmás la acción?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirmModalOk">Sí, eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-  const spanTotal  = document.getElementById('res-total'); 
-  const divCausas  = document.getElementById('res-causas');
-  const tbody      = document.getElementById('tablaResultados');
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const fDocente = document.getElementById("fDocente");
+  const fDesde   = document.getElementById("fDesde");
+  const fHasta   = document.getElementById("fHasta");
+  const fCausa   = document.getElementById("fCausa");
+  const btnAplicar = document.getElementById("btnAplicar");
+
+  const resTotal  = document.getElementById("resTotal");
+  const resCausas = document.getElementById("resCausas");
+  const tblBody   = document.getElementById("tblBody");
+
+  if (!btnAplicar || !fDesde || !fHasta) return;
+
+  function val(el) { return (el && el.value != null) ? String(el.value).trim() : ""; }
+
+  function buildParams() {
+    const params = new URLSearchParams();
+    params.set("docente_id", val(fDocente));
+    params.set("desde", val(fDesde));
+    params.set("hasta", val(fHasta));
+    params.set("causa", val(fCausa));
+    return params;
+  }
+
+  // Modal EP91 helper
+  function showConfirmModal(titulo, mensaje, onOk) {
+    const titleEl = document.getElementById("confirmModalTitle");
+    const bodyEl  = document.getElementById("confirmModalBody");
+    const okBtn   = document.getElementById("confirmModalOk");
+    titleEl.textContent = titulo || "Confirmar";
+    bodyEl.textContent  = mensaje || "¿Confirmás la acción?";
+
+    const newOkBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+    newOkBtn.addEventListener("click", async () => {
+      try { await (onOk && onOk()); } finally {
+        const modalEl = document.getElementById("confirmModal");
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
+    });
+
+    new bootstrap.Modal(document.getElementById("confirmModal")).show();
+  }
+
+  // --- Normalización “inteligente” para bucket ---
+  function norm(s) {
+    return (s || "")
+      .toString().toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/_/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function bucketFromCausa(raw) {
+    const c = norm(raw);
+    if (c.includes("enfermedad") && c.includes("personal")) return "enfermedad_personal";
+    if (c.includes("enfermedad") && c.includes("familiar")) return "enfermedad_familiar";
+    if (c.includes("cronica")) return "enfermedad_cronica";
+    if (c.includes("pre") && c.includes("examen")) return "pre_examen";
+    if (c.includes("citacion") && c.includes("establecimiento")) return "citacion_otro_establecimiento";
+    if (c.includes("injust")) return "injustificadas";
+    if (c.includes("licencia") && c.includes("extra")) return "licencia_extraordinaria";
+    if (c === "art") return "art";
+    if (c.includes("paro")) return "paro";
+    if (c.includes("duelo")) return "duelo";
+    if (c.includes("examen")) return "examen";
+    if (c.includes("particular")) return "particulares";
+    return "otras";
+  }
+
+  function labelBucket(k) {
+    const labels = {
+      enfermedad_personal: "Enfermedad personal",
+      enfermedad_familiar: "Enfermedad familiar",
+      enfermedad_cronica: "Enfermedad crónica",
+      particulares: "Particulares / Causas particulares",
+      citacion_otro_establecimiento: "Citación a otro establecimiento",
+      injustificadas: "Injustificadas",
+      pre_examen: "Pre-exámenes",
+      duelo: "Duelo",
+      examen: "Examen",
+      paro: "Paro",
+      art: "ART",
+      licencia_extraordinaria: "Licencia extraordinaria",
+      otras: "Otras",
+    };
+    return labels[k] || k;
+  }
+
+  function renderResumen(apiData) {
+    // soporta: {ok:true,total,por_causa} o {ok:true,data:{...}}
+    const data = apiData?.data ? apiData.data : apiData;
+    const total = Number(data?.total ?? 0);
+    if (resTotal) resTotal.textContent = String(total);
+
+    const por = data?.por_causa || {};
+    // si el backend ya manda por_causa en buckets, lo usamos;
+    // si no, armamos por buckets a partir de items (fallback).
+    let buckets = { ...por };
+
+    const orden = [
+      "enfermedad_personal","enfermedad_familiar","enfermedad_cronica",
+      "particulares","citacion_otro_establecimiento","injustificadas",
+      "pre_examen","duelo","examen","paro","art","licencia_extraordinaria","otras"
+    ];
+
+    const html = orden.map(k => {
+      const n = Number(buckets[k] || 0);
+      if (!n) return "";
+      return `
+        <div class="d-flex justify-content-between border-bottom py-1">
+          <span>${labelBucket(k)}</span>
+          <span class="badge bg-secondary">${n}</span>
+        </div>`;
+    }).join("");
+
+    resCausas.innerHTML = html || `<div class="text-muted">Sin datos para mostrar.</div>`;
+  }
+
+  function renderTabla(items) {
+    if (!tblBody) return;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      tblBody.innerHTML = `<tr><td colspan="6" class="text-muted">Sin resultados.</td></tr>`;
+      return;
+    }
+
+    tblBody.innerHTML = items.map(r => {
+      const supObj = r.suplente_info || {};
+      const supl = supObj.nombre || r.suplente_nombre || r.suplente || "";
+      const obs  = r.observaciones || "";
+
+      const editUrl = r._id ? `/inasistencias/${r._id}/editar` : "#";
+
+      return `
+        <tr>
+          <td>${r.fecha || ""}</td>
+          <td>${r.docente_nombre || ""}</td>
+          <td>${r.causa || ""}</td>
+          <td>${supl || ""}</td>
+          <td>${obs || ""}</td>
+          <td class="text-nowrap">
+            <a class="btn btn-sm btn-outline-primary" href="${editUrl}"><i class="fas fa-edit"></i></a>
+            <button class="btn btn-sm btn-outline-danger" data-del="${r._id}"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`;
+    }).join("");
+
+    // bind delete buttons
+    tblBody.querySelectorAll("button[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-del");
+        if (!id) return;
+        showConfirmModal("Eliminar inasistencia",
+          "¿Confirmás eliminar esta inasistencia? Esta acción no se puede deshacer.",
+          async () => {
+            const resp = await fetch(`/api/inasistencias/${id}`, { method: "DELETE" });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || data.ok === false) {
+              alert(data.error || "No se pudo eliminar.");
+              return;
+            }
+            await cargarResumenYTabla(); // ✅ recarga con mismos filtros
+          }
+        );
+      });
+    });
+  }
 
   async function cargarResumenYTabla() {
-    const params = {
-      // 👇 nombre de parámetro igual que en la API: docente, no docente_id
-      docente: selDocente.value || 'TODOS',
-      desde:   inpDesde.value   || '',
-      hasta:   inpHasta.value   || '',
-      causa:   selCausa.value   || 'TODAS',
-    }; 
+    const params = buildParams();
 
+    // 1) Resumen
     try {
-      // ----- Resumen -----
-      const r1   = await axios.get('/api/historial_resumen', { params });
-      const data = r1.data || {};
+      const r1 = await fetch(`/api/historial_resumen?${params.toString()}`);
+      const data1 = await r1.json();
 
-      const total     = data.total || 0;
-      const porCausa  = data.por_causa || {};
-      const topes     = data.topes || {};
-
-      spanTotal.textContent = total;
-
-      divCausas.innerHTML = '';
-      Object.keys(topes).forEach((clave) => {
-        const valor = porCausa[clave] || 0;
-        const tope  = topes[clave] || 0;
-
-        let clase = 'text-bg-success';
-        if (tope > 0) {
-          const ratio = valor / tope;
-          if (ratio > 1)      clase = 'text-bg-danger';
-          else if (ratio >= .7) clase = 'text-bg-warning';
-        }
-
-        const row = document.createElement('div');
-        row.className = 'd-flex justify-content-between align-items-center mb-1';
-        row.innerHTML = `
-          <span class="text-capitalize">${clave}</span>
-          <span>
-            <span class="badge ${clase} me-2">${valor}</span>
-            <small class="text-muted">/ tope ${tope}</small>
-          </span>
-        `;
-        divCausas.appendChild(row);
-      });
-
-      // ----- Tabla de resultados -----
-    
-    // Tabla
-    const r2 = await axios.get('/api/historial_lista', { params });
-    const filas = r2.data || [];
-    const tbody = document.getElementById('tablaResultados');
-    tbody.innerHTML = "";
-
-    // helper para mostrar DD/MM/AAAA
-    function fechaBonita(iso) {
-      if (!iso) return "";
-      const [anio, mes, dia] = iso.split("-");
-      return `${dia}/${mes}/${anio}`;
+      // si el backend no manda buckets, hacemos fallback desde lista luego
+      renderResumen(data1);
+    } catch (e) {
+      console.error("Error resumen:", e);
+      if (resCausas) resCausas.innerHTML = `<div class="text-danger">Error cargando resumen.</div>`;
     }
 
-    filas.forEach(f=>{
-      const sup = f.suplente_info || {};
-      const supTxt = [sup.nombre, sup.curso, sup.asignatura]
-                      .filter(Boolean)
-                      .join(" — ");
+    // 2) Tabla
+    try {
+      const r2 = await fetch(`/api/historial_lista?${params.toString()}`);
+      const data2 = await r2.json();
 
-      const tr = document.createElement('tr');
+      // soporta: {ok:true,items:[...]} o directamente [...]
+      const items = Array.isArray(data2) ? data2 : (data2.items || []);
+      renderTabla(items);
 
-      const dot = `<span class="badge rounded-pill"
-                          style="background:${f.color || '#dc3545'};">
-                     &nbsp;
-                   </span>`;
-
-      const accionesHtml = `
-        <button type="button"
-                class="btn btn-sm btn-outline-secondary btn-inas-edit"
-                data-id="${f._id}">
-          ✏
-        </button>
-        <button type="button"
-                class="btn btn-sm btn-outline-danger ms-1 btn-inas-del"
-                data-id="${f._id}">
-          🗑
-        </button>
-      `;
-
-      tr.innerHTML = `
-        <td class="text-nowrap">${fechaBonita(f.fecha)}</td> 
-        <td>${f.docente_nombre}</td>
-        <td>${dot} ${f.causa}</td>
-        <td>${supTxt || "—"}</td>
-        <td>${f.observaciones || ""}</td>
-        <td class="text-nowrap">${accionesHtml}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-
-
-    } catch (err) {
-      console.error('Error cargando historial:', err);
-    }
-  }
-
-  // botón principal de filtros
-  if (btnFiltrar) {
-    btnFiltrar.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      cargarResumenYTabla();
-    });
-  }
-
-  // Fecha "hasta" por defecto = hoy (solo si está vacía)
-  if (inpHasta && !inpHasta.value) {
-    inpHasta.value = new Date().toISOString().slice(0, 10);
-  }
-
-  // Carga inicial 
-  cargarResumenYTabla();
-}); 
-  // Click en acciones (editar / eliminar)
-  document.getElementById('tablaResultados').addEventListener('click', async (ev)=>{
-    const btn = ev.target.closest('button');
-    if (!btn) return;
-
-    const id = btn.dataset.id;
-    if (!id) return;
-
-    // Eliminar
-    if (btn.classList.contains('btn-inas-del')) {
-      if (!confirm('¿Seguro que querés eliminar esta inasistencia?')) return;
-      try {
-        await axios.delete(`/api/inasistencias/${id}`);
-        await cargarResumenYTabla();
-      } catch (e) {
-        alert('No se pudo eliminar la inasistencia.');
+      // ✅ fallback: si resumen venía vacío, lo armamos desde items
+      // (esto evita “resumen en blanco” aunque el endpoint falle o cambie)
+      const buckets = {};
+      for (const it of items) {
+        const b = bucketFromCausa(it.causa || "");
+        buckets[b] = (buckets[b] || 0) + 1;
       }
-      return;
-    }
+      const total = items.length;
+      renderResumen({ total: total, por_causa: buckets });
 
-    // Editar (por ahora solo muestra un aviso; después lo enganchamos al modal)
-    if (btn.classList.contains('btn-inas-edit')) {
-      editarInasistencia(id);
+    } catch (e) {
+      console.error("Error tabla:", e);
+      if (tblBody) tblBody.innerHTML = `<tr><td colspan="6" class="text-danger">Error cargando datos.</td></tr>`;
     }
+  }
+
+  btnAplicar.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    cargarResumenYTabla();
   });
 
-async function editarInasistencia(id) {
-  try {
-    const r = await axios.get(`/api/inasistencias/${id}`);
-    if (!r.data.ok) {
-      alert(r.data.error || "No se pudo cargar la inasistencia.");
-      return;
-    }
-    const ins = r.data.data;
-
-    // Por ahora: sólo permitir cambiar causa y observaciones con prompt()
-    const nuevaCausa = prompt("Editar causa:", ins.causa || "");
-    if (nuevaCausa === null) return;  // canceló
-
-    const nuevasObs  = prompt("Editar observaciones:", ins.observaciones || "");
-    if (nuevasObs === null) return;
-
-    await axios.put(`/api/inasistencias/${id}`, {
-      causa: nuevaCausa,
-      observaciones: nuevasObs
-    });
-
-    // Recargar el historial con el filtro actual
-    await aplicarFiltros();
-  } catch (err) {
-    console.error(err);
-    alert("Error guardando cambios.");
-  }
-}
-
-async function borrarInasistencia(id) {
-  if (!confirm("¿Seguro que querés ANULAR esta inasistencia?")) return; 
-
-  try {
-    const r = await axios.delete(`/api/inasistencias/${id}`);
-    // Verificamos si la respuesta del servidor es OK
-    if (r.data.ok === false) {
-      alert(r.data.error || "No se pudo anular la inasistencia.");
-      return;
-    }
-
-    // Si fue exitoso, recargamos la lista y mostramos un mensaje de éxito
-    await aplicarFiltros();
-    alert("✅ Inasistencia anulada correctamente."); // Muestra un mensaje de éxito
-
-  } catch (err) {
-    console.error(err);
-    // Si hay un error HTTP o de red
-    alert("❌ Error de comunicación con el servidor al anular."); 
-  }
-}
-
+  cargarResumenYTabla();
+});
 </script>
-
 {% endblock %}

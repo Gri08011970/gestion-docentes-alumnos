@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container my-4">
+    <h3>EOE - Judiciales y Acompañantes</h3>
+
+    <div class="card mb-3 p-3">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label mb-1">Filtrar por Curso</label>
+                <select class="form-select" name="curso" id="cursoSelect">
+                    <option value="">TODOS</option>
+                    {% for c in cursos %}
+                    <option value="{{ c }}" {% if curso_sel == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Aplicar</button>
+            </div>
+        </form>
+    </div>
+
+    <table class="table table-bordered bg-white shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Estudiante</th>
+                <th>Causa Judicial</th>
+                <th>Vencimiento</th>
+                <th>Acompañante Externo</th>
+                <th>Horario Acomp.</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for alu in alumnos %}
+            <tr>
+                <td>
+                    {{ alu.apellido }}, {{ alu.nombre }} 
+                    <br><small class="text-muted">{{ alu.curso }}</small>
+                </td>
+                <td>
+                    <input type="text" 
+                           name="causa_judicial" 
+                           class="form-control form-control-sm dato-eoe" 
+                           data-id="{{ alu._id }}" 
+                           value="{{ alu.get('causa_judicial','') }}">
+                </td>
+                <td>
+                    <input type="date" 
+                           name="venc_judicial" 
+                           class="form-control form-control-sm dato-eoe 
+                           {% if alu.get('venc_judicial') and alu.get('venc_judicial') < hoy_iso %}border-danger bg-light-danger{% endif %}" 
+                           data-id="{{ alu._id }}" 
+                           value="{{ alu.get('venc_judicial','') }}">
+                </td>
+                <td>
+                    <input type="text" 
+                           name="acompanante" 
+                           class="form-control form-control-sm dato-eoe" 
+                           data-id="{{ alu._id }}" 
+                           value="{{ alu.get('acompanante','') }}">
+                </td>
+                <td>
+                    <input type="text" 
+                           name="horario_acomp" 
+                           class="form-control form-control-sm dato-eoe" 
+                           data-id="{{ alu._id }}" 
+                           value="{{ alu.get('horario_acomp','') }}">
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+document.querySelectorAll('.dato-eoe').forEach(input => {
+    input.addEventListener('change', async function() {
+        const id = this.dataset.id;
+        const campo = this.name;
+        const valor = this.value;
+        const fila = this.closest('tr');
+
+        try {
+            fila.style.opacity = '0.5';
+            await axios.post('/api/eoe/actualizar_judicial', { id, campo, valor });
+            fila.style.opacity = '1';
+            // Efecto visual de guardado exitoso
+            this.classList.add('is-valid');
+            setTimeout(() => this.classList.remove('is-valid'), 1000);
+        } catch (e) {
+            alert("Error al guardar");
+            fila.style.opacity = '1';
+        }
+    });
+});
+</script>
+{% endblock %}

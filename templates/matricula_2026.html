@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}Matrícula inicial 2026{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h3 class="mb-0">Matrícula inicial 2026</h3>
+      <div class="text-muted small">
+        Se arma desde <b>PROM/REC</b> (1° a 5°). 6° no se modifica.
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('listar_alumnos') }}">Volver a Estudiantes</a>
+      <button class="btn btn-outline-primary" id="btnRecargar">Recargar</button>
+      <button class="btn btn-success" id="btnAplicar" disabled>Aplicar cambios</button>
+    </div>
+  </div>
+
+  <div id="alertBox" class="alert d-none" role="alert"></div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-2">
+          <div class="border rounded p-2 text-center">
+            <div class="small text-muted">Total alumnos</div>
+            <div class="fs-5 fw-bold" id="stTotal">-</div>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="border rounded p-2 text-center">
+            <div class="small text-muted">Candidatos</div>
+            <div class="fs-5 fw-bold" id="stCandidatos">-</div>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="border rounded p-2 text-center">
+            <div class="small text-muted">Cambios reales</div>
+            <div class="fs-5 fw-bold" id="stCambios">-</div>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="border rounded p-2 text-center">
+            <div class="small text-muted">Sin PROM/REC</div>
+            <div class="fs-5 fw-bold" id="stSinEstado">-</div>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="border rounded p-2 text-center">
+            <div class="small text-muted">Curso inválido</div>
+            <div class="fs-5 fw-bold" id="stNoParseados">-</div>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="border rounded p-2 text-center">
+            <div class="small text-muted">6° (no toca)</div>
+            <div class="fs-5 fw-bold" id="stSexto">-</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header fw-bold d-flex justify-content-between align-items-center">
+      <span>Vista previa (antes → después)</span>
+      <span class="text-muted small">PROM sube / REC queda</span>
+    </div>
+
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th style="width:70px;">#</th>
+              <th>Alumno</th>
+              <th style="width:140px;">DNI</th>
+              <th style="width:120px;">Estado</th>
+              <th style="width:120px;">Curso actual</th>
+              <th style="width:120px;">Curso nuevo</th>
+              <th style="width:110px;">¿Cambia?</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyPreview">
+            <tr>
+              <td colspan="7" class="text-center text-muted p-4">Cargando…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAR -->
+<div class="modal fade" id="modalConfirmar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar matrícula 2026</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2">
+          Esto va a <b>actualizar el curso</b> de alumnos con PROM (1° a 5°).
+        </p>
+        <p class="mb-0 text-danger">
+          ⚠️ Recomendación: primero revisá la tabla. Si está ok, aplicás.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-success" id="btnConfirmarAplicar">Sí, aplicar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const PREVIEW_URL = "{{ url_for('matricula_2026_preview') }}";
+  const APLICAR_URL = "{{ url_for('matricula_2026_aplicar') }}";
+
+  const tbody = document.getElementById("tbodyPreview");
+  const btnRecargar = document.getElementById("btnRecargar");
+  const btnAplicar = document.getElementById("btnAplicar");
+  const btnConfirmarAplicar = document.getElementById("btnConfirmarAplicar");
+  const alertBox = document.getElementById("alertBox");
+
+  const stTotal = document.getElementById("stTotal");
+  const stCandidatos = document.getElementById("stCandidatos");
+  const stCambios = document.getElementById("stCambios");
+  const stSinEstado = document.getElementById("stSinEstado");
+  const stNoParseados = document.getElementById("stNoParseados");
+  const stSexto = document.getElementById("stSexto");
+
+  function showAlert(type, msg) {
+    alertBox.className = `alert alert-${type}`;
+    alertBox.textContent = msg;
+    alertBox.classList.remove("d-none");
+  }
+  function hideAlert() {
+    alertBox.classList.add("d-none");
+  }
+
+  function badgeEstado(estado){
+    const e = (estado || "").toUpperCase();
+    if (e === "PROM") return '<span class="badge text-bg-success">PROM</span>';
+    if (e === "REC") return '<span class="badge text-bg-warning">REC</span>';
+    return '<span class="badge text-bg-secondary">-</span>';
+  }
+
+  function renderTabla(items) {
+    if (!items || items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted p-4">No hay datos para mostrar.</td></tr>`;
+      btnAplicar.disabled = true;
+      return;
+    }
+
+    tbody.innerHTML = items.map((x, idx) => {
+      const alumno = `${x.apellido || ""}, ${x.nombre || ""}`.trim();
+      const dni = x.dni || "";
+      const cambia = !!x.cambia;
+      return `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${alumno}</td>
+          <td class="text-muted">${dni}</td>
+          <td>${badgeEstado(x.estado)}</td>
+          <td><span class="badge text-bg-light border">${x.curso_actual || ""}</span></td>
+          <td><span class="badge text-bg-light border">${x.curso_nuevo || ""}</span></td>
+          <td>${cambia ? '<span class="badge text-bg-primary">SI</span>' : '<span class="badge text-bg-secondary">NO</span>'}</td>
+        </tr>
+      `;
+    }).join("");
+
+    // Habilitar aplicar sólo si hay cambios reales
+    const hayCambios = items.some(x => x.cambia);
+    btnAplicar.disabled = !hayCambios;
+  }
+
+  async function cargarPreview() {
+    hideAlert();
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted p-4">Cargando…</td></tr>`;
+    btnAplicar.disabled = true;
+
+    try {
+      const r = await fetch(PREVIEW_URL, {cache: "no-store"});
+      const data = await r.json();
+
+      if (!data.ok) {
+        showAlert("danger", "No se pudo cargar la vista previa.");
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger p-4">Error</td></tr>`;
+        return;
+      }
+
+      const st = data.stats || {};
+      stTotal.textContent = st.total ?? "-";
+      stCandidatos.textContent = st.candidatos ?? "-";
+      stCambios.textContent = st.cambios_reales ?? "-";
+      stSinEstado.textContent = st.sin_estado ?? "-";
+      stNoParseados.textContent = st.no_parseados ?? "-";
+      stSexto.textContent = st.sexto ?? "-";
+
+      renderTabla(data.items || []);
+      if ((st.cambios_reales || 0) === 0) {
+        showAlert("info", "No hay cambios reales para aplicar (o faltan PROM/REC).");
+      }
+    } catch (e) {
+      console.error(e);
+      showAlert("danger", "Error cargando preview. Mirá consola.");
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger p-4">Error</td></tr>`;
+    }
+  }
+
+  async function aplicarCambios() {
+    hideAlert();
+    btnConfirmarAplicar.disabled = true;
+    btnConfirmarAplicar.textContent = "Aplicando…";
+
+    try {
+      const r = await fetch(APLICAR_URL, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({confirm: "SI"})
+      });
+      const data = await r.json();
+
+      if (!data.ok) {
+        showAlert("danger", "No se pudo aplicar la matrícula (confirmación o error).");
+      } else {
+        showAlert("success", `Listo ✅ Actualizados: ${data.actualizados}.`);
+      }
+
+      // cerrar modal
+      const modalEl = document.getElementById("modalConfirmar");
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+
+      // recargar preview para ver cómo quedó
+      await cargarPreview();
+
+    } catch (e) {
+      console.error(e);
+      showAlert("danger", "Error aplicando cambios. Mirá consola.");
+    } finally {
+      btnConfirmarAplicar.disabled = false;
+      btnConfirmarAplicar.textContent = "Sí, aplicar";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    btnRecargar.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      cargarPreview();
+    });
+
+    btnAplicar.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      const modal = new bootstrap.Modal(document.getElementById("modalConfirmar"));
+      modal.show();
+    });
+
+    btnConfirmarAplicar.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      aplicarCambios();
+    });
+
+    cargarPreview();
+  });
+</script>
+{% endblock %}

@@ -194,14 +194,14 @@ Inasistencias {{ docente.get('apellido','') }}, {{ docente.get('nombre','') }} ‚
             <tr>
               {% for celda in fila %}
                 {% if celda %}
-                  {% if celda.color %}
-                    <td class="dia-con-falta" data-color="{{ celda.color }}">
-                      {{ celda.dia }}
-                    </td>
+                   {% if celda.color %}
+                      <td class="dia-con-falta" data-color="{{ celda.color }}" style="background-color: {{ celda.color | default('transparent') }};">
+                         {{ celda.dia }}
+                      </td>
+                   {% else %}
+                      <td>{{ celda.dia }}</td>
+                   {% endif %}
 
-                  {% else %}
-                    <td>{{ celda.dia }}</td>
-                  {% endif %}
                 {% else %}
                   <td class="dia-vacio"></td>
                 {% endif %}
@@ -225,52 +225,22 @@ Inasistencias {{ docente.get('apellido','') }}, {{ docente.get('nombre','') }} ‚
     <!-- Resumen tipo punto 14 SET4 -->
     <div class="resumen-inferior">
       <div style="flex: 1;">
-        <table>
-          <tr>
-            <th colspan="2">14) Asistencias / Inasistencias</th>
-          </tr>
-          <tr>
-            <td>Por enfermedad personal</td>
-            <td style="width:60px; text-align:center;">
-              {{ totales.enfermedad_personal or 0 }}
-            </td>
-          </tr>
-          <tr>
-            <td>Por enfermedad de familiar a cargo</td>
-            <td style="width:60px; text-align:center;">
-              {{ totales.enfermedad_familiar or 0 }}
-            </td>
-          </tr>
-          <tr>
-            <td>Por causas particulares</td>
-            <td style="width:60px; text-align:center;">
-              {{ totales.particulares or 0 }}
-            </td>
-          </tr>
-          <tr>
-             <td>Citaciones (servicio en otro establecimiento)</td>
-             <td class="text-end">{{ totales.citacion or 0 }}</td> 
-          </tr>
-
-          <tr>
-            <td>Por otras causas</td>
-            <td style="width:60px; text-align:center;">
-              {{ totales.otras or 0 }}
-            </td>
-          </tr>
-          <tr>
-            <td>Injustificadas</td>
-            <td style="width:60px; text-align:center;">
-              {{ totales.injustificadas or 0 }}
-            </td>
-          </tr>
-          <tr>
-            <th>Total inasistencias</th>
-            <th style="text-align:center;">
-              {{ totales.suma or 0 }}
-            </th>
-          </tr>
-        </table>
+        <table class="tabla-totales">
+  <tr><td>Enfermedad Personal</td><td>{{ totales.enfermedad_personal or 0 }}</td></tr>
+  <tr><td>Enfermedad Familiar</td><td>{{ totales.enfermedad_familiar or 0 }}</td></tr>
+  <tr><td>Causas Particulares</td><td>{{ totales.particulares or 0 }}</td></tr>
+  <tr><td>Citaci√≥n</td><td>{{ totales.citacion or 0 }}</td></tr>
+  <tr><td>Examen / Pre-Examen</td><td>{{ (totales.examen or 0) + (totales.pre_examen or 0) }}</td></tr>
+  <tr><td>Duelo</td><td>{{ totales.duelo or 0 }}</td></tr>
+  <tr><td>Paro</td><td>{{ totales.paro or 0 }}</td></tr>
+  <tr><td>ART</td><td>{{ totales.ART or 0 }}</td></tr>
+  <tr><td>Injustificadas</td><td>{{ totales.injustificadas or 0 }}</td></tr>
+  <tr><td>Otras</td><td>{{ totales.otras or 0 }}</td></tr>
+  <tr class="fw-bold" style="background: #eee;">
+    <td>TOTAL INASISTENCIAS</td>
+    <td>{{ totales.suma or 0 }}</td>
+  </tr>
+</table>
       </div>
       <div style="flex: 1; text-align:right; padding-right:20px;">
         <p>Firma del directivo: ________________________</p>

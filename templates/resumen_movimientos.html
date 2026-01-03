@@ -1,94 +1,202 @@
 {% extends "base.html" %}
+{% block title %}Movimientos de alumnos{% endblock %}
+
 {% block content %}
+<div class="container mt-4">
 
-<h2>Movimientos de Alumnos</h2>
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <h2 class="mb-0">Movimientos de alumnos</h2>
 
-<h3>Entradas (ALTA)</h3>
-<table border="1" cellpadding="6" cellspacing="0">
-  <tr>
-    <th>Fecha</th><th>Alumno</th><th>DNI</th><th>Curso</th><th>Escuela Origen</th>
-  </tr>
-  {% for m in entradas %}
-  <tr>
-    <td>{{ m.fecha }}</td>
-    <td>{{ m.apellido }}, {{ m.nombre }}</td>
-    <td>{{ m.dni }}</td>
-    <td>{{ m.curso }}</td>
-    <td>{{ m.escuela_origen }}</td>
-  </tr>
-  {% endfor %}
-</table>
+    <div class="d-flex gap-2">
+      <form method="get" class="d-flex align-items-center gap-2">
+        <label class="form-label mb-0 small text-muted">Año</label>
+        <select name="anio" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% if anios_disponibles %}
+            {% for a in anios_disponibles %}
+              <option value="{{ a }}" {% if a == anio %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+          {% else %}
+            <option value="{{ anio }}" selected>{{ anio }}</option>
+          {% endif %}
+        </select>
+      </form>
 
-<br>
+      <a class="btn btn-sm btn-outline-success"
+         href="{{ url_for('exportar_movimientos_excel', anio=anio) }}">
+        Exportar Excel
+      </a>
 
-<h3>Cambios de turno</h3>
-<table border="1" cellpadding="6" cellspacing="0">
-  <tr>
-    <th>Fecha</th><th>Alumno</th><th>DNI</th><th>Curso origen</th><th>Curso destino</th>
-  </tr>
-  {% for m in cambios_turno %}
-  <tr>
-    <td>{{ m.fecha }}</td>
-    <td>{{ m.apellido }}, {{ m.nombre }}</td>
-    <td>{{ m.dni }}</td>
-    <td>{{ m.curso_origen }}</td>
-    <td>{{ m.curso_destino }}</td>
-  </tr>
-  {% endfor %}
-</table>
+      {# Botón limpiar pruebas (solo admin) #}
+      {% if session.get('is_admin') %}
+      <form method="post"
+            action="{{ url_for('limpiar_movimientos_prueba') }}"
+            onsubmit="return confirm('Esto elimina movimientos con PRUEB* en nombre/apellido. ¿Continuar?');">
+        <button class="btn btn-sm btn-outline-danger">Limpiar históricos de prueba</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
 
-<br>
+  <div class="accordion" id="accMovs">
 
-<h3>Salidas por pase</h3>
-<table border="1" cellpadding="6" cellspacing="0">
-  <tr>
-    <th>Fecha</th><th>Alumno</th><th>DNI</th><th>Curso</th><th>Destino</th>
-  </tr>
-  {% for m in pases %}
-  <tr>
-    <td>{{ m.fecha }}</td>
-    <td>{{ m.apellido }}, {{ m.nombre }}</td>
-    <td>{{ m.dni }}</td>
-    <td>{{ m.curso }}</td>
-    <td>{{ m.escuela_destino }}</td>
-  </tr>
-  {% endfor %}
-</table>
+    {% macro tabla_movs(lista, cols) %}
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            {% for c in cols %}
+              <th class="text-nowrap">{{ c }}</th>
+            {% endfor %}
+            <th class="text-nowrap">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if lista and lista|length %}
+            {% for m in lista %}
+            <tr>
+              <td class="text-nowrap">
+                {# fecha puede venir datetime #}
+                {% if m.fecha and m.fecha.strftime %}
+                  {{ m.fecha.strftime("%d/%m/%Y") }}
+                {% else %}
+                  {{ m.fecha }}
+                {% endif %}
+              </td>
 
-<br>
+              {% for key in cols[1:] %}
+                {# Mapeo simple por “nombre de columna” #}
+                {% if key == "Alumno" %}
+                  <td>{{ m.apellido }}, {{ m.nombre }}</td>
+                {% elif key == "DNI" %}
+                  <td class="text-nowrap">{{ m.dni }}</td>
+                {% elif key == "Curso" %}
+                  <td class="text-nowrap">{{ m.curso }}</td>
+                {% elif key == "Curso origen" %}
+                  <td class="text-nowrap">{{ m.curso_origen }}</td>
+                {% elif key == "Curso destino" %}
+                  <td class="text-nowrap">{{ m.curso_destino }}</td>
+                {% elif key == "Destino" %}
+                  <td>{{ m.escuela_destino }}</td>
+                {% elif key == "Escuela origen" %}
+                  <td>{{ m.escuela_origen }}</td>
+                {% elif key == "Motivo" %}
+                  <td>{{ m.motivo or m.motivo_salida }}</td>
+                {% elif key == "Detalle" %}
+                  <td>{{ m.motivo or m.motivo_salida or m.escuela_origen or "" }}</td>
+                {% else %}
+                  <td></td>
+                {% endif %}
+              {% endfor %}
 
-<h3>Egresos</h3>
-<table border="1" cellpadding="6" cellspacing="0">
-  <tr>
-    <th>Fecha</th><th>Alumno</th><th>DNI</th><th>Curso</th><th>Observación</th>
-  </tr>
-  {% for m in egresos %}
-  <tr>
-    <td>{{ m.fecha }}</td>
-    <td>{{ m.apellido }}, {{ m.nombre }}</td>
-    <td>{{ m.dni }}</td>
-    <td>{{ m.curso }}</td>
-    <td>{{ m.motivo }}</td>
-  </tr>
-  {% endfor %}
-</table>
+              <td class="text-nowrap">
+                {# (Opcional) editar: lo armamos después si querés modal.
+                   Por ahora, borrado OK. #}
+                <form method="post"
+                      action="{{ url_for('borrar_movimiento', id=m._id, anio=anio) }}"
+                      style="display:inline"
+                      onsubmit="return confirm('¿Borrar este movimiento?');">
+                  <button class="btn btn-sm btn-outline-danger">Borrar</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="{{ cols|length + 1 }}" class="text-muted small">Sin registros.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+    {% endmacro %}
 
-<br>
+    {# 1) Entradas reales #}
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h1">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#c1">
+          Entradas reales (ALTA) ({{ entradas_reales|length }})
+        </button>
+      </h2>
+      <div id="c1" class="accordion-collapse collapse show" data-bs-parent="#accMovs">
+        <div class="accordion-body">
+          {{ tabla_movs(entradas_reales, ["Fecha","Alumno","DNI","Curso","Escuela origen"]) }}
+        </div>
+      </div>
+    </div>
 
-<h3>Otras bajas</h3>
-<table border="1" cellpadding="6" cellspacing="0">
-  <tr>
-    <th>Fecha</th><th>Alumno</th><th>DNI</th><th>Curso</th><th>Motivo</th>
-  </tr>
-  {% for m in otras_bajas %}
-  <tr>
-    <td>{{ m.fecha }}</td>
-    <td>{{ m.apellido }}, {{ m.nombre }}</td>
-    <td>{{ m.dni }}</td>
-    <td>{{ m.curso }}</td>
-    <td>{{ m.motivo }}</td>
-  </tr>
-  {% endfor %}
-</table>
+    {# 2) Matrícula inicial #}
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h2">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c2">
+          Matrícula inicial ({{ matricula_inicial|length }})
+        </button>
+      </h2>
+      <div id="c2" class="accordion-collapse collapse" data-bs-parent="#accMovs">
+        <div class="accordion-body">
+          <div class="small text-muted mb-2">
+            Se considera “matrícula inicial” cuando la escuela de procedencia está vacía o es E.P. 91.
+          </div>
+          {{ tabla_movs(matricula_inicial, ["Fecha","Alumno","DNI","Curso","Detalle"]) }}
+        </div>
+      </div>
+    </div>
 
+    {# 3) Cambios de turno #}
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h3">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c3">
+          Cambios de turno ({{ cambios_turno|length }})
+        </button>
+      </h2>
+      <div id="c3" class="accordion-collapse collapse" data-bs-parent="#accMovs">
+        <div class="accordion-body">
+          {{ tabla_movs(cambios_turno, ["Fecha","Alumno","DNI","Curso origen","Curso destino"]) }}
+        </div>
+      </div>
+    </div>
+
+    {# 4) Salidas por pase #}
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h4">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c4">
+          Salidas por pase ({{ pases|length }})
+        </button>
+      </h2>
+      <div id="c4" class="accordion-collapse collapse" data-bs-parent="#accMovs">
+        <div class="accordion-body">
+          {{ tabla_movs(pases, ["Fecha","Alumno","DNI","Curso","Destino"]) }}
+        </div>
+      </div>
+    </div>
+
+    {# 5) Egresos #}
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h5">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c5">
+          Egresos ({{ egresos|length }})
+        </button>
+      </h2>
+      <div id="c5" class="accordion-collapse collapse" data-bs-parent="#accMovs">
+        <div class="accordion-body">
+          {{ tabla_movs(egresos, ["Fecha","Alumno","DNI","Curso","Motivo"]) }}
+        </div>
+      </div>
+    </div>
+
+    {# 6) Otras bajas #}
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="h6">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c6">
+          Otras bajas ({{ otras_bajas|length }})
+        </button>
+      </h2>
+      <div id="c6" class="accordion-collapse collapse" data-bs-parent="#accMovs">
+        <div class="accordion-body">
+          {{ tabla_movs(otras_bajas, ["Fecha","Alumno","DNI","Curso","Motivo"]) }}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
 {% endblock %}

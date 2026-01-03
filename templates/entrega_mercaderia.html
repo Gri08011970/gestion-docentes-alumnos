@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Entrega de mercadería{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+      <h3 class="mb-0">Entrega de mercadería</h3>
+      <div class="text-muted small">Período: <strong>Marzo 2026 → Febrero 2027</strong></div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('listar_alumnos') }}">Volver a Estudiantes</a>
+      <button class="btn btn-outline-primary" onclick="window.print()">Imprimir</button>
+    </div>
+  </div>
+
+  <div class="card mb-3 p-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label mb-1">Curso</label>
+        <select class="form-select" id="cursoSelect">
+          <option value="">TODOS</option>
+          {% for c in cursos_unicos %}
+            <option value="{{ c }}" {% if curso_filtrado==c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-8 d-flex gap-2">
+        <button class="btn btn-primary" id="btnAplicar">Aplicar</button>
+        <button class="btn btn-outline-secondary" id="btnLimpiar">Limpiar</button>
+
+        <button class="btn btn-outline-dark ms-auto" id="btnImprimirCurso" {% if not curso_filtrado %}disabled{% endif %}>
+          Imprimir este curso
+        </button>
+      </div>
+    </div>
+
+    <div class="alert alert-info py-2 mt-3 mb-0">
+      Click en cada casillero para marcar entrega (tilde verde).
+    </div>
+  </div>
+
+  {% if not cursos_ordenados %}
+    <div class="alert alert-warning">No hay alumnos para mostrar.</div>
+  {% endif %}
+
+  <div class="table-responsive mercaderia-scroll">
+    <table class="table table-sm table-striped align-middle mb-0" id="tablaMercaderia">
+      <thead class="bg-white">
+        <tr>
+          <th class="sticky-col sticky-head" style="min-width:260px;">Alumno</th>
+          {% for p in periodos %}
+            <th class="text-center sticky-head" style="min-width:110px;">{{ p.label }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for curso in cursos_ordenados %}
+          <tr class="curso-sep">
+            <td colspan="{{ 1 + periodos|length }}" class="fw-bold bg-light">
+              {{ curso }}
+            </td>
+          </tr>
+
+          {% for a in grupos[curso] %}
+            {% set aid = a._id|string %}
+            <tr>
+              <td class="sticky-col">
+                <div class="fw-semibold">{{ a.apellido or '' }}, {{ a.nombre or '' }}</div>
+                <div class="text-muted small">DNI: {{ a.dni or '-' }}</div>
+              </td>
+
+              {% for p in periodos %}
+                {% set recibido = (entregas_map.get(aid, {}).get(p.key, False)) %}
+                <td class="text-center">
+                  <button
+                    type="button"
+                    class="btn btn-sm celda-mercaderia {{ 'btn-success' if recibido else 'btn-outline-secondary' }}"
+                    data-alumno="{{ aid }}"
+                    data-periodo="{{ p.key }}"
+                    data-recibido="{{ '1' if recibido else '0' }}"
+                    title="Marcar entrega"
+                    style="min-width:44px;">
+                    {% if recibido %}✓{% else %}&nbsp;{% endif %}
+                  </button>
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+  /* scroll lindo en pantalla */
+  .mercaderia-scroll{
+    max-height:70vh;
+    border:1px solid #e5e5e5;
+    border-radius:10px;
+    overflow:auto;
+  }
+
+  /* sticky solo en pantalla */
+  .sticky-head{ position: sticky; top: 0; z-index: 5; background: #fff; }
+  .sticky-col{ position: sticky; left: 0; z-index: 4; background: inherit; min-width:260px; }
+  .curso-sep td{ position: sticky; left: 0; z-index: 3; }
+
+  @media print {
+    /* imprimir sin scroll raro */
+    .mercaderia-scroll{
+      max-height: none !important;
+      overflow: visible !important;
+      border: none !important;
+    }
+    /* sticky rompe impresión -> lo apagamos */
+    .sticky-head, .sticky-col, .curso-sep td{
+      position: static !important;
+      z-index: auto !important;
+    }
+    /* ocultar botones/controles */
+    #btnAplicar, #btnLimpiar, #btnImprimirCurso, #cursoSelect, label.form-label{
+      display:none !important;
+    }
+    .card{ border:none !important; }
+    .btn, .alert{ display:none !important; }
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const sel = document.getElementById("cursoSelect");
+  const btnAplicar = document.getElementById("btnAplicar");
+  const btnLimpiar = document.getElementById("btnLimpiar");
+  const btnImprimirCurso = document.getElementById("btnImprimirCurso");
+
+  function irConCurso(curso){
+    const url = new URL(window.location.href);
+    if (curso) url.searchParams.set("curso", curso);
+    else url.searchParams.delete("curso");
+    window.location.href = url.toString();
+  }
+
+  btnAplicar?.addEventListener("click", (e) => {
+    e.preventDefault();
+    irConCurso(sel.value);
+  });
+
+  btnLimpiar?.addEventListener("click", (e) => {
+    e.preventDefault();
+    sel.value = "";
+    irConCurso("");
+  });
+
+  btnImprimirCurso?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!sel.value) return;
+    // ya estás filtrada (o te filtro) y mando a imprimir
+    if (new URL(window.location.href).searchParams.get("curso") !== sel.value) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("curso", sel.value);
+      window.location.href = url.toString();
+      return;
+    }
+    window.print();
+  });
+
+  // toggles
+  document.querySelectorAll(".celda-mercaderia").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const alumno_id = btn.dataset.alumno;
+      const periodo = btn.dataset.periodo;
+      const recibidoNuevo = (btn.dataset.recibido === "1") ? false : true;
+
+      // UI optimista
+      btn.dataset.recibido = recibidoNuevo ? "1" : "0";
+      btn.classList.toggle("btn-success", recibidoNuevo);
+      btn.classList.toggle("btn-outline-secondary", !recibidoNuevo);
+      btn.textContent = recibidoNuevo ? "✓" : " ";
+
+      try {
+        const r = await fetch("{{ url_for('entrega_mercaderia_toggle') }}", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({ alumno_id, periodo, recibido: recibidoNuevo })
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const data = await r.json();
+        if (!data.ok) throw new Error(data.error || "error");
+      } catch (e) {
+        // rollback
+        const back = !recibidoNuevo;
+        btn.dataset.recibido = back ? "1" : "0";
+        btn.classList.toggle("btn-success", back);
+        btn.classList.toggle("btn-outline-secondary", !back);
+        btn.textContent = back ? "✓" : " ";
+        alert("No se pudo guardar. Revisá conexión/DB.");
+        console.error(e);
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

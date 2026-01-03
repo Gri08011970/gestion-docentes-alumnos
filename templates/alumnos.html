@@ -5,26 +5,56 @@
 <div class="container mt-4"> 
   <div class="d-flex justify-content-between align-items-center mb-3"> 
     <h1>Estudiantes</h1>
-    <div class="d-flex gap-2">
+
+    <div class="d-flex gap-2 align-items-center">
+
       <a class="btn btn-outline-success"
          target="_blank"
-         href="https://www.google.com/maps/search/?api=1&query={{ 'Escuela Primaria 91, Tomas Alva Edison 2164, Isidro Casanova, Buenos Aires, Argentina'|urlencode }}">
-        Ver escuela en mapa
+         href="https://www.google.com/maps/search/?api=1&query={{ 
+           'Escuela Primaria 91, Tomas Alva Edison 2164, Isidro Casanova, Buenos Aires, Argentina' 
+           | urlencode }}">
+        <i class="fas fa-map-marker-alt"></i>
+        Escuela
       </a>
 
-      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoAlumno">
+      <button class="btn btn-primary"
+              data-bs-toggle="modal"
+              data-bs-target="#modalNuevoAlumno">
         + Nuevo Estudiante
       </button>
 
-       <a class="btn btn-sm btn-outline-secondary"
-           href="{{ url_for('listar_alumnos', q=q, curso=curso_sel, turno=turno_sel, historico=('0' if ver_historico else '1')) }}">
-          {% if ver_historico %}Ocultar histórico{% else %}Ver histórico{% endif %}
-       </a>
+      <a class="btn btn-sm btn-outline-secondary"
+         href="{{ url_for('listar_alumnos',
+                          q=q,
+                          curso=curso_sel,
+                          turno=turno_sel,
+                          historico=('0' if ver_historico else '1')) }}">
+        {% if ver_historico %}
+          Ocultar histórico
+        {% else %}
+          Ver histórico
+        {% endif %}
+      </a>
+
+      {% if ver_historico %}
+      <form method="post"
+            action="{{ url_for('eliminar_demos_alumnos') }}"
+            class="form-eliminar-demos mb-0">
+
+        <input type="hidden" name="confirm_demos" value="SI">
+
+        <button type="button"
+                class="btn btn-sm btn-outline-danger btn-eliminar-demos"
+                title="Eliminar alumnos de prueba">
+          <i class="fas fa-broom"></i>
+          Eliminar demos
+        </button>
+      </form>
+      {% endif %}
 
     </div>
-  </div> 
-     
-  <!-- Filtros -->
+  </div>
+
   <form method="get" class="row g-2 mb-3 align-items-end">
     <div class="col-md-3">
       <input type="text"
@@ -52,7 +82,6 @@
       </select>
     </div>
 
-    <!-- Columna de botones -->
     <div class="col-md-4 d-flex flex-wrap justify-content-md-end gap-2">
       <button type="submit" class="btn btn-primary">
         Aplicar filtros
@@ -66,23 +95,18 @@
   </form>
 
   {% if alumnos %} 
-  <!-- WRAPPER CON DOBLE SCROLL (ARRIBA Y ABAJO) -->
   <div class="table-scroll-wrapper mt-3">
 
-    <!-- Barra de scroll superior -->
     <div class="table-scroll table-scroll-top">
       <div class="table-scroll-inner"></div>
     </div>
 
-  {% if ver_historico %}
-    <div style="margin:8px 0; padding:8px; background:#f3f3f3; border:1px solid #ddd;">
-      Mostrando histórico del curso (incluye alumnos dados de baja / pase / egreso).
-    </div>
-  {% endif %}
+    {% if ver_historico %}
+      <div style="margin:8px 0; padding:8px; background:#f3f3f3; border:1px solid #ddd;">
+        Mostrando histórico del curso (incluye alumnos dados de baja / pase / egreso).
+      </div>
+    {% endif %}
 
-  <!-- Contenedor principal de la tabla -->
-  <div class="table-responsive table-main-scroll">
-    <!-- Contenedor principal de la tabla -->
     <div class="table-responsive table-main-scroll">
       <table class="table table-sm table-striped align-middle tabla-alumnos">
         <thead class="thead-alumnos">
@@ -90,63 +114,48 @@
             <th class="col-curso"      style="width:3%;">Curso</th>
             <th class="col-apellido"   style="width:8%;">Apellido</th>
             <th class="col-nombre"     style="width:8%;">Nombre</th>
-
             <th class="col-fecha"      style="width:6%;">Fecha nac.</th>
             <th class="col-lugar-nac"  style="width:8%;">Lugar nac.</th>
-            <th class="col-edad"       style="width:3%;">Edad<br>(30/6)</th>
+            <th class="col-edad"       style="width:3%;">Edad<br>(30/6)</th> 
             <th class="col-recursa"    style="width:4%;">Recursa</th>
-
             <th class="col-sexo"       style="width:3%;">Sexo</th>
             <th class="col-nac-alumno" style="width:4%;">Nac.</th>
             <th class="col-dni"        style="width:6%;">DNI</th>
             <th class="col-cuil"       style="width:8%;">CUIL</th>
-
             <th class="col-resp"       style="width:10%;">Madre / Padre / Tutor</th>
             <th class="col-ocup"       style="width:6%;">Ocupación</th>
-
             <th class="col-domicilio"  style="width:10%;">Domicilio</th>
             <th class="col-localidad"  style="width:7%;">Localidad</th>
             <th class="col-escuela-proc" style="width:10%;">Escuela procedencia</th>
             <th class="col-sale-a"      style="width:8%;">Sale a</th>
             <th class="col-tel"        style="width:7%;">Teléfono</th>
             <th class="col-obs"        style="width:8%;">Observaciones</th>
-
             <th class="col-acciones"   style="width:6%;">Acciones</th>
           </tr>
-        </thead>
+        </thead> 
         <tbody>
         {% for a in alumnos %}
           <tr class="{% if a.historico_en_curso %}fila-historica{% endif %}">
-
-          
             <td class="col-curso">{{ a.curso or "" }}</td>
             <td class="col-apellido">{{ a.apellido or "" }}</td>
             <td class="col-nombre">{{ a.nombre or "" }}</td>
-
             <td class="col-fecha">{{ a.fecha_nac_str or "" }}</td>
             <td class="col-lugar-nac">{{ a.lugar_nacimiento or "" }}</td>
             <td class="col-edad">{{ a.edad_30jun or "" }}</td>
             <td class="col-recursa">{% if a.recursante %}Sí{% else %}No{% endif %}</td>
             <td class="col-sexo">{{ a.sexo or "" }}</td>
             <td class="col-nac-alumno">{{ a.nacionalidad or "" }}</td>
-
             <td class="col-dni">{{ a.dni or "" }}</td>
             <td class="col-cuil">{{ a.cuil or "" }}</td>
-
             <td class="col-resp">{{ a.responsable or "" }}</td>
             <td class="col-ocup">{{ a.ocupacion or "" }}</td>
-
             <td class="col-domicilio">{{ a.domicilio or "" }}</td>
             <td class="col-localidad">{{ a.localidad or "" }}</td>
             <td class="col-escuela-proc">{{ a.escuela_procedencia or "" }}</td>
             <td class="col-sale-a">{{ a.sale_a_str or "" }}</td>
-            
             <td class="col-tel">{{ a.telefono or "" }}</td>
             <td class="col-obs">{{ a.observaciones or "" }}</td>
-
             <td class="col-acciones text-nowrap">
-
-              <!-- EDITAR (abre modal único) -->
               <button type="button"
                       class="btn btn-sm btn-outline-primary btn-accion btn-edit-alumno"
                       title="Editar alumno"
@@ -171,33 +180,41 @@
                       data-motivo-salida="{{ a.motivo_salida or '' }}"
                       data-destino-salida="{{ a.destino_salida or '' }}"
                       data-fecha-salida="{{ a.fecha_salida or '' }}"
+                      data-curso-destino="{{ a.curso_destino or '' }}"
                       data-observaciones="{{ a.observaciones or '' }}">
-                      <i class="fas fa-edit"></i> 
+                <i class="fas fa-edit"></i> 
               </button>
 
-              <!-- ELIMINAR -->
               <form method="post"
                     action="{{ url_for('eliminar_alumno', id=a._id) }}"
                     style="display:inline"
-                    onsubmit="return confirm('¿Eliminar este alumno?');">
-                <button class="btn btn-sm btn-outline-danger btn-accion" title="Eliminar alumno">
-                  <i class="fas fa-trash-alt"></i>
+                    class="form-eliminar-alumno">
+                <input type="hidden" name="q" value="{{ q or '' }}">
+                <input type="hidden" name="curso" value="{{ curso_sel or '' }}">
+                <input type="hidden" name="turno" value="{{ turno_sel or '' }}">
+                <input type="hidden" name="historico" value="{{ '1' if ver_historico else '' }}">
+                {% if ver_historico %}
+                  <input type="hidden" name="hard" value="1">
+                {% endif %}
+                <button type="button"
+                        class="btn btn-sm {% if ver_historico %}btn-outline-danger{% else %}btn-outline-warning{% endif %} btn-accion btn-eliminar-alumno"
+                        data-hard="{{ '1' if ver_historico else '0' }}"
+                        title="{% if ver_historico %}Eliminar definitivo{% else %}Pasar a histórico{% endif %}">
+                  {% if ver_historico %}
+                    <i class="fas fa-trash-alt"></i>
+                  {% else %}
+                    <i class="fas fa-archive"></i>
+                  {% endif %}
                 </button>
               </form>
 
-              <!-- MAPA -->
               {% if a.domicilio %}
-              <a class="btn btn-sm btn-outline-success btn-accion"
-                 title="Ver domicilio en mapa"
-                 target="_blank"
-                 href="https://www.google.com/maps/dir/?api=1
-&origin={{ 'Escuela Primaria 91, Tomas Alva Edison 2164, Isidro Casanova, Buenos Aires, Argentina'|urlencode }}
-&destination={{ (a.domicilio ~ ', Isidro Casanova, Buenos Aires, Argentina')|urlencode }}">
+              <a class="btn btn-sm btn-outline-success btn-accion" title="Ver domicilio en mapa" target="_blank"
+                 href="https://www.google.com/maps/dir/?api=1&origin={{ 'Escuela Primaria 91, Tomas Alva Edison 2164, Isidro Casanova, Buenos Aires, Argentina'|urlencode }}&destination={{ (a.domicilio ~ ', Isidro Casanova, Buenos Aires, Argentina')|urlencode }}">
                 <i class="fas fa-map-marker-alt"></i>
               </a>
               {% endif %}
 
-              <!-- CERTIFICADO DE FINALIZACIÓN -->
               {% if a.curso and a.curso.startswith('6') %}
               <a href="{{ url_for('certificado_finalizacion', id=a._id) }}"
                  class="btn btn-sm btn-outline-secondary btn-accion"
@@ -205,7 +222,6 @@
                 <i class="fas fa-file-alt"></i>
               </a>
               {% endif %}
-
             </td>
           </tr>
         {% endfor %}
@@ -213,19 +229,21 @@
       </table>
     </div>
 
-    <!-- Barra de scroll inferior -->
     <div class="table-scroll table-scroll-bottom">
       <div class="table-scroll-inner"></div>
     </div>
   </div>
+
   {% else %}
     <div class="alert alert-warning mt-4 text-center">
       No se encontraron alumnos para esta búsqueda.
     </div>
   {% endif %}
 
+
+
      <!-- Modal NUEVO alumno -->
-  <div class="modal fade" id="modalNuevoAlumno" tabindex="-1" aria-hidden="true">
+  <div class="modal fade" id="modalNuevoAlumno" tabindex="-1" aria-hidden="true"> 
     <div class="modal-dialog modal-lg ">
       <div class="modal-content">
 
@@ -362,10 +380,11 @@
                
             <div class="mb-3">
                 <label class="form-label">Observaciones</label> 
-                <textarea id="edit-observaciones"
+                <textarea id="nuevo-observaciones"
                           class="form-control"
                           name="observaciones"
                           rows="2"></textarea>
+
             </div>
 
 
@@ -487,7 +506,7 @@
                 <input id="edit-domicilio" name="domicilio" class="form-control">
               </div>
               <div class="col-md-6">
-                <label class="form-label">Localidad</label>
+                <label class="form-label">Localidad</label> 
                 <input id="edit-localidad" name="localidad" class="form-control">
               </div>
             </div>
@@ -558,7 +577,8 @@
 
          <div class="mb-3">
               <label class="form-label">Observaciones</label>
-              <textarea class="form-control" name="observaciones" rows="2"></textarea>
+              <textarea id="edit-observaciones" class="form-control" name="observaciones" rows="2"></textarea>
+
             </div>
           </div> <!-- /modal-body -->
 
@@ -576,10 +596,91 @@
     </div>   <!-- /modal-dialog -->
   </div>     <!-- /modal -->
 
+<!-- Modal confirmación EP91 -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmModalTitle">Confirmar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="confirmModalBody">
+        ¿Confirmás la acción?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirmModalOk">Sí, continuar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
+  
+  // showConfirmModal(titulo, mensaje, onOk)
+  window.showConfirmModal = function(titulo, mensaje, onOk) {
+    const titleEl = document.getElementById("confirmModalTitle");
+    const bodyEl  = document.getElementById("confirmModalBody");
+    const okBtn   = document.getElementById("confirmModalOk");
+
+    titleEl.textContent = titulo || "Confirmar";
+    bodyEl.textContent  = mensaje || "¿Confirmás la acción?";
+
+    // Evitar que queden listeners viejos
+    const newOkBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+    newOkBtn.addEventListener("click", () => {
+      try { onOk && onOk(); } finally {
+        const modalEl = document.getElementById("confirmModal");
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
+    });
+
+    const modalEl = document.getElementById("confirmModal");
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  }
+
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll(".btn-eliminar-alumno").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const form = btn.closest("form");
+        const hard = btn.dataset.hard === "1";
+
+        const titulo = hard ? "Eliminar definitivo" : "Pasar a histórico";
+        const msg = hard
+          ? "⚠️ Esto elimina DEFINITIVAMENTE el alumno (no se puede deshacer). ¿Continuar?"
+          : "Esto mueve el alumno a HISTÓRICO (baja lógica). ¿Continuar?";
+
+        window.showConfirmModal(titulo, msg, () => form.submit());
+      });
+    });
+  });
+  
+document.addEventListener("DOMContentLoaded", () => {
+
+  // ✅ Confirmación EP91 para eliminar demos
+  document.querySelectorAll(".btn-eliminar-demos").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const form = btn.closest("form");
+
+      const titulo = "Eliminar demos del histórico";
+      const msg = "⚠️ Esto elimina DEFINITIVAMENTE los alumnos de prueba del histórico.\nNo se puede deshacer.\n\n¿Continuar?";
+
+      window.showConfirmModal(titulo, msg, () => form.submit());
+    });
+  });
+
+});
+
+
+
 document.addEventListener("DOMContentLoaded", function () {
 
   /* ================== SCROLL SINCRONIZADO ================== */
@@ -677,55 +778,64 @@ document.addEventListener("DOMContentLoaded", function () {
   wireEdad("fecha_nac", "edad_30jun");
   wireEdad("edit-fecha_nac", "edit-edad_30jun");
 
-  // ================== MOVIMIENTOS (SALE A) ==================
+  
+ // ================== MOVIMIENTOS (SALE A) ==================
+const FECHA_HOY = "{{ hoy_str }}";
 
-  const FECHA_HOY = "{{ hoy_str }}";
-
-function setupMovimiento(motivoId, cursoDestinoId, destinoId, fechaId) {
-  const selMotivo = document.getElementById(motivoId);
-  const inputCurso = document.getElementById(cursoDestinoId);
+function setupMovimiento(motivoId, cursoDestinoId, destinoId, fechaId){
+  const selMotivo    = document.getElementById(motivoId);
+  const inputCurso   = document.getElementById(cursoDestinoId);
   const inputDestino = document.getElementById(destinoId);
-  const inputFecha = document.getElementById(fechaId);
+  const inputFecha   = document.getElementById(fechaId);
+
+  // Si alguno no existe, no hacemos nada (evita errores en consola)
   if (!selMotivo || !inputCurso || !inputDestino || !inputFecha) return;
 
   function actualizar() {
-    const v = selMotivo.value;
+    const v = (selMotivo.value || "").trim().toUpperCase();
 
     if (!v) {
       // Alumno activo, sin movimiento
       inputCurso.value = "";
       inputCurso.readOnly = true;
+      inputCurso.placeholder = "";
+
       inputDestino.value = "";
       inputDestino.readOnly = true;
+      inputDestino.placeholder = "";
+
       inputFecha.value = "";
       return;
     }
 
-    // Hay algún movimiento -> siempre guardamos fecha
-    if (!inputFecha.value) {
-      inputFecha.value = FECHA_HOY;
-    }
+    // Hay movimiento -> guardamos fecha
+    if (!inputFecha.value) inputFecha.value = FECHA_HOY;
 
     if (v === "CAMBIO DE TURNO") {
-      // Cambio de turno: curso destino obligatorio, detalle opcional
+      // Cambio de turno: curso destino editable
       inputCurso.readOnly = false;
-      inputDestino.readOnly = false;
       inputCurso.placeholder = "Ej: 3°B";
+
+      // Destino (detalle) opcional
+      inputDestino.readOnly = false;
       inputDestino.placeholder = "Ej: pasa de mañana a tarde";
     } else {
-      // Pase o egreso: curso no se toca, sólo destino texto
+      // Pase/Egreso: curso destino NO se toca
+      inputCurso.value = "";
       inputCurso.readOnly = true;
       inputCurso.placeholder = "";
+
+      // Destino sí
       inputDestino.readOnly = false;
       inputDestino.placeholder = "N° de Escuela y Distrito, o detalle";
     }
   }
 
-  actualizar();
+  actualizar(); 
   selMotivo.addEventListener("change", actualizar);
 }
-  // Nuevo alumno
-  setupMovimiento("nuevo-motivo_salida", "nuevo-destino_salida", "nuevo-fecha_salida");
+
+  
   // Editar alumno
   
   setupMovimiento("edit-motivo_salida", "edit-curso_destino", "edit-destino_salida", "edit-fecha_salida");
@@ -825,4 +935,4 @@ function setupMovimiento(motivoId, cursoDestinoId, destinoId, fechaId) {
 
 });
 </script>
-{% endblock %} 
+</div> {% endblock %}

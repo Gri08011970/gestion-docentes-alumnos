@@ -7,44 +7,50 @@
 
   <h2 class="mb-3">Inasistencias — Docentes</h2>
   <p class="text-muted">
-    Usá este formulario para cargar inasistencias docentes por período
-    (desde / hasta). Luego podés ver el historial y el calendario anual desde
-    la sección de <strong>Historial de inasistencias</strong>.
+    Usá este formulario para cargar inasistencias docentes por período (desde / hasta).
+    Luego podés ver el historial y el calendario anual desde <strong>Historial de inasistencias</strong>.
   </p>
 
   <div class="d-flex justify-content-end mb-3">
     <a href="{{ url_for('historial_inasistencias') }}" class="btn btn-outline-secondary me-2">
       Ver historial / calendario
     </a>
-    <button type="button"
-            class="btn btn-primary"
-            data-bs-toggle="modal"
-            data-bs-target="#modalInasistencia">
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalInasistencia">
       Registrar inasistencia
     </button>
   </div>
 
-  <!-- Alerta de error -->
   <div id="inasistencias-alert" class="alert alert-danger d-none" role="alert"></div>
-
 </div>
 
-<!-- ✅ Toast WARNING (fuera del modal, para que no se rompa el layout) -->
-<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
-  <div id="toastWarning"
-       class="toast align-items-center text-bg-warning border-0"
-       role="alert" aria-live="assertive" aria-atomic="true">
+<!-- Toast warning -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1080;">
+  <div id="toastWarning" class="toast align-items-center text-bg-warning border-0" role="alert" aria-live="assertive" aria-atomic="true">
     <div class="d-flex">
       <div class="toast-body" id="toastWarningBody"></div>
-      <button type="button"
-              class="btn-close btn-close-white me-2 m-auto"
-              data-bs-dismiss="toast"
-              aria-label="Cerrar"></button>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Cerrar"></button>
     </div>
   </div>
 </div>
 
-<!-- Modal de carga de inasistencias -->
+<!-- Modal EP91 Confirmación -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmModalTitle">Confirmar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="confirmModalBody">¿Confirmás la acción?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="confirmModalOk">Sí, continuar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de carga -->
 <div class="modal fade" id="modalInasistencia" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
@@ -55,81 +61,86 @@
         </div>
 
         <div class="modal-body">
-
-          <!-- Fila fechas -->
           <div class="row mb-3">
             <div class="col-md-6">
               <label for="inas-desde" class="form-label">Desde</label>
-              <input type="date" class="form-control" id="inas-desde" name="desde" required>
+              <input type="date" class="form-control" id="inas-desde" required>
+              <div class="form-text">No se permiten fechas futuras.</div>
             </div>
             <div class="col-md-6">
               <label for="inas-hasta" class="form-label">Hasta</label>
-              <input type="date" class="form-control" id="inas-hasta" name="hasta" required>
+              <input type="date" class="form-control" id="inas-hasta" required>
+              <div class="form-text">No se permiten fechas futuras.</div>
             </div>
           </div>
 
-          <!-- Docente -->
           <div class="mb-3">
             <label for="inas-docente" class="form-label">Docente</label>
-            <select id="inas-docente" name="docente_id" class="form-select" required>
+            <select id="inas-docente" class="form-select" required>
               <option value="">Seleccione...</option>
-              <!-- opciones cargadas por JS desde /api/docentes -->
             </select>
           </div>
 
-          <!-- Causa -->
           <div class="mb-3">
             <label for="inas-causa" class="form-label">Causa</label>
-            <select id="inas-causa" name="causa" class="form-select" required>
+            <select id="inas-causa" class="form-select" required>
               <option value="">Seleccione...</option>
-              <option value="enfermedad personal">enfermedad personal</option>
-              <option value="enfermedad familiar">enfermedad familiar</option>
-              <option value="causas particulares">causas particulares</option>
-              <option value="DUELO">DUELO</option>
-              <option value="EXAMEN">EXAMEN</option>
-              <option value="PARO">PARO</option>
-              <option value="pre-exámenes">pre-exámenes</option>
-              <option value="citacion otro establecimiento">citación en otro establecimiento</option>
-              <option value="otras">otras</option>
+
+              <option value="enfermedad personal">Enfermedad personal</option>
+              <option value="enfermedad familiar">Enfermedad familiar</option>
+              <option value="enfermedad crónica">Enfermedad crónica</option>
+
+              <option value="causas particulares">Causas particulares</option>
+              <option value="particulares">Particulares</option>
+
+              <option value="citación a otro establecimiento">Citación a otro establecimiento</option>
+              <option value="citacion otro establecimiento">Citación (variante)</option>
+
+              <option value="injustificadas">Injustificadas</option>
+
+              <option value="pre-exámenes">Pre-exámenes</option>
+              <option value="pre-examen">Pre-examen</option>
+
+              <option value="DUELO">Duelo</option>
+              <option value="EXAMEN">Examen</option>
+              <option value="PARO">Paro</option>
+              <option value="ART">ART</option>
+              <option value="Licencia extraordinaria">Licencia extraordinaria</option>
+
+              <option value="otras">Otras</option>
             </select>
+
             <small class="form-text text-muted">
-              Si la causa es <strong>citación en otro establecimiento</strong> se pintará en
+              Si la causa es <strong>citación a otro establecimiento</strong> se pintará en
               <span class="text-success fw-bold">VERDE</span>; en los demás casos, en
               <span class="text-danger fw-bold">ROJO</span>.
             </small>
           </div>
 
-          <!-- Suplente opcional -->
           <div class="mb-3">
             <label class="form-label">Suplente (opcional)</label>
             <div class="row g-2">
               <div class="col-md-4">
-                <input type="text" class="form-control" id="inas-suplente-nombre" name="suplente_nombre" placeholder="Nombre y apellido">
+                <input type="text" class="form-control" id="inas-suplente-nombre" placeholder="Nombre y apellido">
               </div>
               <div class="col-md-4">
-                <input type="text" class="form-control" id="inas-suplente-dni" name="suplente_dni" placeholder="DNI">
+                <input type="text" class="form-control" id="inas-suplente-dni" placeholder="DNI">
               </div>
               <div class="col-md-4">
-                <input type="text" class="form-control" id="inas-suplente-curso" name="suplente_curso" placeholder="Curso / asignatura">
+                <input type="text" class="form-control" id="inas-suplente-curso" placeholder="Curso / asignatura">
               </div>
             </div>
           </div>
 
-          <!-- Observaciones -->
           <div class="mb-3">
             <label for="inas-observaciones" class="form-label">Observaciones</label>
-            <textarea class="form-control" id="inas-observaciones" name="observaciones" rows="2" placeholder="Notas internas, aclaraciones, etc."></textarea>
+            <textarea class="form-control" id="inas-observaciones" rows="2"></textarea>
           </div>
-
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            Cancelar
-          </button>
-          <button type="submit" class="btn btn-primary">
-            Guardar
-          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnGuardarInasistencia">Guardar</button>
         </div>
       </form>
     </div>
@@ -141,44 +152,60 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const form           = document.getElementById('formInasistencia');
-  const alerta         = document.getElementById('inasistencias-alert');
-  const selectDocente  = document.getElementById('inas-docente');
-  const desdeInput     = document.getElementById('inas-desde');
-  const hastaInput     = document.getElementById('inas-hasta');
+  const form          = document.getElementById('formInasistencia');
+  const alerta        = document.getElementById('inasistencias-alert');
+  const selectDocente = document.getElementById('inas-docente');
+  const desdeInput    = document.getElementById('inas-desde');
+  const hastaInput    = document.getElementById('inas-hasta');
+  const btnGuardar    = document.getElementById('btnGuardarInasistencia');
 
-  // ✅ Toast helper (AFUERA del submit, así no queda “apagado” ni raro)
+  // Confirm modal EP91
+  window.showConfirmModal = function(titulo, mensaje, onOk) {
+    const titleEl = document.getElementById("confirmModalTitle");
+    const bodyEl  = document.getElementById("confirmModalBody");
+    const okBtn   = document.getElementById("confirmModalOk");
+
+    titleEl.textContent = titulo || "Confirmar";
+    bodyEl.textContent  = mensaje || "¿Confirmás la acción?";
+
+    const newOkBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+    newOkBtn.addEventListener("click", () => {
+      try { onOk && onOk(); } finally {
+        const modalEl = document.getElementById("confirmModal");
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
+    });
+
+    new bootstrap.Modal(document.getElementById("confirmModal")).show();
+  }
+
   function showWarningToast(msg) {
     const el = document.getElementById("toastWarning");
     const body = document.getElementById("toastWarningBody");
     if (!el || !body) { alert(msg); return; }
     body.textContent = msg;
-    const t = bootstrap.Toast.getOrCreateInstance(el, { delay: 7000 });
-    t.show();
+    bootstrap.Toast.getOrCreateInstance(el, { delay: 8000 }).show();
   }
 
-  // --- Helper: fecha de hoy en YYYY-MM-DD ---
   function hoyISO() {
     const hoy = new Date();
-    const y   = hoy.getFullYear();
-    const m   = String(hoy.getMonth() + 1).padStart(2, '0');
-    const d   = String(hoy.getDate()).padStart(2, '0');
+    const y = hoy.getFullYear();
+    const m = String(hoy.getMonth() + 1).padStart(2, '0');
+    const d = String(hoy.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
-
-  // Inicializar fechas por defecto
   const hoy = hoyISO();
   if (!desdeInput.value) desdeInput.value = hoy;
   if (!hastaInput.value) hastaInput.value = hoy;
 
-  // (Opcional) abrir modal al entrar
-  const modalElAuto = document.getElementById('modalInasistencia');
-  if (modalElAuto) {
-    const modal = new bootstrap.Modal(modalElAuto);
-    modal.show();
+  function esFutura(fechaStr) {
+    return fechaStr && (fechaStr > hoyISO());
   }
 
-  // --- Cargar docentes en el combo desde /api/docentes ---
+  // Cargar docentes
   fetch('{{ url_for("api_docentes") }}')
     .then(r => r.json())
     .then(lista => {
@@ -189,15 +216,17 @@ document.addEventListener('DOMContentLoaded', () => {
         selectDocente.appendChild(opt);
       });
     })
-    .catch(err => {
-      console.error('Error cargando docentes:', err);
+    .catch(() => {
       alerta.textContent = 'No se pudieron cargar los docentes.';
       alerta.classList.remove('d-none');
     });
 
-  // --- Enviar inasistencia (UNA sola llamada, usando desde/hasta) ---
-  form.addEventListener('submit', async (ev) => {
-    ev.preventDefault();
+  let enviando = false;
+
+  async function enviarInasistencia() {
+    if (enviando) return;
+    enviando = true;
+    btnGuardar.disabled = true;
     alerta.classList.add('d-none');
     alerta.textContent = '';
 
@@ -207,6 +236,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!desde || !hasta) {
       alerta.textContent = 'Debe completar las fechas "Desde" y "Hasta".';
       alerta.classList.remove('d-none');
+      enviando = false; btnGuardar.disabled = false;
+      return;
+    }
+
+    if (esFutura(desde) || esFutura(hasta)) {
+      alerta.textContent = 'Fecha inválida: no se permiten inasistencias con fechas futuras.';
+      alerta.classList.remove('d-none');
+      enviando = false; btnGuardar.disabled = false;
       return;
     }
 
@@ -214,6 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!docenteId) {
       alerta.textContent = 'Debe seleccionar un docente.';
       alerta.classList.remove('d-none');
+      enviando = false; btnGuardar.disabled = false;
       return;
     }
 
@@ -221,30 +259,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!causa) {
       alerta.textContent = 'Debe seleccionar una causa.';
       alerta.classList.remove('d-none');
+      enviando = false; btnGuardar.disabled = false;
       return;
     }
 
-    const observaciones = document.getElementById('inas-observaciones').value || '';
-    const suplenteNombre = document.getElementById('inas-suplente-nombre').value || '';
-    const suplenteDni    = document.getElementById('inas-suplente-dni').value || '';
-    const suplenteCurso  = document.getElementById('inas-suplente-curso').value || '';
+    const payload = {
+      docente_id: docenteId,
+      desde: desde,
+      hasta: hasta,
+      causa: causa,
+      observaciones: document.getElementById('inas-observaciones').value || '',
+      sup_nombre: document.getElementById('inas-suplente-nombre').value || '',
+      sup_dni: document.getElementById('inas-suplente-dni').value || '',
+      sup_curso: document.getElementById('inas-suplente-curso').value || '',
+      sup_asignatura: document.getElementById('inas-suplente-curso').value || ''
+    };
 
     try {
-      // ✅ Mandamos UNA sola vez (tu backend soporta desde/hasta)
-      const payload = {
-        docente_id: docenteId,
-        desde: desde,
-        hasta: hasta,
-        causa: causa,
-        observaciones: observaciones,
-
-        // ✅ Campos que tu backend ya lee (api_inasistencias)
-        sup_nombre: suplenteNombre,
-        sup_dni: suplenteDni,
-        sup_curso: suplenteCurso,
-        sup_asignatura: suplenteCurso
-      };
-
       const resp = await fetch('{{ url_for("api_inasistencias") }}', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -252,33 +283,30 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const data = await resp.json();
+      if (!resp.ok || !data.ok) throw new Error(data.error || 'No se pudo guardar la inasistencia');
 
-      if (!resp.ok || !data.ok) {
-        throw new Error(data.error || 'No se pudo guardar la inasistencia');
-      }
+      if (data.warning) showWarningToast(data.warning);
 
-      // ✅ si el backend mandó warning (tope excedido, etc) -> mostrar
-      if (data.warning) {
-        showWarningToast(data.warning);
-      }
-
-      // éxito: reset + cerrar modal
       form.reset();
       desdeInput.value = hoyISO();
       hastaInput.value = hoyISO();
-
-      const modalEl = document.getElementById('modalInasistencia');
-      const modal   = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-      modal.hide();
-
-      // si querés refrescar:
-      // location.reload();
+      (bootstrap.Modal.getInstance(document.getElementById('modalInasistencia')) || new bootstrap.Modal(document.getElementById('modalInasistencia'))).hide();
 
     } catch (err) {
-      console.error(err);
       alerta.textContent = err.message;
       alerta.classList.remove('d-none');
+    } finally {
+      enviando = false;
+      btnGuardar.disabled = false;
     }
+  }
+
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const dTxt = selectDocente.options[selectDocente.selectedIndex]?.textContent || "Docente";
+    const titulo = "Confirmar registro";
+    const msg = `¿Confirmás registrar la inasistencia?\n\n${dTxt}\n${desdeInput.value} → ${hastaInput.value}\nCausa: ${document.getElementById('inas-causa').value}`;
+    window.showConfirmModal(titulo, msg, enviarInasistencia);
   });
 });
 </script>

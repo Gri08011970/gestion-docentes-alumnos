@@ -1,128 +1,152 @@
 {% extends "base.html" %}
 {% block content %}
-<h2 class="mb-3">Calificaciones — Gestión por Trimestre</h2>
+<div class="container mt-4">
 
-<div class="card mb-3">
-  <div class="card-body">
-    <form id="form-params" class="row g-3 align-items-end">
-      <div class="col-md-4">
-        <label class="form-label">Docente</label>
-        <select id="docente_id" class="form-select" required>
-          <option value="">Seleccionar...</option>
-          {% for d in docentes %}
-          <option value="{{ d['_id'] }}" data-asig="{{ d.get('asignatura','') }}">
-            {{ d.get('apellido','') }}, {{ d.get('nombre','') }} — {{ d.get('asignatura','') }}
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-md-3">
-        <label class="form-label">Asignatura</label>
-        <select id="asignatura" class="form-select" required>
-          <option value="">Seleccionar...</option>
-          {% for asig in asignaturas %}
-          <option value="{{ asig }}">{{ asig }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label">Curso</label>
-        <input id="curso"
-               class="form-control"
-               list="lista-cursos"
-               placeholder='Ej. "1°A" o "3°B"'
-               required>
-        <datalist id="lista-cursos">
-          <option value="1°A"></option>
-          <option value="2°A"></option>
-          <option value="3°A"></option>
-          <option value="4°A"></option>
-          <option value="5°A"></option>
-          <option value="6°A"></option>
-          <option value="1°B"></option>
-          <option value="2°B"></option>
-          <option value="3°B"></option>
-          <option value="4°B"></option>
-          <option value="5°B"></option>
-          <option value="6°B"></option>
-        </datalist>
-        
-      </div>
-
-      <div class="col-md-1">
-        <label class="form-label">Trimestre</label>
-        <select id="trimestre" class="form-select">
-          <option value="1">1°</option>
-          <option value="2">2°</option>
-          <option value="3">3°</option>
-          <option value="all">Ver todo (1°, 2° y 3°)</option>
-        </select>
-      </div>
-
-      <div class="col-md-2">
-        <label class="form-label">Escala</label>
-        <select id="escala" class="form-select" required>
-          <option value="conceptual">Conceptual (E/MB/B/R/D)</option>
-          <option value="numerica">Numérica (1–10)</option>
-        </select>
-        
-      </div>
-
-      <div class="col-12 d-flex gap-2">
-        <button id="btnCargar" class="btn btn-primary" type="button">Cargar alumnos</button>
-        <button id="btnGuardarEscala" class="btn btn-outline-secondary" type="button">
-          Guardar escala p/ asignatura
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div id="wrap-calificaciones" class="card d-none">
-  <div class="card-header bg-light d-flex justify-content-between align-items-center">
-    <strong id="titulo-contexto">Listado</strong>
-    <button id="btnGuardarTodo" class="btn btn-success btn-sm">Guardar todo</button>
-  </div>
-  <div class="card-body">
-    <div class="table-responsive">
-      <table class="table table-sm align-middle">
-        <thead>
-          <tr>
-            <th>Alumno</th>
-            <th style="width:120px">1° Trim</th>
-            <th style="width:120px">2° Trim</th>
-            <th style="width:120px">3° Trim</th>
-            <th>Observaciones</th>
-            <th style="width:120px">Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="tbody-alumnos">
-          <!-- filas -->
-        </tbody>
-      </table>
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h2 class="mb-0">Calificaciones</h2>
+      <div class="text-muted small">Gestión por trimestre (con ficha del alumno)</div>
     </div>
-    <small class="text-muted">
-      Tip: La escala se determina por asignatura. Podés cambiarla y guardarla con el botón de arriba.
-      Para cargar o editar calificaciones usá 1°, 2° o 3° Trimestre. La opción "Ver todo" es solo para visualizar.
-    </small>
   </div>
+
+  <div class="card mb-3 shadow-sm">
+    <div class="card-body">
+      <form id="form-params" class="row g-3 align-items-end">
+
+        <div class="col-md-4">
+          <label class="form-label">Docente</label>
+          <select id="docente_id" class="form-select" required>
+            <option value="">Seleccionar...</option>
+            {% for d in docentes %}
+            <option value="{{ d['_id'] }}" data-asig="{{ d.get('asignatura','') }}">
+              {{ d.get('apellido','') }}, {{ d.get('nombre','') }} — {{ d.get('asignatura','') }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Asignatura</label>
+          <select id="asignatura" class="form-select" required>
+            <option value="">Seleccionar...</option>
+            {% for asig in asignaturas %}
+            <option value="{{ asig }}">{{ asig }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Curso</label>
+          <input id="curso"
+                 class="form-control"
+                 list="lista-cursos"
+                 placeholder='Ej. "1°A" o "3°B"'
+                 required>
+          <datalist id="lista-cursos">
+            <option value="1°A"></option><option value="2°A"></option><option value="3°A"></option>
+            <option value="4°A"></option><option value="5°A"></option><option value="6°A"></option>
+            <option value="1°B"></option><option value="2°B"></option><option value="3°B"></option>
+            <option value="4°B"></option><option value="5°B"></option><option value="6°B"></option>
+          </datalist>
+        </div>
+
+        <div class="col-md-1">
+          <label class="form-label">Año</label>
+          <input id="anio" class="form-control" type="number" min="2020" max="2100" value="{{ now().year if now else '' }}">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Trimestre</label>
+          <select id="trimestre" class="form-select">
+            <option value="1">1°</option>
+            <option value="2">2°</option>
+            <option value="3">3°</option>
+            <option value="all">Ver todo (1°, 2° y 3°)</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Escala</label>
+          <select id="escala" class="form-select" required>
+            <option value="conceptual">Conceptual (E/MB/B/R/D)</option>
+            <option value="numerica">Numérica (1–10)</option>
+          </select>
+        </div>
+
+        <div class="col-md-9">
+          <div class="d-flex flex-wrap gap-2">
+            <button id="btnCargar" class="btn btn-primary" type="button">
+              Cargar alumnos
+            </button>
+
+            <button id="btnGuardarEscala" class="btn btn-outline-secondary" type="button">
+              Guardar escala p/ asignatura
+            </button>
+
+            <div class="ms-auto d-flex gap-2">
+              <input id="filtroNombre" class="form-control" placeholder="Filtrar en pantalla (apellido/nombre/DNI)">
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="alert alert-info py-2 mb-0 small">
+            <strong>Tip:</strong> “Ver todo” es solo lectura. Para cargar o editar, elegí 1°, 2° o 3°.
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <div id="wrap-calificaciones" class="card d-none shadow-sm">
+    <div class="card-header bg-light d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <strong id="titulo-contexto">Listado</strong>
+      <button id="btnGuardarTodo" class="btn btn-success btn-sm">
+        Guardar todo
+      </button>
+    </div>
+
+    <div class="card-body">
+      <div class="table-responsive" style="max-height: 65vh;">
+        <table class="table table-sm table-hover align-middle">
+          <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+            <tr>
+              <th>Alumno</th>
+              <th style="width:120px">1° Trim</th>
+              <th style="width:120px">2° Trim</th>
+              <th style="width:120px">3° Trim</th>
+              <th>Observaciones</th>
+              <th style="width:160px">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-alumnos"></tbody>
+        </table>
+      </div>
+
+      <small class="text-muted">
+        La escala se determina por asignatura. Podés cambiarla y guardarla arriba.
+      </small>
+    </div>
+  </div>
+
 </div>
 
 <script>
 (function(){
-  // Configuración de escalas por asignatura (conceptual / numérica)
   const cfg_asignaturas = {{ cfg_asignaturas | tojson }};
 
-  const selDoc        = document.getElementById('docente_id');
+  const selDoc         = document.getElementById('docente_id');
   const inpAsig       = document.getElementById('asignatura');
   const inpCurso      = document.getElementById('curso');
+  const inpAnio       = document.getElementById('anio');
   const selTrim       = document.getElementById('trimestre');
   const selEscala     = document.getElementById('escala');
   const btnCargar     = document.getElementById('btnCargar');
   const btnGuardarEscala = document.getElementById('btnGuardarEscala');
   const btnGuardarTodo   = document.getElementById('btnGuardarTodo');
+  const filtroNombre  = document.getElementById('filtroNombre');
+
   const tbody         = document.getElementById('tbody-alumnos');
   const wrap          = document.getElementById('wrap-calificaciones');
   const tituloCtx     = document.getElementById('titulo-contexto');
@@ -138,11 +162,7 @@
       return;
     }
 
-    // Si el docente tiene varias asignaturas separadas por coma,
-    // tomamos la PRIMERA como sugerencia (ej: "Matemática, Prácticas del Lenguaje")
     let primera = asigRaw.split(",")[0].trim();
-
-    // Intentamos seleccionar esa asignatura en el combo
     let encontrada = false;
     for (const o of inpAsig.options) {
       if (o.value === primera) {
@@ -151,82 +171,89 @@
         break;
       }
     }
-
-    if (!encontrada) {
-      // Si la asignatura del docente no está en la lista fija, dejamos el combo vacío
-      inpAsig.value = "";
-    }
+    if (!encontrada) inpAsig.value = "";
 
     const clave = inpAsig.value;
-    if (clave && cfg_asignaturas[clave]) {
-      selEscala.value = cfg_asignaturas[clave];
-    } else {
-      selEscala.value = "conceptual";
-    }
+    selEscala.value = (clave && cfg_asignaturas[clave]) ? cfg_asignaturas[clave] : "conceptual";
   });
+
+  // ---------- Helpers UI ----------
+  function setLoading(isLoading){
+    btnCargar.disabled = isLoading;
+    btnCargar.textContent = isLoading ? "Cargando..." : "Cargar alumnos";
+  }
+
+  function filtrarTabla(){
+    const q = (filtroNombre.value || "").trim().toLowerCase();
+    const filas = tbody.querySelectorAll("tr");
+    filas.forEach(tr => {
+      const txt = (tr.getAttribute("data-search") || "").toLowerCase();
+      tr.style.display = (!q || txt.includes(q)) ? "" : "none";
+    });
+  }
+  filtroNombre.addEventListener("input", filtrarTabla);
 
   // ---------- Cargar alumnos + notas ----------
   async function cargarAlumnosYNotas(){
     const docente_id = selDoc.value;
     const asignatura = inpAsig.value.trim();
     const curso      = inpCurso.value.trim();
-    const trimestre  = selTrim.value;   // "1","2","3" o "all"
+    const trimestre  = selTrim.value;
     const escala     = selEscala.value;
+    const anio       = (inpAnio.value || "").trim();
 
     if (!docente_id || !asignatura || !curso) {
-      alert("Completá Docente, Asignatura, Curso y Trimestre.");
+      alert("Completá Docente, Asignatura y Curso.");
       return;
     }
 
-    // 1) Alumnos del curso
-    const rA = await axios.get('/api/alumnos_por_curso', { params: { curso } });
-    const alumnos = rA.data || [];
+    setLoading(true);
 
-    // 2) Calificaciones ya guardadas (según filtro)
-    const rC = await axios.get('/api/calificaciones', {
-      params: { docente_id, asignatura, curso, trimestre }
-    });
-    const califs = rC.data || [];
+    try{
+      const rA = await axios.get('/api/alumnos_por_curso', { params: { curso } });
+      const alumnos = rA.data || [];
 
-    // mapa[alumno_id][trimestre] = calificación
-    const mapa = {};
-    califs.forEach(c => {
-      const alId = c.alumno_id;
-      const t = Number(c.trimestre || 0);
-      if (!alId || !t) return;
-      if (!mapa[alId]) mapa[alId] = {};
-      mapa[alId][t] = c;
-    });
+      const rC = await axios.get('/api/calificaciones', {
+        params: { docente_id, asignatura, curso, trimestre, anio }
+      });
+      const califs = rC.data || [];
 
-    tbody.innerHTML = "";
-    alumnos.forEach(a => {
-      const m = mapa[a._id] || {};
-      const tSel = selTrim.value;             // "1","2","3" o "all"
-      const nota1 = m[1] ? (m[1].valor || "") : "";
-      const nota2 = m[2] ? (m[2].valor || "") : "";
-      const nota3 = m[3] ? (m[3].valor || "") : "";
+      const mapa = {};
+      califs.forEach(c => {
+        const alId = c.alumno_id;
+        const t = Number(c.trimestre || 0);
+        if (!alId || !t) return;
+        if (!mapa[alId]) mapa[alId] = {};
+        mapa[alId][t] = c;
+      });
 
-      const obsVal = (tSel === "all")
-        ? ""
-        : ((m[Number(tSel)] && m[Number(tSel)].observaciones) || "");
+      tbody.innerHTML = "";
 
-      const row = document.createElement('tr');
-      row.dataset.alumnoId = a._id;
+      alumnos.forEach(a => {
+        const m = mapa[a._id] || {};
+        const tSel = selTrim.value;
 
-      // Helpers para armar una celda de nota
-      function notaEditableHTML(valor) {
-        if (escala === "conceptual") {
-          return `
-            <select class="form-select form-select-sm nota">
-              <option value="">—</option>
-              <option ${valor==="E"  ? "selected" : ""}>E</option>
-              <option ${valor==="MB" ? "selected" : ""}>MB</option>
-              <option ${valor==="B"  ? "selected" : ""}>B</option>
-              <option ${valor==="R"  ? "selected" : ""}>R</option>
-              <option ${valor==="D"  ? "selected" : ""}>D</option>
-            </select>
-          `;
-        } else {
+        const nota1 = m[1] ? (m[1].valor || "") : "";
+        const nota2 = m[2] ? (m[2].valor || "") : "";
+        const nota3 = m[3] ? (m[3].valor || "") : "";
+
+        const obsVal = (tSel === "all")
+          ? ""
+          : ((m[Number(tSel)] && m[Number(tSel)].observaciones) || "");
+
+        function notaEditableHTML(valor) {
+          if (escala === "conceptual") {
+            return `
+              <select class="form-select form-select-sm nota">
+                <option value="">—</option>
+                <option ${valor==="E"  ? "selected" : ""}>E</option>
+                <option ${valor==="MB" ? "selected" : ""}>MB</option>
+                <option ${valor==="B"  ? "selected" : ""}>B</option>
+                <option ${valor==="R"  ? "selected" : ""}>R</option>
+                <option ${valor==="D"  ? "selected" : ""}>D</option>
+              </select>
+            `;
+          }
           return `
             <input class="form-control form-control-sm nota"
                    type="number"
@@ -234,106 +261,118 @@
                    value="${valor}">
           `;
         }
-      }
 
-      function notaReadOnlyHTML(valor) {
-        return `<span class="nota-read">${valor || ""}</span>`;
-      }
+        function notaReadOnlyHTML(valor) {
+          return `<span class="fw-semibold">${valor || ""}</span>`;
+        }
 
-      let celda1, celda2, celda3;
+        let celda1, celda2, celda3;
+        if (tSel === "all") {
+          celda1 = notaReadOnlyHTML(nota1);
+          celda2 = notaReadOnlyHTML(nota2);
+          celda3 = notaReadOnlyHTML(nota3);
+        } else {
+          const tNum = Number(tSel);
+          celda1 = (tNum === 1) ? notaEditableHTML(nota1) : notaReadOnlyHTML(nota1);
+          celda2 = (tNum === 2) ? notaEditableHTML(nota2) : notaReadOnlyHTML(nota2);
+          celda3 = (tNum === 3) ? notaEditableHTML(nota3) : notaReadOnlyHTML(nota3);
+        }
 
-      if (tSel === "all") {
-        // Solo lectura: mostrás lo que haya en 1°,2°,3°
-        celda1 = notaReadOnlyHTML(nota1);
-        celda2 = notaReadOnlyHTML(nota2);
-        celda3 = notaReadOnlyHTML(nota3);
-      } else {
-        const tNum = Number(tSel);
-        celda1 = (tNum === 1) ? notaEditableHTML(nota1) : notaReadOnlyHTML(nota1);
-        celda2 = (tNum === 2) ? notaEditableHTML(nota2) : notaReadOnlyHTML(nota2);
-        celda3 = (tNum === 3) ? notaEditableHTML(nota3) : notaReadOnlyHTML(nota3);
-      }
-
-      // Ficha del alumno desplegable
-      const ficha = `
-        <div class="mt-2 small border rounded p-2 bg-light d-none ficha">
-          <div><strong>DNI:</strong> ${a.dni || "-"}</div>
-          <div><strong>CUIL:</strong> ${a.cuil || "-"}</div>
-          <div><strong>Edad (30/6):</strong> ${a.edad_30jun ?? "-"}</div>
-          <div><strong>Nacionalidad:</strong> ${a.nacionalidad || "-"}</div>
-          <div><strong>Domicilio:</strong> ${a.domicilio || "-"}</div>
-          <div><strong>Tutor/es:</strong> ${a.tutores || a.tutor || "-"}</div>
-          <div><strong>Autorizados a retirar:</strong>
-            ${
-              Array.isArray(a.autorizados_retirar)
-                ? `<ul class="mb-1">` +
-                  a.autorizados_retirar.map(aut => {
-                    return `<li>
-                      ${aut.nombre || ""}
-                      ${aut.vinculo ? " ("+aut.vinculo+")" : ""}
-                      ${aut.dni ? " — DNI "+aut.dni : ""}
-                    </li>`;
-                  }).join('') +
-                  `</ul>`
-                : "-"
-            }
+        // ✅ CORREGIDO: Nombres de campos para coincidir con Python (causa_judicial, acompanante, etc.)
+        const ficha = `
+          <div class="mt-2 small border rounded p-2 bg-light d-none ficha">
+            <div><strong>DNI:</strong> ${a.dni || "-"}</div>
+            <div><strong>CUIL:</strong> ${a.cuil || "-"}</div>
+            <div><strong>Edad (30/6):</strong> ${a.edad_30jun ?? "-"}</div>
+            <div><strong>Nacionalidad:</strong> ${a.nacionalidad || "-"}</div>
+            <div><strong>Domicilio:</strong> ${a.domicilio || "-"}</div>
+            <div><strong>Tutor/es:</strong> ${a.tutores || a.tutor || "-"}</div>
+            <div><strong>Autorizados a retirar:</strong>
+              ${
+                Array.isArray(a.autorizados_retirar) && a.autorizados_retirar.length > 0
+                  ? `<ul class="mb-1">` +
+                    a.autorizados_retirar.map(aut => {
+                      return `<li>
+                        ${aut.nombre || ""}
+                        ${aut.vinculo ? " ("+aut.vinculo+")" : ""}
+                        ${aut.dni ? " — DNI "+aut.dni : ""}
+                      </li>`;
+                    }).join('') +
+                    `</ul>`
+                  : "-"
+              }
+            </div>
+            <div><strong>Judiciales:</strong> ${a.causa_judicial || "-"} ${a.venc_judicial ? '(Vence: '+a.venc_judicial+')' : ''}</div>
+            <div><strong>Acompañantes externos:</strong> ${a.acompanante || "-"} ${a.horario_acomp ? '('+a.horario_acomp+')' : ''}</div>
+            <div><strong>Obs. Alumno:</strong> ${a.observaciones || "-"}</div>
           </div>
-          <div><strong>Judiciales:</strong> ${a.causas_judiciales || "-"}</div>
-          <div><strong>Acompañantes externos:</strong> ${a.acompanantes_externos || "-"}</div>
-          <div><strong>Obs.:</strong> ${a.observaciones || "-"}</div>
-        </div>
-      `;
+        `;
 
-      row.innerHTML = `
-        <td>
-          <div><strong>${(a.apellido||"")}, ${(a.nombre||"")}</strong> — <span class="text-muted">${a.curso || ""}</span></div>
-          ${ficha}
-        </td>
-        <td>${celda1}</td>
-        <td>${celda2}</td>
-        <td>${celda3}</td>
-        <td>
-          <input class="form-control form-control-sm observ"
-                 placeholder="Observaciones"
-                 value="${obsVal}">
-        </td>
-        <td class="text-nowrap">
-          <button class="btn btn-sm btn-outline-secondary me-1 btn-ficha">Ficha</button>
-          <button class="btn btn-sm btn-success btn-guardar">Guardar</button>
-        </td>
-      `;
-      tbody.appendChild(row);
-    });
+        const row = document.createElement('tr');
+        row.dataset.alumnoId = a._id;
+        row.setAttribute("data-search", `${a.apellido||""} ${a.nombre||""} ${a.dni||""}`);
 
-    wrap.classList.remove('d-none');
-
-    if (trimestre === "all") {
-      tituloCtx.textContent =
-        `${asignatura} — ${curso} — 1°, 2° y 3° Trimestre (${alumnos.length} estudiantes)`;
-    } else {
-      tituloCtx.textContent =
-        `${asignatura} — ${curso} — ${trimestre}° Trimestre (${alumnos.length} estudiantes)`;
-    }
-
-    // Listeners por fila
-    tbody.querySelectorAll('.btn-ficha').forEach(btn => {
-      btn.addEventListener('click', (ev) => {
-        const tr = ev.target.closest('tr');
-        const ficha = tr.querySelector('.ficha');
-        ficha.classList.toggle('d-none');
+        row.innerHTML = `
+          <td>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <div>
+                <strong>${(a.apellido||"")}, ${(a.nombre||"")}</strong>
+                <span class="text-muted">— ${a.curso || ""}</span>
+              </div>
+            </div>
+            ${ficha}
+          </td>
+          <td>${celda1}</td>
+          <td>${celda2}</td>
+          <td>${celda3}</td>
+          <td>
+            <input class="form-control form-control-sm observ"
+                   placeholder="Observaciones nota"
+                   value="${obsVal}">
+          </td>
+          <td class="text-nowrap">
+            <button class="btn btn-sm btn-outline-secondary me-1 btn-ficha">Ficha</button>
+            <button class="btn btn-sm btn-success btn-guardar">Guardar</button>
+          </td>
+        `;
+        tbody.appendChild(row);
       });
-    });
 
-    tbody.querySelectorAll('.btn-guardar').forEach(btn => {
-      btn.addEventListener('click', (ev) => guardarFila(ev.target.closest('tr')));
-    });
+      wrap.classList.remove('d-none');
+
+      if (trimestre === "all") {
+        tituloCtx.textContent = `${asignatura} — ${curso} — ${anio || ""} — 1°, 2° y 3° (${tbody.querySelectorAll("tr").length} estudiantes)`;
+      } else {
+        tituloCtx.textContent = `${asignatura} — ${curso} — ${anio || ""} — ${trimestre}° Trimestre (${tbody.querySelectorAll("tr").length} estudiantes)`;
+      }
+
+      // Listeners por fila
+      tbody.querySelectorAll('.btn-ficha').forEach(btn => {
+        btn.addEventListener('click', (ev) => {
+          const tr = ev.target.closest('tr');
+          tr.querySelector('.ficha').classList.toggle('d-none');
+        });
+      });
+
+      tbody.querySelectorAll('.btn-guardar').forEach(btn => {
+        btn.addEventListener('click', (ev) => guardarFila(ev.target.closest('tr')));
+      });
+
+      filtrarTabla();
+
+    }catch(e){
+      console.error(e);
+      alert("No se pudo cargar.");
+    }finally{
+      setLoading(false);
+    }
   }
 
   // ---------- Guardar una fila ----------
   async function guardarFila(tr){
     const trimestre_raw = selTrim.value;
     if (trimestre_raw === "all") {
-      alert("Para guardar o editar calificaciones, elegí 1°, 2° o 3° Trimestre.");
+      alert("Para guardar o editar, elegí 1°, 2° o 3°.");
       return;
     }
 
@@ -342,11 +381,13 @@
     const asignatura    = inpAsig.value.trim();
     const curso         = inpCurso.value.trim();
     const escala        = selEscala.value;
+    const anio          = (inpAnio.value || "").trim();
+
     const valorElem     = tr.querySelector('.nota');
     const observaciones = tr.querySelector('.observ').value.trim();
 
     if (!valorElem) {
-      alert("No hay campo editable de nota. Asegurate de haber elegido un trimestre específico.");
+      alert("No hay campo editable de nota (elegí un trimestre específico).");
       return;
     }
 
@@ -360,10 +401,10 @@
 
     try {
       await axios.post('/api/calificaciones', {
-        alumno_id, docente_id, asignatura, curso, trimestre, escala, valor, observaciones
+        alumno_id, docente_id, asignatura, curso, trimestre, escala, valor, observaciones, anio
       });
       tr.classList.add('table-success');
-      setTimeout(()=> tr.classList.remove('table-success'), 800);
+      setTimeout(()=> tr.classList.remove('table-success'), 700);
     } catch(e) {
       console.error(e);
       alert('No se pudo guardar la calificación.');
@@ -374,12 +415,13 @@
   btnGuardarTodo.addEventListener('click', async ()=>{
     const trimestre_raw = selTrim.value;
     if (trimestre_raw === "all") {
-      alert("Para guardar o editar calificaciones, elegí 1°, 2° o 3° Trimestre.");
+      alert("Para guardar, elegí 1°, 2° o 3°.");
       return;
     }
     const filas = Array.from(tbody.querySelectorAll('tr'));
     for (const tr of filas) {
       const notaInput = tr.querySelector('.nota');
+      // Solo guarda si tiene algo escrito para no pisar con vacíos innecesariamente
       if (notaInput && notaInput.value.trim()) {
         await guardarFila(tr);
       }
@@ -388,14 +430,11 @@
 
   btnCargar.addEventListener('click', cargarAlumnosYNotas);
 
-  // ---------- Guardar escala para la asignatura ----------
+  // ---------- Guardar escala ----------
   btnGuardarEscala.addEventListener('click', async ()=>{
     const asig = inpAsig.value.trim();
     const esc  = selEscala.value;
-    if (!asig) {
-      alert("Asignatura vacía");
-      return;
-    }
+    if (!asig) { alert("Asignatura vacía"); return; }
     try {
       await axios.post('/api/asignaturas_escala', { asignatura: asig, escala: esc });
       alert('Escala guardada para la asignatura.');
@@ -406,27 +445,8 @@
     }
   });
 
-  // ---------- Estado inicial: si ya hay docente seleccionado ----------
-  (function init(){
-    const opt = selDoc.options[selDoc.selectedIndex];
-    if (opt) {
-      const asigRaw = opt.getAttribute('data-asig') || "";
-      let primera = asigRaw.split(",")[0].trim();
-
-      let encontrada = false;
-      for (const o of inpAsig.options) {
-        if (o.value === primera) {
-          inpAsig.value = primera;
-          encontrada = true;
-          break;
-        }
-      }
-
-      if (encontrada && cfg_asignaturas[primera]) {
-        selEscala.value = cfg_asignaturas[primera];
-      }
-    }
-  })();
 })();
+
 </script>
+
 {% endblock %}

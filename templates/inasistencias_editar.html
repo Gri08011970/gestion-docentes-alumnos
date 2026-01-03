@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block title %}Editar inasistencia{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="mb-0">Editar inasistencia</h3>
+    <a href="{{ url_for('historial_inasistencias') }}" class="btn btn-outline-secondary">Volver</a>
+  </div>
+
+  <div id="edit-alert" class="alert alert-danger d-none" role="alert"></div>
+
+  <form method="POST" class="card p-3" id="formEditarInasistencia">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Fecha</label>
+        <input type="date" class="form-control" name="fecha" value="{{ inasistencia.fecha }}" required>
+        <div class="form-text">No se permiten fechas futuras.</div>
+      </div>
+
+      <div class="col-md-8">
+        <label class="form-label">Causa</label>
+        <select name="causa" class="form-select" required>
+          {% set c = (inasistencia.causa or "") %}
+          <option value="enfermedad personal" {% if c|lower == "enfermedad personal" %}selected{% endif %}>Enfermedad personal</option>
+          <option value="enfermedad familiar" {% if c|lower == "enfermedad familiar" %}selected{% endif %}>Enfermedad familiar</option>
+          <option value="causas particulares" {% if "particular" in c|lower %}selected{% endif %}>Causas particulares</option>
+          <option value="citacion otro establecimiento" {% if "citacion" in c|lower %}selected{% endif %}>Citación otro establecimiento</option>
+          <option value="PARO" {% if c|upper == "PARO" %}selected{% endif %}>PARO</option>
+          <option value="ART" {% if c|upper == "ART" %}selected{% endif %}>ART</option>
+          <option value="licencia extraordinaria" {% if "licencia extraordinaria" in c|lower %}selected{% endif %}>Licencia extraordinaria</option>
+          <option value="DUELO" {% if c|upper == "DUELO" %}selected{% endif %}>Duelo</option>
+          <option value="EXAMEN" {% if c|upper == "EXAMEN" %}selected{% endif %}>Examen</option>
+          <option value="pre-exámenes" {% if "pre" in c|lower and "examen" in c|lower %}selected{% endif %}>Pre-exámenes</option>
+          <option value="injustificadas" {% if "injust" in c|lower %}selected{% endif %}>Injustificadas</option>
+          <option value="otras" {% if c|lower == "otras" %}selected{% endif %}>Otras</option>
+        </select>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Observaciones</label>
+        <textarea class="form-control" name="observaciones" rows="3">{{ inasistencia.observaciones or "" }}</textarea>
+      </div>
+
+      {# --- Suplente (opcionales). Si no existen en tu doc, quedan vacíos. --- #}
+      {% set sup = (inasistencia.suplente_info or {}) %}
+      <div class="col-12">
+        <label class="form-label">Suplente (opcional)</label>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <input class="form-control" name="suplente_nombre" placeholder="Nombre y apellido"
+                   value="{{ sup.get('nombre','') }}">
+          </div>
+          <div class="col-md-4">
+            <input class="form-control" name="suplente_dni" placeholder="DNI"
+                   value="{{ sup.get('dni','') }}">
+          </div>
+          <div class="col-md-4">
+            <input class="form-control" name="suplente_curso" placeholder="Curso / asignatura"
+                   value="{{ sup.get('curso','') or sup.get('asignatura','') }}">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-primary" id="btnGuardarEdit">Guardar cambios</button>
+
+      <button type="button" class="btn btn-outline-danger ms-auto" id="btnEliminarInasistencia">
+        Eliminar
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Modal confirm EP91 -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmModalTitle">Confirmar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="confirmModalBody">¿Confirmás la acción?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirmModalOk">Sí, continuar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("formEditarInasistencia");
+  const alertEl = document.getElementById("edit-alert");
+  const btnGuardar = document.getElementById("btnGuardarEdit");
+  const btnEliminar = document.getElementById("btnEliminarInasistencia");
+
+  function hoyISO() {
+    const h = new Date();
+    const y = h.getFullYear();
+    const m = String(h.getMonth()+1).padStart(2,'0');
+    const d = String(h.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+
+  window.showConfirmModal = function(titulo, mensaje, onOk) {
+    const titleEl = document.getElementById("confirmModalTitle");
+    const bodyEl  = document.getElementById("confirmModalBody");
+    const okBtn   = document.getElementById("confirmModalOk");
+
+    titleEl.textContent = titulo || "Confirmar";
+    bodyEl.textContent  = mensaje || "¿Confirmás la acción?";
+
+    const newOkBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+    newOkBtn.addEventListener("click", () => {
+      try { onOk && onOk(); } finally {
+        const modalEl = document.getElementById("confirmModal");
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
+    });
+
+    const modalEl = document.getElementById("confirmModal");
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+  };
+
+  // Validación: no permitir fecha futura (UI)
+  form.addEventListener("submit", (ev) => {
+    const fechaInput = form.querySelector('input[name="fecha"]');
+    const fecha = (fechaInput?.value || "").trim();
+    alertEl.classList.add("d-none");
+    alertEl.textContent = "";
+
+    if (fecha && fecha > hoyISO()) {
+      ev.preventDefault();
+      alertEl.textContent = "Fecha inválida: no se permiten inasistencias con fechas futuras.";
+      alertEl.classList.remove("d-none");
+      return;
+    }
+
+    // Confirmación EP91 antes de guardar
+    ev.preventDefault();
+    window.showConfirmModal(
+      "Confirmar cambios",
+      "¿Guardar los cambios de esta inasistencia?",
+      () => form.submit()
+    );
+  });
+
+  // Eliminar (usa tu API DELETE)
+  btnEliminar?.addEventListener("click", () => {
+    const id = "{{ inasistencia._id }}";
+    window.showConfirmModal(
+      "Eliminar inasistencia",
+      "⚠️ Esto elimina DEFINITIVAMENTE la inasistencia. ¿Continuar?",
+      async () => {
+        try {
+          btnEliminar.disabled = true;
+          const resp = await fetch(`/api/inasistencias/${id}`, { method: "DELETE" });
+          const data = await resp.json();
+          if (!resp.ok || !data.ok) throw new Error(data.error || "No se pudo eliminar");
+
+          window.location.href = "{{ url_for('historial_inasistencias') }}";
+        } catch (e) {
+          alertEl.textContent = e.message;
+          alertEl.classList.remove("d-none");
+          btnEliminar.disabled = false;
+        }
+      }
+    );
+  });
+});
+</script>
+{% endblock %}

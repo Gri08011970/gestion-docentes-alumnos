@@ -45,10 +45,13 @@
             <ul class="list-unstyled mb-0">
               <li class="mb-1">• <a href="{{ url_for('listar_alumnos') }}" class="text-decoration-none">Matrícula · Altas y ediciones</a></li>
               <li class="mb-1">• <a href="{{ url_for('seleccionar_asistencia') }}" class="text-decoration-none">Asistencias</a></li>
-              <li class="mb-1">• <a href="{{ url_for('calificaciones_gestion') }}" class="text-decoration-none">Calificaciones</a></li>
-              <li class="mb-1">• <a href="{{ url_for('legajos_cursos') }}" class="text-decoration-none">Legajos y Documentación</a></li>
+              <li class="mb-1">• <a href="{{ url_for('calificaciones_gestion') }}" class="text-decoration-none">Calificaciones (Ficha por alumno)</a></li>
+              <li class="mb-1">• <a href="{{ url_for('legajos_cursos') }}" class="text-decoration-none">Legajos-Documentación</a></li>
+              <li class="mb-1">• <a href="{{ url_for('autorizados_cursos') }}" class="text-decoration-none">Autrizados a retirar (por cursos)</a></li>
               <li class="mb-1">• <a href="{{ url_for('listas_estudiantes') }}" class="text-decoration-none">Listas 2026</a></li>
-              <li class="mb-1">• <a href="{{ url_for('mapa_recorridos') }}" class="text-decoration-none">Visitas domiciliarias</a></li>
+              <li class="mb-1">• <a href="{{ url_for('prom_rec') }}" class="text-decoration-none">Prom/Rec</a></li>
+              <li class="mb-1">• <a href="{{ url_for('matricula_2026_view') }}" class="text-decoration-none">Matrícula Inicial 2026</a></li>
+              
             </ul>
           </div>
         </div>
@@ -60,12 +63,12 @@
             <div class="badge-soft mb-2">Equipo institucional</div>
             <h4 class="card-title fw-bold mb-2">Docentes</h4>
             <p class="card-text text-muted mb-3">
-              Plantel docente, cargos, contactos y estados administrativos.
+              Plantel docente, carga de inasistencias, historial de inasistencias y estados administrativos.
             </p>
-            <ul class="list-unstyled mb-0">
-              <li class="mb-1">• <a href="{{ url_for('listar_docentes') }}" class="text-decoration-none">Listado de docentes</a></li>
-              <li class="mb-1">• <a href="{{ url_for('ver_inasistencias') }}" class="text-decoration-none">Inasistencias · Calendario</a></li>
-              <li class="mb-1">• <a href="{{ url_for('historial_inasistencias') }}" class="text-decoration-none">Historial completo</a></li>
+            <ul class="list-unstyled mb-0"></a>
+              <li class="mb-1">• <a href="{{ url_for('listar_docentes') }}" class="text-decoration-none">Listado de docentes <p style="font-size: 12px;">Cargo, Sit.Revista, Carga Horaria, Set 4, Inasistencias en calendrio</p></li>
+              <li class="mb-1">• <a href="{{ url_for('ver_inasistencias') }}" class="text-decoration-none">Carga de Inasistencias </a></li>
+              <li class="mb-1">• <a href="{{ url_for('historial_inasistencias') }}" class="text-decoration-none">Historial de inasistencias</a></li>
               <li class="mb-1">• <a href="{{ url_for('estados_admin') }}" class="text-decoration-none">Estados administrativos</a></li>
             </ul>
           </div>
@@ -78,10 +81,10 @@
             <div class="badge-soft mb-2">Equipo de auxiliares</div>
             <h4 class="card-title fw-bold mb-2">Auxiliares</h4>
             <p class="card-text text-muted mb-3">
-              Organización del personal auxiliar: Legajos, Horarios y Sectores.
+              Organización del personal auxiliar: Horarios y Sectores.
             </p>
             <ul class="list-unstyled mb-0">
-              <li class="mb-1">• <a href="{{ url_for('listar_auxiliares') }}" class="text-decoration-none">Listado de auxiliares</a></li>
+              <li class="mb-1">• <a href="{{ url_for('listar_auxiliares') }}" class="text-decoration-none">Listado de auxiliares <p style="font-size: 12px;"> Cargo, Sit.Revista, Sectores, Carga Horaria</p> </a></li>
             </ul>
           </div>
         </div>
@@ -146,7 +149,19 @@
     </ul>
   </div>
 </div>
-    </div>
+     
+      <div class="col-12 col-lg-4">
+        <div class="p-3 rounded-3 shadow-sm h-100" style="background:#f3f9ff; font-size:0.9rem; border:2px solid #333;">
+          <div class="small text-uppercase text-muted mb-2">EOE</div>
+          <h5 class="mb-2">Equipo de orienación escolar</h5>
+          <ul class="small list-unstyled">
+            <li class="mb-2"> <a href="{{ url_for('eoe_ausentismo') }}">Control de ausentismo crítico</a></li>
+            <li class="mb-2"> <a href="{{ url_for('eoe_judiciales') }}">Judiciales-Acompañantes</a></li>
+            <li class="mb-2"> <a href="{{ url_for('mapa_recorridos') }}">Actas de visitas domiciliarias</a></li>
+          </ul>
+        </div>
+      </div>
+ </div>
 
     <div class="text-center text-muted mt-4" style="font-size:0.8rem;">
       Uso interno institucional EP N° 91. La información es confidencial y se resguarda según la normativa vigente.

@@ -85,9 +85,7 @@
             Autorizados a retirar · Por curso
           </a>
         </li>
-        <li>
-          <a class="dropdown-item" href="{{ url_for('entrega_mercaderia') }}">Entrega mercadería</a>
-        </li>
+        
         <li>
           <a class="dropdown-item" href="{{ url_for('listas_estudiantes') }}">Listas</a>
         </li>
@@ -98,11 +96,7 @@
           <a class="dropdown-item" href="{{ url_for('matricula_2026_view') }}">Matrícula inicial 2026</a>
 
         </li>
-        <li>
-          <a class="dropdown-item" href="{{ url_for('mapa_recorridos') }}">
-            Visitas domiciliarias
-          </a>
-        </li>
+        
       </ul>
     </li>
 
@@ -115,17 +109,17 @@
       <ul class="dropdown-menu" aria-labelledby="docentesDropdown">
         <li>
           <a class="dropdown-item" href="{{ url_for('listar_docentes') }}">
-            Listado de docentes · Cargos y contactos
+            Listado de docentes <p style="font-size: 12px;">Cargo, Sit.Revista, Carga Horaria, Set 4, Inasistencias en calendario</p>
           </a>
         </li>
         <li>
           <a class="dropdown-item" href="{{ url_for('ver_inasistencias') }}">
-            Inasistencias docentes · Calendario
+            Carga de Inasistencias ·
           </a>
         </li>
         <li>
           <a class="dropdown-item" href="{{ url_for('historial_inasistencias') }}">
-            Historial de inasistencias docentes
+            Historial de inasistencias
           </a>
         </li>
         <li>
@@ -145,7 +139,7 @@
       <ul class="dropdown-menu" aria-labelledby="auxDropdown">
         <li>
           <a class="dropdown-item" href="{{ url_for('listar_auxiliares') }}">
-            Personal auxiliar · Legajos, horarios y sectores
+            Personal auxiliar: Horarios y Sectores <p style="font-size: 12px;"> Cargo, Sit.Revista, Sectores, Carga Horaria </p>
           </a>
         </li>
       </ul>
@@ -162,18 +156,19 @@
           </a>
         </li>
         <li>
-          <a class="dropdown-item" href="{{ url_for('calificaciones_gestionar') }}">
+          <a class="dropdown-item" href="{{ url_for('eoe_judiciales') }}">
             <i class="fas fa-folder-open me-2"></i> Judiciales y Acompañantes
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('mapa_recorridos') }}">
+            <i class="fas fa-folder-open me-2"></i> Actas de visitas domiciliarias.
           </a>
         </li>
         <li>
           <hr class="dropdown-divider">
         </li>
-        <li>
-      <a class="dropdown-item" href="{{ url_for('mapa_recorridos') }}">
-        <i class="fas fa-file-signature me-2"></i> Actas de visita domiciliaria
-      </a>
-    </li>
+      
   </ul>
 </li>
       </ul>

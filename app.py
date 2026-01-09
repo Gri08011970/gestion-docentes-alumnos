@@ -54,7 +54,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "EP91_super_secret_2025_cambiar_en_prod")
 
 # Configuración de base de datos
-app.config["MONGO_URI"] = os.environ.get("MONGO_URI", "mongodb://localhost:27017/escuela_db")
+MONGO_URI = "mongodb+srv://ep91_user:NsbxKq65WWOm9lQB@cluster0.o7ctg8u.mongodb.net/ep91_db?retryWrites=true&w=majority&appName=Cluster0"
+app.config["MONGO_URI"] = MONGO_URI
 
 # Inicialización de PyMongo (Instancia Única)
 mongo = PyMongo(app)
@@ -63,6 +64,7 @@ mongo = PyMongo(app)
 app.mongo = mongo.db
 
 # Registro de rutas modulares (Blueprints)
+
 app.register_blueprint(salidas_bp, url_prefix="/salidas")
 
 # ----------------- Collections -----------------
@@ -1823,10 +1825,12 @@ def api_historial_resumen():
     return jsonify({"ok": True, "total": total, "por_causa": por})
 
 # ----------------- ALUMNOS -----------------
-
 @app.route("/alumnos")
 def listar_alumnos():
     # ----------------- PARÁMETROS -----------------
+    # Capturamos el año (por defecto 2025)
+    anio_busqueda = int(request.args.get("anio_lectivo", 2025))
+    
     q = (request.args.get("q") or "").strip()
     curso_sel = (request.args.get("curso") or "").strip() 
     turno_sel = (request.args.get("turno") or "").strip()
@@ -1835,109 +1839,102 @@ def listar_alumnos():
     turnos = ["Mañana", "Tarde"]
 
     # ----------------- FILTRO BASE -----------------
-    filtro = {}
+    # Agregamos el año como condición obligatoria
+    filtro = {"anio_lectivo": anio_busqueda}
 
-    # Búsqueda de texto
+    # Búsqueda de texto (Si hay búsqueda, la combinamos con el año)
     if q:
         regex = {"$regex": q, "$options": "i"}
-        filtro["$or"] = [
-            {"apellido": regex},
-            {"nombre": regex},
-            {"dni": regex},
-            {"curso": regex},
-            {"apellido_nombre": regex},
+        filtro["$and"] = [
+            {"anio_lectivo": anio_busqueda},
+            {"$or": [
+                {"apellido": regex}, 
+                {"nombre": regex},
+                {"dni": regex},
+                {"curso": regex},
+                {"apellido_nombre": regex}
+            ]}
         ]
 
-     # Filtro por curso / turno
+    # Filtro por curso / turno
     if curso_sel:
-       filtro["curso"] = {"$regex": rf"^\s*{re.escape(curso_sel)}\s*$", "$options": "i"}
+        filtro["curso"] = {"$regex": rf"^\s*{re.escape(curso_sel)}\s*$", "$options": "i"}
     elif turno_sel:
-      ts = turno_sel.strip().lower()
-      if ts == "mañana":
-        filtro["curso"] = {"$regex": r"A\s*$", "$options": "i"}
-      elif ts == "tarde":
-        filtro["curso"] = {"$regex": r"B\s*$", "$options": "i"}
+        ts = turno_sel.strip().lower()
+        if ts == "mañana":
+            filtro["curso"] = {"$regex": r"A\s*$", "$options": "i"}
+        elif ts == "tarde":
+            filtro["curso"] = {"$regex": r"B\s*$", "$options": "i"}
 
     # ----------------- CONSULTA A MONGO -----------------
-
     if ver_historico and curso_sel:
         cond_historico = {
-            "$or": [
-                {"fecha_salida": {"$in": [None, "", False]}},  # activos
-                {"curso_origen": curso_sel},                   # vinieron de este curso
-                {"curso": curso_sel},                          # o estaban en este curso
+            "$and": [
+                {"anio_lectivo": anio_busqueda}, # Siempre filtramos por año
+                {"$or": [
+                    {"fecha_salida": {"$in": [None, "", False]}},
+                    {"curso_origen": curso_sel},
+                    {"curso": curso_sel},
+                ]}
             ]
         }
-        if filtro:
-            alumnos_cur = COL_ALUMNOS.find({"$and": [filtro, cond_historico]})
-        else:
-            alumnos_cur = COL_ALUMNOS.find(cond_historico)
+        alumnos_cur = app.mongo.alumnos.find(cond_historico)
     else:
-        alumnos_cur = COL_ALUMNOS.find({**filtro_activos(), **filtro})
+        # Combinamos el filtro de activos (si lo usas) con nuestro filtro de año/búsqueda
+        query_final = {**filtro_activos(), **filtro}
+        alumnos_cur = app.mongo.alumnos.find(query_final)
 
-    # Convert cursor to list
     alumnos = list(alumnos_cur)
 
     # ----------------- FLAGS PARA EL TEMPLATE -----------------
     for a in alumnos:
         fs = a.get("fecha_salida")
         a["esta_activo"] = not fs
-
         a["historico_en_curso"] = False
         if curso_sel:
-            # Baja definitiva en ese curso
             if fs and a.get("curso") == curso_sel:
                 a["historico_en_curso"] = True
-            # Cambio de turno desde ese curso
             if a.get("curso_origen") == curso_sel:
                 a["historico_en_curso"] = True
+        
         mot = (a.get("motivo_salida") or "").strip().upper()
         dest = (a.get("destino_salida") or "").strip()
         curso_dest = (a.get("curso_destino") or "").strip()
 
         sale_a = ""
         if mot == "CAMBIO DE TURNO":
-           sale_a = f"CAMBIO TURNO → {curso_dest}" if curso_dest else "CAMBIO DE TURNO"
+            sale_a = f"CAMBIO TURNO → {curso_dest}" if curso_dest else "CAMBIO DE TURNO"
         elif mot == "EGRESO":
-           sale_a = "EGRESO (Finalización Primaria)"
+            sale_a = "EGRESO"
         elif mot == "PASE A OTRA ESCUELA":
-           sale_a = f"PASE → {dest}" if dest else "PASE A OTRA ESCUELA"
+            sale_a = f"PASE → {dest}" if dest else "PASE A OTRA ESCUELA"
         elif mot:
-           sale_a = f"{mot} → {dest}" if dest else mot
-
+            sale_a = f"{mot} → {dest}" if dest else mot
         a["sale_a_str"] = sale_a
 
     # ----------------- ORDEN -----------------
     alumnos.sort(key=_orden_alumno)
 
-    # ----------------- EDAD / FECHAS -----------------
-   
-    REF = date(datetime.now().year, 6, 30)
+    # ----------------- EDAD / FECHAS (Calculada al año de búsqueda) -----------------
+    # Usamos anio_busqueda para que la edad coincida con el ciclo lectivo
+    REF = date(anio_busqueda, 6, 30)
 
     for a in alumnos:
-        fn = a.get("fecha_nacimiento")
+        fn = a.get("fecha_nacimiento") or a.get("fecha_nac")
         if fn:
             try:
-                y, m, d = map(int, fn.split("-"))
+                y, m, d = map(int, fn[:10].split("-"))
                 nac = date(y, m, d)
                 edad = REF.year - nac.year - ((REF.month, REF.day) < (nac.month, nac.day))
                 a["edad_30jun"] = edad
                 a["fecha_nac_str"] = f"{d:02d}/{m:02d}/{y}"
-                a["fecha_nac_iso"] = fn
             except Exception:
                 a["edad_30jun"] = ""
-                a["fecha_nac_str"] = ""
-                a["fecha_nac_iso"] = ""
         else:
             a["edad_30jun"] = ""
-            a["fecha_nac_str"] = ""
-            a["fecha_nac_iso"] = ""
 
-    # ----------------- CURSOS PARA EL COMBO -----------------
-    cursos = sorted(
-        [c for c in COL_ALUMNOS.distinct("curso") if c],
-        key=lambda x: str(x)
-    ) 
+    # Cursos para el combo
+    cursos = sorted([c for c in app.mongo.alumnos.distinct("curso") if c])
 
     # ----------------- RENDER -----------------
     return render_template(
@@ -1949,12 +1946,21 @@ def listar_alumnos():
         turno_sel=turno_sel,
         turnos=turnos,
         ver_historico=ver_historico,
-        hoy_str=today().strftime("%Y-%m-%d"),
+        anio_actual=anio_busqueda, # Pasamos el año para que el selector lo marque
+        hoy_str=date.today().strftime("%Y-%m-%d"),
     )
+
 @app.route("/alumnos/nuevo", methods=["POST"])
 def nuevo_alumno():
     data = request.form.to_dict()
-
+    # --- AGREGAR ESTO PARA EL CURSO Y AÑO ---
+    curso_nro = data.pop("curso", "").strip()      # Sacamos el "3"
+    seccion_letra = data.pop("seccion", "").strip() # Sacamos el "A"
+    data["curso"] = f"{curso_nro}°{seccion_letra}" # Guardamos "3°A"
+    
+    # Capturamos el año del selector del modal y lo hacemos número
+    data["anio_lectivo"] = int(data.get("anio_lectivo", 2025))
+    # ----------------------------------------
     # 1) Fecha: del form viene como "fecha_nac"
     fecha_nac = (data.pop("fecha_nac", "") or "").strip()
     if fecha_nac:
@@ -2040,6 +2046,16 @@ def editar_alumno(id):
     updates_form = request.form.to_dict()
 
     set_fields = {}
+    # --- AGREGAR ESTO PARA EL CURSO Y AÑO EN EDICIÓN ---
+    curso_nro = updates_form.pop("curso", "").strip()
+    seccion_letra = updates_form.pop("seccion", "").strip()
+    if curso_nro and seccion_letra:
+        set_fields["curso"] = f"{curso_nro}°{seccion_letra}"
+    
+    # Guardar el año lectivo si viene en el form
+    if "anio_lectivo" in updates_form:
+        set_fields["anio_lectivo"] = int(updates_form.get("anio_lectivo"))
+    # --------------------------------------------------
     unset_fields = {}
     updates = {}
 
@@ -3051,7 +3067,7 @@ def asistencia_mensual(curso, year, month):
                 max_semana = semana
 
         except Exception as e:
-            print(f"ERROR RESUMEN SEMANAL: {e}")
+            print(f"ERROR RESUMEN SEMANAL: {e}")  
             continue
 
     # Si no hubo asistencias cargadas, igual determinamos cuántas semanas tiene el mes
@@ -3667,58 +3683,57 @@ def exportar_movimientos_excel():
         download_name=f"movimientos_{anio}.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-
-from datetime import datetime, date
-
 @app.route("/planillas/promocion")
 def planilla_promocion():
-    # 1. Obtenemos los parámetros de la URL (incluyendo el año del selector)
-    curso = request.args.get("curso", "4")
-    seccion = request.args.get("seccion", "B")
+    # 1. Obtenemos los parámetros de la URL
+    curso_nro = request.args.get("curso", "3")    
+    seccion_letra = request.args.get("seccion", "A") 
     turno = request.args.get("turno", "T.T.")
     anio_lectivo_str = request.args.get("anio", "2025")
     anio_lectivo = int(anio_lectivo_str)
     
-    # 2. BUSQUEDA INTELIGENTE: Filtramos por curso, sección y año lectivo
-    # Esto permite que convivan datos de 2025, 2026, etc.
+    # CONSTRUCCIÓN DEL NOMBRE TAL CUAL ESTÁ EN ATLAS (Ej: "3°A")
+    curso_completo = f"{curso_nro}°{seccion_letra}"
+    
+    # 2. BUSQUEDA: Filtramos por el campo curso completo y año lectivo
     query = {
-        "curso": curso, 
-        "seccion": seccion, 
+        "curso": curso_completo, 
         "anio_lectivo": anio_lectivo 
     }
     
     # Traemos los alumnos ordenados por apellido
-    alumnos_raw = list(COL_ALUMNOS.find(query).sort("apellido", 1))
+    alumnos_raw = list(app.mongo.alumnos.find(query).sort("apellido", 1))
+    
+    # --- PRUEBA DE CONTROL EN TERMINAL ---
+    print(f"DEBUG: Buscando: {curso_completo}, Año: {anio_lectivo}")
+    print(f"DEBUG: Alumnos encontrados: {len(alumnos_raw)}")
     
     alumnos_procesados = []
     fecha_hoy = date.today()
-    # La edad estadística se calcula siempre al 30 de junio del año de la planilla
     fecha_corte = date(anio_lectivo, 6, 30)
 
-    # 3. Calculamos edades según la normativa
+    # 3. Calculamos edades
     for a in alumnos_raw:
-        fnac_str = a.get('fecha_nacimiento')
+        # IMPORTANTE: Verifica si en Atlas es 'fecha_nacimiento' o 'fecha_nac'
+        fnac_str = a.get('fecha_nacimiento') or a.get('fecha_nac')
         edad_final = ""
         
         if fnac_str:
             try:
-                # Soportamos formatos YYYY-MM-DD
                 fnac = datetime.strptime(fnac_str[:10], "%Y-%m-%d").date()
                 
-                if curso == "6":
-                    # Para 6to: Edad cronológica real a hoy (o al cierre del ciclo)
-                    # Si prefieres que para 6to también sea a hoy, queda así:
+                # Usamos curso_nro para la lógica de 6to
+                if curso_nro == "6":
                     edad_final = fecha_hoy.year - fnac.year - ((fecha_hoy.month, fecha_hoy.day) < (fnac.month, fnac.day))
                 else:
-                    # Para 1° a 5°: Edad al 30 de junio (Normativa Prov. Bs.As.)
                     edad_final = fecha_corte.year - fnac.year - ((fecha_corte.month, fecha_corte.day) < (fnac.month, fnac.day))
             except Exception:
                 edad_final = ""
         
-        a['edad_calculada'] = edad_final
+        a['edad_calculada'] = edad_final 
         alumnos_procesados.append(a)
 
-    # 4. Creamos la variable resumen para el Anverso
+    # 4. Variable resumen
     total_inscriptos = len(alumnos_procesados)
     resumen = {
         "total": total_inscriptos,
@@ -3726,11 +3741,11 @@ def planilla_promocion():
         "porcentaje_promocion": 100 if total_inscriptos > 0 else 0
     }
 
-    # 5. Enviamos todo al template
+    # 5. Enviamos todo al template (Usando las variables correctas)
     return render_template("planilla_de_promocion.html", 
                            alumnos=alumnos_procesados, 
-                           curso=curso, 
-                           seccion=seccion, 
+                           curso=curso_nro, # <--- Corregido
+                           seccion=seccion_letra, # <--- Corregido
                            turno=turno,
                            anio=anio_lectivo,
                            resumen=resumen)

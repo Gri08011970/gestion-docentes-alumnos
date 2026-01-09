@@ -136,6 +136,7 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
         ← Volver a auxiliares
       </a>
     </div>
+
     <div class="d-flex align-items-center gap-2">
       <form method="get" class="d-flex align-items-center gap-1">
         <label for="anio" class="form-label mb-0">Año:</label>
@@ -157,15 +158,13 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
         <small>
           Auxiliar: <strong>{{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}</strong>
           &nbsp;·&nbsp;
-          Cargo:
-          {% set cargo = (auxiliar.get('cargo','') or '').strip() %}
-          {% if cargo %}{{ cargo }}{% else %}<span class="text-muted">—</span>{% endif %}
+          Cargo: {{ auxiliar.get('cargo','') }}
         </small>
       </div>
       <div>
         <small>
           Período: {{ periodo.desde }} a {{ periodo.hasta }}<br>
-          Fecha de impresión: {{ fecha_impresion.strftime('%d/%m/%Y') }}
+          <span>Fecha de impresión: {{ fecha_impresion.strftime('%d/%m/%Y') }}</span>
         </small>
       </div>
     </div>
@@ -187,7 +186,8 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
               {% for celda in fila %}
                 {% if celda %}
                   {% if celda.color %}
-                    <td class="dia-con-falta" style="background-color: {{ celda.color }};">
+                    <td class="dia-con-falta" data-color="{{ celda.color }}"
+                        style="background-color: {{ celda.color }};">
                       {{ celda.dia }}
                     </td>
                   {% else %}
@@ -213,28 +213,26 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
       Citación / comisión de servicio en otro establecimiento
     </div>
 
-    <!-- Resumen -->
+    <!-- Resumen tipo punto 14 SET4 -->
     <div class="resumen-inferior">
       <div style="flex: 1;">
         <table class="tabla-totales">
           <tr><td>Enfermedad Personal</td><td>{{ totales.enfermedad_personal or 0 }}</td></tr>
           <tr><td>Enfermedad Familiar</td><td>{{ totales.enfermedad_familiar or 0 }}</td></tr>
-          <tr><td>Enfermedad Crónica</td><td>{{ totales.enfermedad_cronica or 0 }}</td></tr>
 
           <tr><td>Causas Particulares</td><td>{{ totales.particulares or 0 }}</td></tr>
-          <tr><td>Citación a otro establecimiento</td><td>{{ totales.citacion_otro_establecimiento or 0 }}</td></tr>
 
-          <tr><td>Injustificadas</td><td>{{ totales.injustificadas or 0 }}</td></tr>
+          <!-- en tu backend el bucket es citacion_otro_establecimiento (no "citacion") -->
+          <tr><td>Citación</td><td>{{ totales.citacion_otro_establecimiento or 0 }}</td></tr>
 
-          <tr><td>Pre-Examen</td><td>{{ totales.pre_examen or 0 }}</td></tr>
-          <tr><td>Examen</td><td>{{ totales.examen or 0 }}</td></tr>
-
+          <tr><td>Examen / Pre-Examen</td><td>{{ (totales.examen or 0) + (totales.pre_examen or 0) }}</td></tr>
           <tr><td>Duelo</td><td>{{ totales.duelo or 0 }}</td></tr>
           <tr><td>Paro</td><td>{{ totales.paro or 0 }}</td></tr>
 
+          <!-- en tu backend la clave es art (minúscula) -->
           <tr><td>ART</td><td>{{ totales.art or 0 }}</td></tr>
-          <tr><td>Licencia extraordinaria</td><td>{{ totales.licencia_extraordinaria or 0 }}</td></tr>
 
+          <tr><td>Injustificadas</td><td>{{ totales.injustificadas or 0 }}</td></tr>
           <tr><td>Otras</td><td>{{ totales.otras or 0 }}</td></tr>
 
           <tr class="fw-bold" style="background: #eee;">
@@ -246,9 +244,18 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
 
       <div style="flex: 1; text-align:right; padding-right:20px;">
         <p>Firma del directivo: ________________________</p>
-        <p>Firma del auxiliar: _________________________</p>
+        <p>Firma del auxiliar: __________________________</p>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("td.dia-con-falta[data-color]").forEach(td => {
+      const c = td.dataset.color;
+      if (c) td.style.backgroundColor = c;
+    });
+  });
+</script>
 {% endblock %}

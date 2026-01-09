@@ -85,10 +85,12 @@ COL_CONFIG          = mongo.db.config   # Colección para configuraciones genera
 COL_CERTIFICADOS    = mongo.db.certificados_pendientes
 COL_CALENDARIO_ESCOLAR = mongo.db.calendario_escolar
 COL_MERCADERIA      = mongo.db.entrega_mercaderia
+COL_INASISTENCIAS_AUX = mongo.db.inasistencias_auxiliares
 
-# ----------------- Authentication Placeholder -----------------
 
-# Función de ejemplo para obtener el usuario actual (placeholder)
+# ----------------- Authentication Placeholder ----------------- 
+
+# Función de ejemplo para obtener el usuario actual (placeholder) 
 def get_current_user():
     """Placeholder para obtener la información del usuario actual (admin, director, docente)"""
     # En un entorno real, esto se obtendría de la sesión o token
@@ -1127,6 +1129,61 @@ def _fetch_set4_context_oficial(docente_id, anio):
     
     periodo = {"desde": f"01/01/{anio}", "hasta": f"31/12/{anio}"}
     return d, periodo, (totales, inasistencias_lista)
+
+def _aux_historial_query_from_args(args):
+    q = {}
+
+    aux_id = (args.get("auxiliar_id") or "").strip()
+    desde  = (args.get("desde") or "").strip()
+    hasta  = (args.get("hasta") or "").strip()
+    causa  = (args.get("causa") or "").strip()
+
+    if aux_id and aux_id.upper() != "TODOS":
+        q["auxiliar_id"] = _maybe_oid(aux_id)
+
+    if desde and hasta:
+        q["fecha"] = {"$gte": desde, "$lte": hasta}
+    elif desde:
+        q["fecha"] = {"$gte": desde}
+    elif hasta:
+        q["fecha"] = {"$lte": hasta}
+
+    if causa and causa.upper() != "TODAS":
+        q["causa"] = {"$regex": causa, "$options": "i"}
+
+    return q
+
+
+def _contar_por_bucket_aux_anio(auxiliar_id, referencia_fecha):
+    """
+    Copia funcional de tu _contar_por_bucket_docente_anio, pero leyendo COL_INASISTENCIAS_AUX.
+    Devuelve: (cont_anual, meses_particulares)
+    """
+    anio = int(referencia_fecha.year)
+    desde_iso = date(anio, 1, 1).isoformat()
+    hasta_iso = date(anio, 12, 31).isoformat()
+
+    cont = {}
+    meses_particulares = {}
+
+    q = {"auxiliar_id": auxiliar_id, "fecha": {"$gte": desde_iso, "$lte": hasta_iso}}
+    for ins in COL_INASISTENCIAS_AUX.find(q, {"fecha": 1, "causa": 1}):
+        f = _parse_date(ins.get("fecha"))
+        if not f:
+            continue
+        causa_norm = _norm((ins.get("causa") or "").strip())
+        bucket = _causa_bucket(causa_norm)
+
+        cont[bucket] = cont.get(bucket, 0) + 1
+
+        if bucket == "particulares":
+            key_mes = f"{f.year}-{f.month:02d}"
+            meses_particulares[key_mes] = meses_particulares.get(key_mes, 0) + 1
+
+    return cont, meses_particulares
+
+
+
 
 # =================================================================
 # BLOQUE : RUTAS
@@ -3980,7 +4037,7 @@ def mapa_recorridos():
 
     return render_template(
         "mapa_recorridos.html",
-        alumnos=alumnos,
+        alumnos=alumnos, 
         cursos=cursos,
         turnos=turnos,
         curso_sel=curso_sel,
@@ -4154,18 +4211,20 @@ def api_estados_resumen():
         "hoy": today().strftime("%Y-%m-%d")
     })
 
-# ----------------- AUXILIARES -----------------
+# ----------------- AUXILIARES + INASISTENCIAS AUXILIARES -----------------
 
 @app.route("/auxiliares")
 def listar_auxiliares():
-    auxs = [to_json(a) for a in COL_AUX.find().sort([("apellido",1),("nombre",1)])]
+    auxs = [to_json(a) for a in COL_AUX.find().sort([("apellido", 1), ("nombre", 1)])]
     return render_template("auxiliares.html", auxiliares=auxs)
+
 
 @app.route("/auxiliares/nuevo", methods=["POST"])
 def nuevo_auxiliar():
     data = request.form.to_dict()
-    COL_AUX.insert_one(data) 
+    COL_AUX.insert_one(data)
     return redirect(url_for("listar_auxiliares"))
+
 
 @app.route("/auxiliares/<id>/editar", methods=["POST"])
 def editar_auxiliar(id):
@@ -4173,11 +4232,385 @@ def editar_auxiliar(id):
     COL_AUX.update_one({"_id": ObjectId(id)}, {"$set": updates})
     return redirect(url_for("listar_auxiliares"))
 
+
 @app.route("/auxiliares/<id>/eliminar", methods=["POST"])
-def eliminar_auxiliar(id): 
+def eliminar_auxiliar(id):
     COL_AUX.delete_one({"_id": ObjectId(id)})
     return redirect(url_for("listar_auxiliares"))
 
+
+# ----------------- VISTA CARGA INASISTENCIAS AUX (igual que docentes) -----------------
+
+@app.route("/aux_inasistencias")
+def aux_ver_inasistencias():
+    if not mongo_ping_ok():
+        return render_template("db_down.html"), 503
+    return render_template("aux_inasistencias.html")
+
+
+@app.route("/api/auxiliares")
+def api_auxiliares():
+    out = []
+    for a in COL_AUX.find().sort([("apellido", 1), ("nombre", 1)]):
+        out.append({
+            "_id": str(a["_id"]),
+            "nombre": a.get("nombre", ""),
+            "apellido": a.get("apellido", ""),
+            "cargo": a.get("cargo", ""),
+        })
+    return jsonify(out)
+
+
+# ----------------- API CRUD INASISTENCIAS AUX (idéntico a docentes) -----------------
+
+@app.route("/api/aux_inasistencias", methods=["POST"])
+def api_aux_inasistencias():
+    if not mongo_ping_ok():
+        return jsonify(ok=False, error="db_down"), 503
+
+    data = request.get_json(silent=True) or {}
+
+    auxiliar_id_raw = data.get("auxiliar_id") or data.get("auxiliar")
+    if not auxiliar_id_raw:
+        return jsonify(ok=False, error="Auxiliar requerido."), 400
+
+    auxiliar_id = _maybe_oid(auxiliar_id_raw)
+
+    desde = _parse_date(data.get("desde") or data.get("fecha"))
+    hasta = _parse_date(data.get("hasta") or data.get("fecha"))
+
+    if not desde:
+        return jsonify(ok=False, error="Fecha 'desde' requerida."), 400
+    if not hasta:
+        hasta = desde
+    if hasta < desde:
+        desde, hasta = hasta, desde
+
+    causa = (data.get("causa") or "").strip()
+    if not causa:
+        return jsonify(ok=False, error="Causa requerida."), 400
+
+    observ = (data.get("observaciones") or "").strip()
+
+    suplente_info = {
+        "nombre": (data.get("sup_nombre") or data.get("suplente_nombre") or "").strip(),
+        "dni": (data.get("sup_dni") or "").strip(),
+        "curso": (data.get("sup_curso") or "").strip(),
+        "asignatura": (data.get("sup_asignatura") or "").strip(),
+    }
+    suplente_info = {k: v for k, v in suplente_info.items() if v}
+
+    # No permitir futuras
+    if desde > date.today():
+        return jsonify(ok=False, error="Fecha inválida: no se pueden cargar inasistencias futuras."), 400
+
+    # Reglas iguales a docentes (particulares)
+    bucket = _causa_bucket(_norm(causa))
+    cont_anual, meses_particulares = _contar_por_bucket_aux_anio(auxiliar_id, referencia_fecha=desde)
+
+    if bucket == "particulares":
+        if desde != hasta:
+            return jsonify(ok=False, error="Causas particulares: debe ser UN (1) solo día (1 por mes)."), 400
+
+        key_mes = f"{desde.year}-{desde.month:02d}"
+        if meses_particulares.get(key_mes, 0) >= 1:
+            return jsonify(ok=False, error="Ya hay una inasistencia por 'causas particulares' en este mes."), 400
+
+        if cont_anual.get("particulares", 0) >= LIMITES_ANUALES["particulares"]:
+            return jsonify(ok=False, error="Se alcanzó el tope anual de 'causas particulares' (6)."), 400
+
+    # Evitar duplicado por día (idempotente)
+    dias_a_insertar = []
+    dcur = desde
+    while dcur <= hasta:
+        fecha_iso = dcur.isoformat()
+
+        existente = COL_INASISTENCIAS_AUX.find_one({"auxiliar_id": auxiliar_id, "fecha": fecha_iso})
+        if existente:
+            same = (
+                (existente.get("causa") or "").strip() == causa and
+                (existente.get("observaciones") or "").strip() == observ and
+                (existente.get("suplente_info") or {}) == suplente_info
+            )
+            if same:
+                dcur += timedelta(days=1)
+                continue
+
+            msg = f"Ya hay una inasistencia cargada para este auxiliar el {dcur.strftime('%d/%m/%Y')}."
+            return jsonify(ok=False, error=msg), 400
+
+        dias_a_insertar.append(fecha_iso)
+        dcur += timedelta(days=1)
+
+    docs = [{
+        "auxiliar_id": auxiliar_id,
+        "fecha": f,
+        "causa": causa,
+        "observaciones": observ,
+        "suplente_info": suplente_info,
+    } for f in dias_a_insertar]
+
+    if docs:
+        COL_INASISTENCIAS_AUX.insert_many(docs)
+
+    return jsonify(ok=True, inserted=len(docs), warning=None)
+
+
+@app.route("/api/aux_inasistencias/<id>", methods=["GET"])
+def api_aux_inasistencia_get(id):
+    try:
+        oid = ObjectId(id)
+    except Exception:
+        return jsonify(ok=False, error="ID inválido"), 400
+
+    ins = COL_INASISTENCIAS_AUX.find_one({"_id": oid})
+    if not ins:
+        return jsonify(ok=False, error="Inasistencia no encontrada"), 404
+
+    ins["_id"] = str(ins["_id"])
+    ins["auxiliar_id"] = str(ins.get("auxiliar_id"))
+    return jsonify(ok=True, data=ins)
+
+
+@app.route("/api/aux_inasistencias/<id>", methods=["PUT"])
+def api_aux_inasistencia_update(id):
+    try:
+        oid = ObjectId(id)
+    except Exception:
+        return jsonify(ok=False, error="ID inválido"), 400
+
+    data = request.get_json(silent=True) or {}
+    updates = {}
+
+    for campo in ("fecha", "causa", "observaciones"):
+        if campo in data and data[campo] is not None:
+            if campo == "fecha":
+                d = _parse_date(data.get("fecha"))
+                if not d:
+                    return jsonify(ok=False, error="Fecha inválida"), 400
+                updates["fecha"] = d.isoformat()
+            else:
+                updates[campo] = (data.get(campo) or "").strip()
+
+    sup = data.get("suplente_info") or data.get("suplente") or {}
+    if isinstance(sup, dict):
+        sup_clean = {
+            "nombre": (sup.get("nombre") or "").strip(),
+            "dni": (sup.get("dni") or "").strip(),
+            "curso": (sup.get("curso") or "").strip(),
+            "asignatura": (sup.get("asignatura") or "").strip(),
+        }
+        sup_clean = {k: v for k, v in sup_clean.items() if v}
+        updates["suplente_info"] = sup_clean
+
+    if not updates:
+        return jsonify(ok=False, error="Sin cambios"), 400
+
+    COL_INASISTENCIAS_AUX.update_one({"_id": oid}, {"$set": updates})
+    return jsonify(ok=True)
+
+
+@app.route("/api/aux_inasistencias/<id>", methods=["DELETE"])
+def api_aux_inasistencia_delete(id):
+    try:
+        oid = ObjectId(id)
+    except Exception:
+        return jsonify(ok=False, error="ID inválido"), 400
+
+    res = COL_INASISTENCIAS_AUX.delete_one({"_id": oid})
+    return jsonify(ok=bool(res.deleted_count), deleted=int(res.deleted_count))
+
+
+# ----------------- HISTORIAL AUX (vista + APIs) -----------------
+
+@app.get("/aux_inasistencias/historial")
+def aux_historial_inasistencias():
+    if not mongo_ping_ok():
+        return render_template("db_down.html"), 503
+
+    auxs = list(COL_AUX.find().sort([("apellido", 1), ("nombre", 1)]))
+    auxs = [{"_id": str(a["_id"]), "apellido": a.get("apellido", ""), "nombre": a.get("nombre", "")} for a in auxs]
+    return render_template("historial_inasistencias_aux.html", auxiliares=auxs)
+
+
+@app.get("/api/aux_historial_lista")
+def api_aux_historial_lista():
+    if not mongo_ping_ok():
+        return jsonify({"ok": False, "error": "db_down"}), 503
+
+    q = _aux_historial_query_from_args(request.args)
+    ins_list = list(COL_INASISTENCIAS_AUX.find(q).sort("fecha", 1))
+
+    aux_oids = []
+    for ins in ins_list:
+        aid = ins.get("auxiliar_id")
+        if aid:
+            try:
+                aux_oids.append(_maybe_oid(aid))
+            except Exception:
+                pass
+
+    aux_oids = [a for a in aux_oids if a is not None]
+
+    aux_map = {}
+    if aux_oids:
+        for a in COL_AUX.find({"_id": {"$in": aux_oids}}, {"apellido": 1, "nombre": 1, "cargo": 1}):
+            aux_map[str(a["_id"])] = {
+                "nombre": a.get("nombre", ""),
+                "apellido": a.get("apellido", ""),
+                "cargo": a.get("cargo", ""),
+            }
+
+    rows = []
+    for ins in ins_list:
+        aid_raw = ins.get("auxiliar_id")
+        aid_str = str(aid_raw) if aid_raw is not None else ""
+
+        a = aux_map.get(aid_str, {})
+        aux_nombre = f"{a.get('apellido','')}, {a.get('nombre','')}".strip(", ") if a else ""
+
+        rows.append({
+            "_id": str(ins.get("_id")),
+            "fecha": ins.get("fecha", ""),
+            "causa": ins.get("causa", ""),
+            "observaciones": ins.get("observaciones", ""),
+            "suplente_info": ins.get("suplente_info") or {},
+            "auxiliar_id": aid_str,
+            "auxiliar_nombre": aux_nombre,
+            "edit_url": f"/aux_inasistencias/{str(ins.get('_id'))}/editar",
+        })
+
+    return jsonify({"ok": True, "items": rows})
+
+
+@app.get("/api/aux_historial_resumen")
+def api_aux_historial_resumen():
+    if not mongo_ping_ok():
+        return jsonify({"ok": False, "error": "db_down"}), 503
+
+    q = _aux_historial_query_from_args(request.args)
+
+    por = {
+        "enfermedad_personal": 0,
+        "enfermedad_familiar": 0,
+        "enfermedad_cronica": 0,
+        "particulares": 0,
+        "citacion_otro_establecimiento": 0,
+        "injustificadas": 0,
+        "pre_examen": 0,
+        "duelo": 0,
+        "examen": 0,
+        "paro": 0,
+        "art": 0,
+        "licencia_extraordinaria": 0,
+        "otras": 0,
+    }
+
+    total = 0
+    for ins in COL_INASISTENCIAS_AUX.find(q, {"causa": 1}):
+        total += 1
+        b = _causa_bucket(_norm(ins.get("causa", "")))
+        if b not in por:
+            b = "otras"
+        por[b] += 1
+
+    return jsonify({"ok": True, "total": total, "por_causa": por})
+
+
+# ----------------- CALENDARIO ANUAL AUX (tipo SET4) -----------------
+
+@app.route("/auxiliares/<id>/inasistencias_anuales")
+def auxiliar_inasistencias_anuales(id):
+    try:
+        oid = ObjectId(id)
+    except Exception:
+        abort(404)
+
+    anio_param = (request.args.get("anio") or "").strip()
+    try:
+        anio = int(anio_param) if anio_param else date.today().year
+    except ValueError:
+        anio = date.today().year
+
+    auxiliar = COL_AUX.find_one({"_id": oid})
+    if not auxiliar:
+        abort(404)
+
+    desde_iso = date(anio, 1, 1).isoformat()
+    hasta_iso = date(anio, 12, 31).isoformat()
+
+    q = {"auxiliar_id": oid, "fecha": {"$gte": desde_iso, "$lte": hasta_iso}}
+
+    por = {
+        "enfermedad_personal": 0,
+        "enfermedad_familiar": 0,
+        "enfermedad_cronica": 0,
+        "particulares": 0,
+        "citacion_otro_establecimiento": 0,
+        "injustificadas": 0,
+        "pre_examen": 0,
+        "duelo": 0,
+        "examen": 0,
+        "paro": 0,
+        "art": 0,
+        "licencia_extraordinaria": 0,
+        "otras": 0,
+        "suma": 0,
+    }
+
+    faltas_por_fecha = {}
+
+    for ins in COL_INASISTENCIAS_AUX.find(q):
+        f = _parse_date(ins.get("fecha"))
+        if not f:
+            continue
+        causa = (ins.get("causa") or "").strip()
+        b = _causa_bucket(_norm(causa))
+        if b not in por:
+            b = "otras"
+        por[b] += 1
+        por["suma"] += 1
+        faltas_por_fecha[(f.month, f.day)] = _color_for_causa(causa)
+
+    meses_data = []
+    for mes in range(1, 13):
+        dias_habiles = get_dias_habiles(anio, mes)
+
+        filas = []
+        fila_actual = [None] * 5
+        last_weekday = None
+
+        for f in dias_habiles:
+            wd = f.weekday()
+            if last_weekday is not None and wd == 0:
+                if any(c is not None for c in fila_actual):
+                    filas.append(fila_actual)
+                fila_actual = [None] * 5
+
+            fila_actual[wd] = {
+                "dia": f.day,
+                "color": faltas_por_fecha.get((mes, f.day)),
+            }
+            last_weekday = wd
+
+        if any(c is not None for c in fila_actual):
+            filas.append(fila_actual)
+
+        meses_data.append({
+            "num": mes,
+            "nombre": MESES_MAYUS.get(mes, str(mes)),
+            "filas": filas,
+        })
+
+    return render_template(
+        "auxiliar_inasistencias_calendario.html",
+        auxiliar=auxiliar,
+        anio=anio,
+        meses=meses_data,
+        totales=por,
+        periodo={"desde": desde_iso, "hasta": hasta_iso},
+        fecha_impresion=date.today(),
+    )
 
 # ----------------- ANEXOS (Punto 4) -----------------
 # ----------------- ANEXOS (Modelos oficiales exactos) -----------------
@@ -4185,7 +4618,7 @@ def eliminar_auxiliar(id):
 @app.route("/anexos")
 def anexos_index():
     # Cursos desde alumnos
-    cursos = COL_ALUMNOS.distinct("curso")
+    cursos = COL_ALUMNOS.distinct("curso") 
     cursos = sorted(
     [c for c in COL_ALUMNOS.distinct("curso", filtro_activos()) if c],
     key=lambda x: str(x)

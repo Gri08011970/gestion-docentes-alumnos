@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block title %}Historial de Inasistencias (Auxiliares){% endblock %}
+
+{% block content %}
+<div class="container my-4">
+  <h2 class="mb-3">Historial de Inasistencias — Auxiliares</h2>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label">Auxiliar</label>
+          <select class="form-select" id="fAux">
+            <option value="TODOS">TODOS</option>
+            {% for a in auxiliares %}
+              <option value="{{ a._id }}">{{ a.apellido }}, {{ a.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Desde</label>
+          <input class="form-control" type="date" id="fDesde">
+        </div>
+
+        <div class="col-md-2">
+          <label class="form-label">Hasta</label>
+          <input class="form-control" type="date" id="fHasta">
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label">Causa</label>
+          <select class="form-select" id="fCausa">
+            <option value="TODAS">TODAS</option>
+            <option value="enfermedad personal">Enfermedad personal</option>
+            <option value="enfermedad familiar">Enfermedad familiar</option>
+            <option value="enfermedad crónica">Enfermedad crónica</option>
+            <option value="particulares">Particulares</option>
+            <option value="causas particulares">Causas particulares</option>
+            <option value="citación a otro establecimiento">Citación a otro establecimiento</option>
+            <option value="injustificadas">Injustificadas</option>
+            <option value="pre-examen">Pre-examen</option>
+            <option value="pre-exámenes">Pre-exámenes</option>
+            <option value="duelo">Duelo</option>
+            <option value="examen">Examen</option>
+            <option value="paro">Paro</option>
+            <option value="ART">ART</option>
+            <option value="Licencia extraordinaria">Licencia extraordinaria</option>
+            <option value="otras">Otras</option>
+          </select>
+        </div>
+
+        <div class="col-md-1 d-grid">
+          <button class="btn btn-primary" id="btnAplicar">Aplicar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-header fw-bold">Resumen y Alertas</div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span>Total de inasistencias</span>
+            <span class="badge text-bg-secondary" id="resTotal">0</span>
+          </div>
+          <hr>
+          <div id="resCausas" class="d-grid gap-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span class="fw-bold">Resultados</span>
+          <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">Imprimir historial</button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+              <thead class="table-info">
+                <tr>
+                  <th style="width:110px;">Fecha</th>
+                  <th>Auxiliar</th>
+                  <th style="width:260px;">Causa</th>
+                  <th style="width:170px;">Suplente</th>
+                  <th>Obs.</th>
+                  <th style="width:120px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tblBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal EP91 confirm -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmModalTitle">Confirmar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="confirmModalBody">¿Confirmás la acción?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirmModalOk">Sí, eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const fAux    = document.getElementById("fAux");
+  const fDesde  = document.getElementById("fDesde");
+  const fHasta  = document.getElementById("fHasta");
+  const fCausa  = document.getElementById("fCausa");
+  const btnAplicar = document.getElementById("btnAplicar");
+
+  const resTotal  = document.getElementById("resTotal");
+  const resCausas = document.getElementById("resCausas");
+  const tblBody   = document.getElementById("tblBody");
+
+  function val(el) { return (el && el.value != null) ? String(el.value).trim() : ""; }
+
+  function buildParams() {
+    const params = new URLSearchParams();
+    params.set("auxiliar_id", val(fAux));
+    params.set("desde", val(fDesde));
+    params.set("hasta", val(fHasta));
+    params.set("causa", val(fCausa));
+    return params;
+  }
+
+  function showConfirmModal(titulo, mensaje, onOk) {
+    const titleEl = document.getElementById("confirmModalTitle");
+    const bodyEl  = document.getElementById("confirmModalBody");
+    const okBtn   = document.getElementById("confirmModalOk");
+    titleEl.textContent = titulo || "Confirmar";
+    bodyEl.textContent  = mensaje || "¿Confirmás la acción?";
+
+    const newOkBtn = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+
+    newOkBtn.addEventListener("click", async () => {
+      try { await (onOk && onOk()); } finally {
+        const modalEl = document.getElementById("confirmModal");
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+      }
+    });
+
+    new bootstrap.Modal(document.getElementById("confirmModal")).show();
+  }
+
+  function labelBucket(k) {
+    const labels = {
+      enfermedad_personal: "Enfermedad personal",
+      enfermedad_familiar: "Enfermedad familiar",
+      enfermedad_cronica: "Enfermedad crónica",
+      particulares: "Particulares / Causas particulares",
+      citacion_otro_establecimiento: "Citación a otro establecimiento",
+      injustificadas: "Injustificadas",
+      pre_examen: "Pre-exámenes",
+      duelo: "Duelo",
+      examen: "Examen",
+      paro: "Paro",
+      art: "ART",
+      licencia_extraordinaria: "Licencia extraordinaria",
+      otras: "Otras",
+    };
+    return labels[k] || k;
+  }
+
+  function renderResumen(apiData) {
+    const total = Number(apiData?.total ?? 0);
+    if (resTotal) resTotal.textContent = String(total);
+
+    const por = apiData?.por_causa || {};
+    const orden = [
+      "enfermedad_personal","enfermedad_familiar","enfermedad_cronica",
+      "particulares","citacion_otro_establecimiento","injustificadas",
+      "pre_examen","duelo","examen","paro","art","licencia_extraordinaria","otras"
+    ];
+
+    const html = orden.map(k => {
+      const n = Number(por[k] || 0);
+      if (!n) return "";
+      return `
+        <div class="d-flex justify-content-between border-bottom py-1">
+          <span>${labelBucket(k)}</span>
+          <span class="badge bg-secondary">${n}</span>
+        </div>`;
+    }).join("");
+
+    resCausas.innerHTML = html || `<div class="text-muted">Sin datos para mostrar.</div>`;
+  }
+
+  function renderTabla(items) {
+    if (!Array.isArray(items) || items.length === 0) {
+      tblBody.innerHTML = `<tr><td colspan="6" class="text-muted">Sin resultados.</td></tr>`;
+      return;
+    }
+
+    tblBody.innerHTML = items.map(r => {
+      const supObj = r.suplente_info || {};
+      const supl = supObj.nombre || r.suplente_nombre || r.suplente || "";
+      const obs  = r.observaciones || "";
+      const editUrl = r.edit_url || "#";
+
+      return `
+        <tr>
+          <td>${r.fecha || ""}</td>
+          <td>${r.auxiliar_nombre || ""}</td>
+          <td>${r.causa || ""}</td>
+          <td>${supl || ""}</td>
+          <td>${obs || ""}</td>
+          <td class="text-nowrap">
+            <a class="btn btn-sm btn-outline-primary" href="${editUrl}"><i class="fas fa-edit"></i></a>
+            <button class="btn btn-sm btn-outline-danger" data-del="${r._id}"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`;
+    }).join("");
+
+    tblBody.querySelectorAll("button[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-del");
+        if (!id) return;
+
+        showConfirmModal(
+          "Eliminar inasistencia",
+          "¿Confirmás eliminar esta inasistencia? Esta acción no se puede deshacer.",
+          async () => {
+            const resp = await fetch(`/api/aux_inasistencias/${id}`, { method: "DELETE" });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || data.ok === false) {
+              alert(data.error || "No se pudo eliminar.");
+              return;
+            }
+            await cargarResumenYTabla();
+          }
+        );
+      });
+    });
+  }
+
+  async function cargarResumenYTabla() {
+    const params = buildParams();
+
+    try {
+      const r1 = await fetch(`/api/aux_historial_resumen?${params.toString()}`);
+      const data1 = await r1.json();
+      renderResumen(data1);
+    } catch (e) {
+      resCausas.innerHTML = `<div class="text-danger">Error cargando resumen.</div>`;
+    }
+
+    try {
+      const r2 = await fetch(`/api/aux_historial_lista?${params.toString()}`);
+      const data2 = await r2.json();
+      const items = data2.items || [];
+      renderTabla(items);
+    } catch (e) {
+      tblBody.innerHTML = `<tr><td colspan="6" class="text-danger">Error cargando datos.</td></tr>`;
+    }
+  }
+
+  btnAplicar.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    cargarResumenYTabla();
+  });
+
+  cargarResumenYTabla();
+});
+</script>
+{% endblock %}

@@ -1,41 +1,222 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Auxiliares</h2>
-<button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#modalNuevoAux">Agregar auxiliar</button>
 
-<table class="table">
-  <thead><tr><th>Nombre</th><th>Situación revista</th><th>Sectores</th><th>Turno / Horario</th><th>Acciones</th></tr></thead>
+<button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#modalNuevoAux">
+  Agregar auxiliar
+</button>
+
+<table class="table table-striped align-middle">
+  <thead>
+    <tr>
+      <th>Nombre</th>
+      <th>Cargo</th>
+      <th>Situación revista</th>
+      <th>Sectores</th>
+      <th>Turno / Horario</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+
   <tbody>
     {% for a in auxiliares %}
     <tr>
-      <td>{{ a.get('nombre','') }} {{ a.get('apellido','') }}</td>
+      <td><strong>{{ a.get('apellido','') }}, {{ a.get('nombre','') }}</strong></td>
+
+      <!-- ✅ Cargo -->
+      <td>
+        {% set cargo = (a.get('cargo','') or '').strip() %}
+        {% if cargo %}
+          {{ cargo }}
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      </td>
+
       <td>{{ a.get('situacion_revista','') }}</td>
       <td>{{ a.get('Sectores','') }}</td>
       <td>{{ a.get('turno','') }} / {{ a.get('horario','') }}</td>
+
       <td>
-        <form style="display:inline" action="{{ url_for('eliminar_auxiliar', id=a['_id']) }}" method="post">
-          <button class="btn btn-sm btn-danger">Eliminar</button>
-        </form>
+        <div class="d-flex gap-2 flex-wrap">
+
+          <!-- ✅ Editar -->
+          <button type="button"
+                  class="btn btn-sm btn-primary"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalEditarAux"
+                  data-id="{{ a['_id'] }}"
+                  data-nombre="{{ a.get('nombre','') }}"
+                  data-apellido="{{ a.get('apellido','') }}"
+                  data-cargo="{{ a.get('cargo','') }}"
+                  data-situacion="{{ a.get('situacion_revista','') }}"
+                  data-sectores="{{ a.get('Sectores','') }}"
+                  data-turno="{{ a.get('turno','') }}"
+                  data-horario="{{ a.get('horario','') }}">
+            Editar
+          </button>
+
+          <!-- ✅ Inasistencias (calendario anual) -->
+          <a class="btn btn-sm btn-outline-secondary"
+             href="{{ url_for('auxiliar_inasistencias_anuales', id=a['_id']) }}">
+            Inasistencias
+          </a>
+
+          <!-- ✅ Eliminar -->
+          <form style="display:inline"
+                action="{{ url_for('eliminar_auxiliar', id=a['_id']) }}"
+                method="post"
+                onsubmit="return confirm('¿Eliminar auxiliar?');">
+            <button class="btn btn-sm btn-danger">Eliminar</button>
+          </form>
+
+        </div>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
-<!-- Modal auxiliar -->
-<div class="modal fade" id="modalNuevoAux" tabindex="-1">
+<!-- ===================== MODAL NUEVO ===================== -->
+<div class="modal fade" id="modalNuevoAux" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <form method="post" action="{{ url_for('nuevo_auxiliar') }}" class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Nuevo auxiliar</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <input name="nombre" class="form-control mb-2" placeholder="Nombre">
-        <input name="apellido" class="form-control mb-2" placeholder="Apellido">
-        <input name="turno" class="form-control mb-2" placeholder="Turno (Mañana/Tarde)">
-        <input name="horario" class="form-control mb-2" placeholder="Horario">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuevo auxiliar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button><button class="btn btn-primary">Guardar</button></div>
+
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">Nombre</label>
+          <input name="nombre" class="form-control" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Apellido</label>
+          <input name="apellido" class="form-control" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Cargo</label>
+          <input name="cargo" class="form-control" placeholder="Ej: Auxiliar / Cocinero / Portero etc">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Situación de revista</label>
+          <select name="situacion_revista" class="form-select">
+            <option value="Titular">Titular</option>
+            <option value="Mensualizado">Mensualzado</option>
+            <option value="Suplente">Suplente</option>
+          </select>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Sectores</label>
+          <input name="Sectores" class="form-control" placeholder="Ej: Cocina, Patio, Limpieza">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Turno</label>
+          <input name="turno" class="form-control" placeholder="Mañana / Tarde">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Horario</label>
+          <input name="horario" class="form-control" placeholder="Ej: 7:30 a 13:30">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cerrar</button>
+        <button class="btn btn-primary" type="submit">Guardar</button>
+      </div>
     </form>
   </div>
 </div>
+
+<!-- ===================== MODAL EDITAR ===================== -->
+<div class="modal fade" id="modalEditarAux" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content" id="formEditarAux">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar auxiliar</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">Nombre</label>
+          <input id="aux-edit-nombre" name="nombre" class="form-control" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Apellido</label>
+          <input id="aux-edit-apellido" name="apellido" class="form-control" required>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Cargo</label>
+          <input id="aux-edit-cargo" name="cargo" class="form-control">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Situación de revista</label>
+          <select id="aux-edit-situacion" name="situacion_revista" class="form-select">
+            <option value="Titular">Titular</option>
+            <option value="Mensualizado">Mensualizado</option>
+            <option value="Suplente">Suplente</option>
+          </select>
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Sectores</label>
+          <input id="aux-edit-sectores" name="Sectores" class="form-control">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Turno</label>
+          <input id="aux-edit-turno" name="turno" class="form-control">
+        </div>
+
+        <div class="mb-2">
+          <label class="form-label">Horario</label>
+          <input id="aux-edit-horario" name="horario" class="form-control">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary" type="submit">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(() => {
+  const modal = document.getElementById("modalEditarAux");
+  if (!modal) return;
+
+  modal.addEventListener("show.bs.modal", (ev) => {
+    const btn = ev.relatedTarget;
+    if (!btn) return;
+
+    const id = btn.getAttribute("data-id");
+
+    document.getElementById("formEditarAux").action = `/auxiliares/${id}/editar`;
+    document.getElementById("aux-edit-nombre").value = btn.getAttribute("data-nombre") || "";
+    document.getElementById("aux-edit-apellido").value = btn.getAttribute("data-apellido") || "";
+    document.getElementById("aux-edit-cargo").value = btn.getAttribute("data-cargo") || "";
+    document.getElementById("aux-edit-sectores").value = btn.getAttribute("data-sectores") || "";
+    document.getElementById("aux-edit-turno").value = btn.getAttribute("data-turno") || "";
+    document.getElementById("aux-edit-horario").value = btn.getAttribute("data-horario") || "";
+
+    const sit = btn.getAttribute("data-situacion") || "";
+    const sel = document.getElementById("aux-edit-situacion");
+    if (sel && sit) sel.value = sit;
+  });
+})();
+</script>
 
 {% endblock %}

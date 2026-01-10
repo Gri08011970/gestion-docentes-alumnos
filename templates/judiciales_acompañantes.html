@@ -66,6 +66,9 @@
                            data-id="{{ alu._id }}" 
                            value="{{ alu.get('horario_acomp','') }}">
                 </td>
+                
+
+
             </tr>
             {% endfor %}
         </tbody>
@@ -94,6 +97,50 @@ document.querySelectorAll('.dato-eoe').forEach(input => {
             fila.style.opacity = '1';
         }
     });
+});
+function diffDias(hoyISO, fechaISO) {
+  const h = new Date(hoyISO + "T00:00:00");
+  const f = new Date(fechaISO + "T00:00:00");
+  const ms = f - h;
+  return Math.round(ms / (1000*60*60*24));
+}
+
+function aplicarEstadoVencimiento(input, hoyISO) {
+  const fila = input.closest("tr");
+  fila.querySelectorAll(".badge-venc").forEach(b => b.remove());
+
+  input.classList.remove("border-danger","border-warning","bg-danger-subtle","bg-warning-subtle");
+
+  const v = input.value;
+  if (!v) return;
+
+  const d = diffDias(hoyISO, v);
+
+  const badge = document.createElement("span");
+  badge.className = "badge badge-venc ms-2";
+
+  if (d < 0) {
+    input.classList.add("border-danger","bg-danger-subtle");
+    badge.classList.add("text-bg-danger");
+    badge.textContent = `Vencido hace ${Math.abs(d)} día(s)`;
+  } else if (d <= 15) {
+    input.classList.add("border-warning","bg-warning-subtle");
+    badge.classList.add("text-bg-warning");
+    badge.textContent = `Vence en ${d} día(s)`;
+  } else {
+    // ok: sin alerta
+    return;
+  }
+
+  input.parentElement.appendChild(badge);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const hoyISO = "{{ hoy_iso }}";
+  document.querySelectorAll('input[name="venc_judicial"]').forEach(inp => {
+    aplicarEstadoVencimiento(inp, hoyISO);
+    inp.addEventListener("change", () => aplicarEstadoVencimiento(inp, hoyISO));
+  });
 });
 </script>
 {% endblock %}

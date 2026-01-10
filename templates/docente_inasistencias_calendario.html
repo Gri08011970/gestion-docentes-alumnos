@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}
-Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }} – {{ anio }}
+Inasistencias {{ docente.get('apellido','') }}, {{ docente.get('nombre','') }} – {{ anio }}
 {% endblock %}
 
 {% block extra_head %}
@@ -132,8 +132,8 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
 <div class="container my-3">
   <div class="d-flex justify-content-between align-items-center mb-2 d-print-none">
     <div>
-      <a href="{{ url_for('listar_auxiliares') }}" class="btn btn-sm btn-outline-secondary">
-        ← Volver a auxiliares
+      <a href="{{ url_for('listar_docentes') }}" class="btn btn-sm btn-outline-secondary">
+        ← Volver a docentes
       </a>
     </div>
     <div class="d-flex align-items-center gap-2">
@@ -155,10 +155,10 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
       <div>
         <h4>Inasistencias – {{ anio }}</h4>
         <small>
-          Auxiliar: <strong>{{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}</strong>
+          Docente: <strong>{{ docente.get('apellido','') }}, {{ docente.get('nombre','') }}</strong>
           &nbsp;·&nbsp;
           Cargo:
-          {% set cargo = (auxiliar.get('cargo','') or '').strip() %}
+          {% set cargo = (docente.get('cargo','') or '').strip() %}
           {% if cargo %}{{ cargo }}{% else %}<span class="text-muted">—</span>{% endif %}
         </small>
       </div>
@@ -246,7 +246,7 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
 
       <div style="flex: 1; text-align:right; padding-right:20px;">
         <p>Firma del directivo: ________________________</p>
-        <p>Firma del auxiliar: _________________________</p>
+        <p>Firma del docente: _________________________</p>
       </div>
     </div>
   </div>

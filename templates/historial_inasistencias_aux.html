@@ -10,7 +10,7 @@
       <div class="row g-2 align-items-end">
         <div class="col-md-4">
           <label class="form-label">Auxiliar</label>
-          <select class="form-select" id="fAux">
+          <select class="form-select" id="fAuxiliar">
             <option value="TODOS">TODOS</option>
             {% for a in auxiliares %}
               <option value="{{ a._id }}">{{ a.apellido }}, {{ a.nombre }}</option>
@@ -121,10 +121,10 @@
 {% block extra_js %}
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const fAux    = document.getElementById("fAux");
-  const fDesde  = document.getElementById("fDesde");
-  const fHasta  = document.getElementById("fHasta");
-  const fCausa  = document.getElementById("fCausa");
+  const fAuxiliar = document.getElementById("fAuxiliar");
+  const fDesde   = document.getElementById("fDesde");
+  const fHasta   = document.getElementById("fHasta");
+  const fCausa   = document.getElementById("fCausa");
   const btnAplicar = document.getElementById("btnAplicar");
 
   const resTotal  = document.getElementById("resTotal");
@@ -135,7 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function buildParams() {
     const params = new URLSearchParams();
-    params.set("auxiliar_id", val(fAux));
+    params.set("auxiliar_id", val(fAuxiliar));
     params.set("desde", val(fDesde));
     params.set("hasta", val(fHasta));
     params.set("causa", val(fCausa));
@@ -163,6 +163,33 @@ document.addEventListener("DOMContentLoaded", () => {
     new bootstrap.Modal(document.getElementById("confirmModal")).show();
   }
 
+  // Buckets (igual que docentes)
+  function norm(s) {
+    return (s || "")
+      .toString().toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/_/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function bucketFromCausa(raw) {
+    const c = norm(raw);
+    if (c.includes("enfermedad") && c.includes("personal")) return "enfermedad_personal";
+    if (c.includes("enfermedad") && c.includes("familiar")) return "enfermedad_familiar";
+    if (c.includes("cronica")) return "enfermedad_cronica";
+    if (c.includes("pre") && c.includes("examen")) return "pre_examen";
+    if (c.includes("citacion") && c.includes("establecimiento")) return "citacion_otro_establecimiento";
+    if (c.includes("injust")) return "injustificadas";
+    if (c.includes("licencia") && c.includes("extra")) return "licencia_extraordinaria";
+    if (c === "art") return "art";
+    if (c.includes("paro")) return "paro";
+    if (c.includes("duelo")) return "duelo";
+    if (c.includes("examen")) return "examen";
+    if (c.includes("particular")) return "particulares";
+    return "otras";
+  }
+
   function labelBucket(k) {
     const labels = {
       enfermedad_personal: "Enfermedad personal",
@@ -183,10 +210,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderResumen(apiData) {
-    const total = Number(apiData?.total ?? 0);
+    const data = apiData?.data ? apiData.data : apiData;
+    const total = Number(data?.total ?? 0);
     if (resTotal) resTotal.textContent = String(total);
 
-    const por = apiData?.por_causa || {};
+    const por = data?.por_causa || {};
     const orden = [
       "enfermedad_personal","enfermedad_familiar","enfermedad_cronica",
       "particulares","citacion_otro_establecimiento","injustificadas",
@@ -207,6 +235,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderTabla(items) {
+    if (!tblBody) return;
+
     if (!Array.isArray(items) || items.length === 0) {
       tblBody.innerHTML = `<tr><td colspan="6" class="text-muted">Sin resultados.</td></tr>`;
       return;
@@ -214,9 +244,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     tblBody.innerHTML = items.map(r => {
       const supObj = r.suplente_info || {};
-      const supl = supObj.nombre || r.suplente_nombre || r.suplente || "";
+      const supl = supObj.nombre || "";
       const obs  = r.observaciones || "";
-      const editUrl = r.edit_url || "#";
+      const editUrl = r._id ? `/aux_inasistencias/${r._id}/editar` : "#";
 
       return `
         <tr>
@@ -236,7 +266,6 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-del");
         if (!id) return;
-
         showConfirmModal(
           "Eliminar inasistencia",
           "¿Confirmás eliminar esta inasistencia? Esta acción no se puede deshacer.",
@@ -262,16 +291,27 @@ document.addEventListener("DOMContentLoaded", () => {
       const data1 = await r1.json();
       renderResumen(data1);
     } catch (e) {
-      resCausas.innerHTML = `<div class="text-danger">Error cargando resumen.</div>`;
+      console.error("Error resumen:", e);
+      if (resCausas) resCausas.innerHTML = `<div class="text-danger">Error cargando resumen.</div>`;
     }
 
     try {
       const r2 = await fetch(`/api/aux_historial_lista?${params.toString()}`);
       const data2 = await r2.json();
-      const items = data2.items || [];
+      const items = Array.isArray(data2) ? data2 : (data2.items || []);
       renderTabla(items);
+
+      // fallback resumen desde items
+      const buckets = {};
+      for (const it of items) {
+        const b = bucketFromCausa(it.causa || "");
+        buckets[b] = (buckets[b] || 0) + 1;
+      }
+      renderResumen({ total: items.length, por_causa: buckets });
+
     } catch (e) {
-      tblBody.innerHTML = `<tr><td colspan="6" class="text-danger">Error cargando datos.</td></tr>`;
+      console.error("Error tabla:", e);
+      if (tblBody) tblBody.innerHTML = `<tr><td colspan="6" class="text-danger">Error cargando datos.</td></tr>`;
     }
   }
 

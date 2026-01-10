@@ -15,8 +15,8 @@
       <th>Sectores</th>
       <th>Turno / Horario</th>
       <th>Acciones</th>
-    </tr>
-  </thead>
+    </tr> 
+  </thead> 
 
   <tbody>
     {% for a in auxiliares %}
@@ -38,40 +38,53 @@
       <td>{{ a.get('turno','') }} / {{ a.get('horario','') }}</td>
 
       <td>
-        <div class="d-flex gap-2 flex-wrap">
+  <div class="d-flex gap-2 flex-wrap">
 
-          <!-- ✅ Editar -->
-          <button type="button"
-                  class="btn btn-sm btn-primary"
-                  data-bs-toggle="modal"
-                  data-bs-target="#modalEditarAux"
-                  data-id="{{ a['_id'] }}"
-                  data-nombre="{{ a.get('nombre','') }}"
-                  data-apellido="{{ a.get('apellido','') }}"
-                  data-cargo="{{ a.get('cargo','') }}"
-                  data-situacion="{{ a.get('situacion_revista','') }}"
-                  data-sectores="{{ a.get('Sectores','') }}"
-                  data-turno="{{ a.get('turno','') }}"
-                  data-horario="{{ a.get('horario','') }}">
-            Editar
-          </button>
+    <!-- ✅ Editar -->
+    <button type="button"
+            class="btn btn-sm btn-primary"
+            data-bs-toggle="modal"
+            data-bs-target="#modalEditarAux"
+            data-id="{{ a['_id'] }}"
+            data-nombre="{{ a.get('nombre','') }}"
+            data-apellido="{{ a.get('apellido','') }}"
+            data-cargo="{{ a.get('cargo','') }}"
+            data-situacion="{{ a.get('situacion_revista','') }}"
+            data-sectores="{{ a.get('Sectores','') }}"
+            data-turno="{{ a.get('turno','') }}"
+            data-horario="{{ a.get('horario','') }}">
+      Editar
+    </button>
 
-          <!-- ✅ Inasistencias (calendario anual) -->
-          <a class="btn btn-sm btn-outline-secondary"
-             href="{{ url_for('auxiliar_inasistencias_anuales', id=a['_id']) }}">
-            Inasistencias
-          </a>
+    <!-- ✅ Cargar inasistencia -->
+    <a class="btn btn-sm btn-outline-primary"
+       href="{{ url_for('aux_ver_inasistencias') }}">
+      Cargar inasistencia
+    </a>
 
-          <!-- ✅ Eliminar -->
-          <form style="display:inline"
-                action="{{ url_for('eliminar_auxiliar', id=a['_id']) }}"
-                method="post"
-                onsubmit="return confirm('¿Eliminar auxiliar?');">
-            <button class="btn btn-sm btn-danger">Eliminar</button>
-          </form>
+    <!-- ✅ Historial -->
+    <a class="btn btn-sm btn-outline-secondary"
+       href="{{ url_for('aux_historial_inasistencias') }}">
+      Historial
+    </a>
 
-        </div>
-      </td>
+    <!-- ✅ Calendario anual -->
+    <a class="btn btn-sm btn-outline-secondary"
+       href="{{ url_for('auxiliar_inasistencias_anuales', id=a['_id']) }}">
+      Calendario anual
+    </a>
+
+    <!-- ✅ Eliminar -->
+    <form style="display:inline"
+          action="{{ url_for('eliminar_auxiliar', id=a['_id']) }}"
+          method="post"
+          onsubmit="return confirm('¿Eliminar auxiliar?');">
+      <button class="btn btn-sm btn-danger">Eliminar</button>
+    </form>
+
+  </div>
+</td>
+
     </tr>
     {% endfor %}
   </tbody>
@@ -133,7 +146,7 @@
       </div>
     </form>
   </div>
-</div>
+</div> 
 
 <!-- ===================== MODAL EDITAR ===================== -->
 <div class="modal fade" id="modalEditarAux" tabindex="-1" aria-hidden="true">

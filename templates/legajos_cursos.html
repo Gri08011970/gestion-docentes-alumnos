@@ -9,7 +9,12 @@
     <p class="text-muted mb-0">
       Seleccionar un curso para ver y completar los legajos de sus estudiantes.
     </p>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('listar_alumnos') }}">Volver a Estudiantes</a>
+      
+    </div>
   </div>
+
 </div>
 
 {% if cursos %}

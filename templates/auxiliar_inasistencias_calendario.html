@@ -6,7 +6,6 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
 
 {% block extra_head %}
 <style>
-  /* Hoja tipo media A4 horizontal para imprimir */
   .hoja-inasistencias {
     background: #fff;
     border: 1px solid #ccc;
@@ -23,23 +22,13 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
     padding-bottom: 4px;
   }
 
-  .hoja-encabezado h4 {
-    margin: 0;
-    font-size: 14px;
-  }
+  .hoja-encabezado h4 { margin: 0; font-size: 14px; }
+  .hoja-encabezado small { font-size: 10px; }
 
-  .hoja-encabezado small {
-    font-size: 10px;
-  }
-
-  .calendario-anual {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
+  .calendario-anual { display: flex; flex-wrap: wrap; gap: 4px; }
 
   .mes-box {
-    flex: 1 0 22%; /* 4 meses por fila aprox */
+    flex: 1 0 22%;
     border: 1px solid #ddd;
     padding: 3px;
     min-width: 210px;
@@ -52,43 +41,24 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
     margin-bottom: 2px;
   }
 
-  .tabla-mes {
-    width: 100%;
-    border-collapse: collapse;
-    table-layout: fixed;
-  }
+  .tabla-mes { width: 100%; border-collapse: collapse; table-layout: fixed; }
 
-  .tabla-mes th,
-  .tabla-mes td {
+  .tabla-mes th, .tabla-mes td {
     border: 1px solid #ddd;
     text-align: center;
     padding: 1px;
     font-size: 9px;
   }
 
-  .tabla-mes th {
-    background: #f5f5f5;
-    font-weight: 600;
-  }
+  .tabla-mes th { background: #f5f5f5; font-weight: 600; }
+  .dia-vacio { background: #fafafa; }
+  .dia-con-falta { color: #fff; font-weight: 600; }
 
-  .dia-vacio {
-    background: #fafafa;
-  }
-
-  .dia-con-falta {
-    color: #fff;
-    font-weight: 600;
-  }
-
-  .leyenda-inasistencias {
-    margin-top: 4px;
-    font-size: 9px;
-  }
+  .leyenda-inasistencias { margin-top: 4px; font-size: 9px; }
 
   .leyenda-color {
     display: inline-block;
-    width: 10px;
-    height: 10px;
+    width: 10px; height: 10px;
     border: 1px solid #444;
     margin-right: 4px;
     vertical-align: middle;
@@ -102,13 +72,9 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
     font-size: 10px;
   }
 
-  .resumen-inferior table {
-    border-collapse: collapse;
-    width: 100%;
-  }
+  .resumen-inferior table { border-collapse: collapse; width: 100%; }
 
-  .resumen-inferior th,
-  .resumen-inferior td {
+  .resumen-inferior th, .resumen-inferior td {
     border: 1px solid #000;
     padding: 2px 3px;
     font-size: 10px;
@@ -120,7 +86,7 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
     .container { max-width: none; padding: 0; margin: 0; }
     .hoja-inasistencias {
       width: 29.7cm;
-      height: 10.5cm; /* media hoja A4 horizontal */
+      height: 10.5cm;
       margin: 0;
       border: none;
     }
@@ -145,9 +111,7 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
                id="anio" name="anio" value="{{ anio }}">
         <button class="btn btn-sm btn-outline-primary">Ver</button>
       </form>
-      <button onclick="window.print()" class="btn btn-sm btn-primary">
-        Imprimir
-      </button>
+      <button onclick="window.print()" class="btn btn-sm btn-primary">Imprimir</button>
     </div>
   </div>
 
@@ -164,12 +128,11 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
       <div>
         <small>
           Período: {{ periodo.desde }} a {{ periodo.hasta }}<br>
-          <span>Fecha de impresión: {{ fecha_impresion.strftime('%d/%m/%Y') }}</span>
+          Fecha de impresión: {{ fecha_impresion.strftime('%d/%m/%Y') }}
         </small>
       </div>
     </div>
 
-    <!-- Calendarios mensuales -->
     <div class="calendario-anual">
       {% for mes in meses %}
       <div class="mes-box">
@@ -186,8 +149,7 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
               {% for celda in fila %}
                 {% if celda %}
                   {% if celda.color %}
-                    <td class="dia-con-falta" data-color="{{ celda.color }}"
-                        style="background-color: {{ celda.color }};">
+                    <td class="dia-con-falta" data-color="{{ celda.color }}" style="background-color: {{ celda.color }}">
                       {{ celda.dia }}
                     </td>
                   {% else %}
@@ -213,28 +175,21 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
       Citación / comisión de servicio en otro establecimiento
     </div>
 
-    <!-- Resumen tipo punto 14 SET4 -->
     <div class="resumen-inferior">
       <div style="flex: 1;">
         <table class="tabla-totales">
           <tr><td>Enfermedad Personal</td><td>{{ totales.enfermedad_personal or 0 }}</td></tr>
           <tr><td>Enfermedad Familiar</td><td>{{ totales.enfermedad_familiar or 0 }}</td></tr>
-
+          <tr><td>Enfermedad Crónica</td><td>{{ totales.enfermedad_cronica or 0 }}</td></tr>
           <tr><td>Causas Particulares</td><td>{{ totales.particulares or 0 }}</td></tr>
-
-          <!-- en tu backend el bucket es citacion_otro_establecimiento (no "citacion") -->
           <tr><td>Citación</td><td>{{ totales.citacion_otro_establecimiento or 0 }}</td></tr>
-
           <tr><td>Examen / Pre-Examen</td><td>{{ (totales.examen or 0) + (totales.pre_examen or 0) }}</td></tr>
           <tr><td>Duelo</td><td>{{ totales.duelo or 0 }}</td></tr>
           <tr><td>Paro</td><td>{{ totales.paro or 0 }}</td></tr>
-
-          <!-- en tu backend la clave es art (minúscula) -->
           <tr><td>ART</td><td>{{ totales.art or 0 }}</td></tr>
-
           <tr><td>Injustificadas</td><td>{{ totales.injustificadas or 0 }}</td></tr>
+          <tr><td>Licencia extraordinaria</td><td>{{ totales.licencia_extraordinaria or 0 }}</td></tr>
           <tr><td>Otras</td><td>{{ totales.otras or 0 }}</td></tr>
-
           <tr class="fw-bold" style="background: #eee;">
             <td>TOTAL INASISTENCIAS</td>
             <td>{{ totales.suma or 0 }}</td>
@@ -244,18 +199,18 @@ Inasistencias {{ auxiliar.get('apellido','') }}, {{ auxiliar.get('nombre','') }}
 
       <div style="flex: 1; text-align:right; padding-right:20px;">
         <p>Firma del directivo: ________________________</p>
-        <p>Firma del auxiliar: __________________________</p>
+        <p>Firma del auxiliar: _________________________</p>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll("td.dia-con-falta[data-color]").forEach(td => {
-      const c = td.dataset.color;
-      if (c) td.style.backgroundColor = c;
-    });
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("td.dia-con-falta[data-color]").forEach(td => {
+    const c = td.dataset.color;
+    if (c) td.style.backgroundColor = c;
   });
+});
 </script>
 {% endblock %}

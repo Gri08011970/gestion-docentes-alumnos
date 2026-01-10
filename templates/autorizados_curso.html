@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Autorizados a retirar - {{ curso }}</h2>
+<h2>Autorizados a retirar - {{ curso }}</h2>  
+
+ <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary" href="{{ url_for('autorizados_cursos') }}">Volver a Autorizados-Cursos</a>
+      
+  </div> 
+
 <table class="table table-sm table-bordered">
   <thead>
     <tr>

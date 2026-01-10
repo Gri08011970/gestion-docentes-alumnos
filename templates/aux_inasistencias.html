@@ -127,7 +127,7 @@
                 <input type="text" class="form-control" id="inas-suplente-dni" placeholder="DNI">
               </div>
               <div class="col-md-4">
-                <input type="text" class="form-control" id="inas-suplente-curso" placeholder="Curso / sector">
+                <input type="text" class="form-control" id="inas-suplente-curso" placeholder="Curso / sector / función">
               </div>
             </div>
           </div>
@@ -151,12 +151,12 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const form           = document.getElementById('formInasistenciaAux');
-  const alerta         = document.getElementById('inasistencias-alert');
-  const selectAux      = document.getElementById('inas-auxiliar');
-  const desdeInput     = document.getElementById('inas-desde');
-  const hastaInput     = document.getElementById('inas-hasta');
-  const btnGuardar     = document.getElementById('btnGuardarInasistencia');
+  const form       = document.getElementById('formInasistenciaAux');
+  const alerta     = document.getElementById('inasistencias-alert');
+  const selectAux  = document.getElementById('inas-auxiliar');
+  const desdeInput = document.getElementById('inas-desde');
+  const hastaInput = document.getElementById('inas-hasta');
+  const btnGuardar = document.getElementById('btnGuardarInasistencia');
 
   // Confirm modal EP91
   window.showConfirmModal = function(titulo, mensaje, onOk) {
@@ -196,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const d = String(hoy.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
+
   const hoy = hoyISO();
   if (!desdeInput.value) desdeInput.value = hoy;
   if (!hastaInput.value) hastaInput.value = hoy;
@@ -205,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Cargar auxiliares
-  fetch('/api/auxiliares')
+  fetch('{{ url_for("api_auxiliares") }}')
     .then(r => r.json())
     .then(lista => {
       lista.forEach(a => {
@@ -262,6 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const supVal = document.getElementById('inas-suplente-curso').value || '';
+
     const payload = {
       auxiliar_id: auxiliarId,
       desde: desde,
@@ -270,12 +273,12 @@ document.addEventListener('DOMContentLoaded', () => {
       observaciones: document.getElementById('inas-observaciones').value || '',
       sup_nombre: document.getElementById('inas-suplente-nombre').value || '',
       sup_dni: document.getElementById('inas-suplente-dni').value || '',
-      sup_curso: document.getElementById('inas-suplente-curso').value || '',
-      sup_asignatura: document.getElementById('inas-suplente-curso').value || ''
+      sup_curso: supVal,
+      sup_asignatura: supVal
     };
 
     try {
-      const resp = await fetch('/api/aux_inasistencias', {
+      const resp = await fetch('{{ url_for("api_aux_inasistencias") }}', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

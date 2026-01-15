@@ -33,8 +33,13 @@
         font-weight: 700;
     }
 
-    .no-print {
-        /* Elementos que NO se imprimen (botones, etc.) */
+    /* Días futuros */
+    .asistencia-futuro {
+        background: #efefef !important;
+        opacity: 0.9;
+    }
+    .asistencia-futuro select {
+        cursor: not-allowed;
     }
 
     @media print {
@@ -93,10 +98,11 @@
                 {% endfor %}
             </select>
         </div>
+
         <div class="d-flex gap-2">
-          <a class="btn btn-outline-secondary" href="{{ url_for('listar_alumnos') }}">Volver a Estudiantes</a>
-      
+            <a class="btn btn-outline-secondary" href="{{ url_for('listar_alumnos') }}">Volver a Estudiantes</a>
         </div>
+
         <!-- Navegación de mes anterior / siguiente -->
         <div class="d-flex align-items-center gap-2">
             <a class="btn btn-outline-secondary btn-sm"
@@ -119,7 +125,7 @@
         </div>
     </div>
 
-    {% if alumnos %} 
+    {% if alumnos %}
 
     <!-- ===================== ASISTENCIA MENSUAL (SECCIÓN A IMPRIMIR) ===================== -->
     <div id="asistencia-mensual-section">
@@ -137,7 +143,6 @@
                         <tr>
                             <th class="text-start align-middle">Alumno</th>
 
-                            {# Encabezado: una columna por cada día hábil del mes #}
                             {% set nombres_dia = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] %}
                             {% for dia in dias_habiles %}
                                 <th class="text-center">
@@ -150,7 +155,7 @@
                             <th class="bg-danger text-white text-center align-middle">Total A</th>
                             <th class="bg-info text-white text-center align-middle">Total Días</th>
                         </tr>
-                    </thead> 
+                    </thead>
 
                     <tbody>
                         {% for alumno in alumnos %}
@@ -165,6 +170,7 @@
                                 {% for dia in dias_habiles %}
                                     {% set fecha_iso = dia.isoformat() %}
                                     {% set estado = alumno.asistencia_mensual.get(fecha_iso, '') %}
+                                    {% set es_futuro = (dia > hoy) %}
 
                                     {% if estado == 'P' %}
                                         {% set ns.total_p = ns.total_p + 1 %}
@@ -174,20 +180,20 @@
                                         {% set ns.total_dias = ns.total_dias + 1 %}
                                     {% endif %}
 
-                                    <td class="text-center asistencia-celda">
-    <select
-        name="asistencia_{{ alumno._id }}_{{ fecha_iso }}"
-        class="form-select form-select-sm asistencia-select 
-               {% if estado == 'A' %}asistencia-A{% elif estado == 'X' %}asistencia-X{% endif %}"
-        data-alumno="{{ alumno._id }}"
-        data-fecha="{{ fecha_iso }}"
-    >
-        <option value="" {% if estado == '' %}selected{% endif %}></option>
-        <option value="P" {% if estado == 'P' %}selected{% endif %}>P</option>
-        <option value="A" {% if estado == 'A' %}selected{% endif %}>A</option>
-        <option value="X" {% if estado == 'X' %}selected{% endif %}>X</option>
-    </select>
-</td>
+                                    <td class="text-center asistencia-celda {% if es_futuro %}asistencia-futuro{% endif %}">
+                                        <select
+                                            name="asistencia_{{ alumno._id }}_{{ fecha_iso }}"
+                                            class="form-select form-select-sm asistencia-select {% if estado == 'A' %}asistencia-A{% elif estado == 'X' %}asistencia-X{% endif %}"
+                                            data-alumno="{{ alumno._id }}"
+                                            data-fecha="{{ fecha_iso }}"
+                                            {% if es_futuro %}disabled title="Día futuro (no editable)"{% endif %}
+                                        >
+                                            <option value="" {% if estado == '' %}selected{% endif %}></option>
+                                            <option value="P" {% if estado == 'P' %}selected{% endif %}>P</option>
+                                            <option value="A" {% if estado == 'A' %}selected{% endif %}>A</option>
+                                            <option value="X" {% if estado == 'X' %}selected{% endif %}>X</option>
+                                        </select>
+                                    </td>
 
                                 {% endfor %}
 
@@ -209,6 +215,7 @@
     </div>
     <!-- ===================== FIN SECCIÓN MENSUAL ===================== -->
 
+
     <!-- ===================== SECCIÓN RESÚMENES (SE PUEDE IMPRIMIR APARTE) ===================== -->
     <div id="resumen-asistencia-section">
 
@@ -221,19 +228,18 @@
 
             <!-- Botones de impresión -->
             <div class="d-flex justify-content-end gap-2 mb-3">
-               <button type="button"
-                       class="btn btn-outline-secondary btn-sm"
-                       onclick="imprimirSeccion('mensual')">
-                <i class="fas fa-print"></i> Imprimir asistencia mensual
-               </button>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        onclick="imprimirSeccion('mensual')">
+                    <i class="fas fa-print"></i> Imprimir asistencia mensual
+                </button>
 
-               <button type="button"
-                       class="btn btn-outline-secondary btn-sm"
-                       onclick="imprimirSeccion('resumen')">
-                <i class="fas fa-print"></i> Imprimir resumen (pestaña actual)
-               </button>
+                <button type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        onclick="imprimirSeccion('resumen')">
+                    <i class="fas fa-print"></i> Imprimir resumen (pestaña actual)
+                </button>
             </div>
-
         </div>
 
         <!-- Pestañas de resumen -->
@@ -257,7 +263,7 @@
                         type="button" role="tab"
                         aria-controls="resumen-trimestral"
                         aria-selected="false">
-                    Trimestral 
+                    Trimestral
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -367,7 +373,7 @@
                 </div>
             </div>
 
-        </div>  {# fin tab-content #}
+        </div>
     </div>
     <!-- ===================== FIN SECCIÓN RESÚMENES ===================== -->
 
@@ -396,7 +402,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 totalA++;
                 totalD++;
             }
-            // La X no cuenta como día trabajado/ausente
         });
 
         const celdaP = row.querySelector('.total-p');
@@ -414,9 +419,9 @@ document.addEventListener('DOMContentLoaded', function () {
         cell.classList.remove('text-danger', 'text-success', 'asistencia-A', 'asistencia-X');
 
         if (selectEl.value === 'A') {
-            cell.classList.add('text-danger', 'asistencia-A');   // Ausente en rojo
+            cell.classList.add('text-danger', 'asistencia-A');
         } else if (selectEl.value === 'X') {
-            cell.classList.add('text-success', 'asistencia-X');  // Día sin clases en verde
+            cell.classList.add('text-success', 'asistencia-X');
         }
     }
 
@@ -442,7 +447,6 @@ function imprimirSeccion(tipo) {
         document.body.classList.add('print-resumen');
     }
     window.print();
-    // Después de un ratito, sacamos la clase para que la vista vuelva a la normalidad
     setTimeout(function() {
         document.body.classList.remove('print-mensual', 'print-resumen');
     }, 500);

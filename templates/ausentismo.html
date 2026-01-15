@@ -2,8 +2,10 @@
 {% block content %}
 <div class="container mt-4">
     <h3>Control de Ausentismo (EOE)</h3>
+   
     <div class="card mb-3 p-3 no-print">
   <form method="GET" class="row g-2 align-items-end">
+
     <div class="col-md-4">
       <label class="form-label mb-1">Filtrar por Curso</label>
       <select class="form-select" name="curso" id="cursoSelect">
@@ -13,11 +15,24 @@
         {% endfor %}
       </select>
     </div>
+
+    <div class="col-md-3">
+      <label class="form-label mb-1">Año</label>
+      <select class="form-select" name="anio" id="anioSelect">
+        {% for a in anios %}
+          <option value="{{ a }}" {% if anio_sel == a %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
     <div class="col-md-2">
       <button type="submit" class="btn btn-primary w-100">Aplicar</button>
     </div>
+
   </form>
 </div>
+
+   
     <table class="table table-hover">
         <thead>
             <tr>

@@ -2,8 +2,8 @@
 {% block content %}
 <h2>Autorizados a retirar - {{ curso }}</h2>  
 
- <div class="d-flex gap-2">
-      <a class="btn btn-outline-secondary" href="{{ url_for('autorizados_cursos') }}">Volver a Autorizados-Cursos</a>
+ <div class="d-flex gap-2 mb-3 flex-wrap">
+      <a class="btn btn-outline-secondary" href="{{ url_for('autorizados_cursos', anio=anio) }}">Volver a Autorizados-Cursos</a>
       
   </div> 
 
@@ -32,7 +32,7 @@
       </td>
       <td>
         <a class="btn btn-sm btn-outline-primary"
-           href="{{ url_for('autorizados_alumno', id=a._id) }}">
+           href="{{ url_for('autorizados_alumno', id=a._id, anio=anio) }}">
           Gestionar
         </a>
       </td>

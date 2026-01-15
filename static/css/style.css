@@ -601,3 +601,5 @@ body {
     opacity: 0.55;
     background-color: #f2f2f2;
   }
+.modal { z-index: 2000 !important; }
+.modal-backdrop { z-index: 1990 !important; }

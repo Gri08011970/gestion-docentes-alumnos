@@ -1,6 +1,11 @@
-config.env
-.env
-venv/
 __pycache__/
 *.pyc
+.env
+venv/
+.env/
+instance/
+.DS_Store
+*.log
+.idea/
+.vscode/
 

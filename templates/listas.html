@@ -13,6 +13,14 @@
 
   <div class="card mb-3 p-3">
     <div class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label mb-1">Año</label>
+        <select class="form-select" id="anioSelect">
+          {% for y in anios_disponibles %}
+            <option value="{{ y }}" {% if anio==y %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <div class="col-md-4">
         <label class="form-label mb-1">Curso</label>
         <select class="form-select" id="cursoSelect">
@@ -36,9 +44,7 @@
     <div class="card mb-3 curso-card">
       <div class="card-header fw-bold d-flex justify-content-between align-items-center">
         <span>{{ curso }}</span>
-        <button class="btn btn-sm btn-outline-dark btn-print-curso" type="button" data-curso="{{ curso }}">
-          Imprimir {{ curso }}
-        </button>
+        
       </div>
 
       <div class="card-body p-0">
@@ -81,36 +87,44 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const sel = document.getElementById("cursoSelect");
+  const anioSel = document.getElementById("anioSelect");
   const btnAplicar = document.getElementById("btnAplicar");
   const btnLimpiar = document.getElementById("btnLimpiar");
   const btnImprimirCurso = document.getElementById("btnImprimirCurso");
 
-  function irConCurso(curso){
+  function navegar({ curso, limpiarCurso=false } = {}) {
     const url = new URL(window.location.href);
-    if (curso) url.searchParams.set("curso", curso);
-    else url.searchParams.delete("curso");
+    // Siempre mantenemos el año
+    if (anioSel) url.searchParams.set("anio", anioSel.value);
+
+    if (limpiarCurso) {
+      url.searchParams.delete("curso");
+    } else if (curso !== undefined) {
+      if (curso) url.searchParams.set("curso", curso);
+      else url.searchParams.delete("curso");
+    }
     window.location.href = url.toString();
   }
 
-  btnAplicar?.addEventListener("click", (e) => { e.preventDefault(); irConCurso(sel.value); });
-  btnLimpiar?.addEventListener("click", (e) => { e.preventDefault(); sel.value=""; irConCurso(""); });
+  btnAplicar?.addEventListener("click", (e) => {
+    e.preventDefault();
+    navegar({ curso: sel ? sel.value : "" });
+  });
+
+  btnLimpiar?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (sel) sel.value = "";
+    navegar({ limpiarCurso: true });
+  });
 
   btnImprimirCurso?.addEventListener("click", (e) => {
     e.preventDefault();
-    if (!sel.value) return;
-    if (new URL(window.location.href).searchParams.get("curso") !== sel.value) {
-      const url = new URL(window.location.href);
-      url.searchParams.set("curso", sel.value);
-      window.location.href = url.toString();
-      return;
-    }
-    window.print();
+    if (!sel || !sel.value) return;
+    navegar({ curso: sel.value });
   });
 
   document.querySelectorAll(".btn-print-curso").forEach(b => {
-    b.addEventListener("click", () => {
-      irConCurso(b.dataset.curso);
-    });
+    b.addEventListener("click", () => navegar({ curso: b.dataset.curso }));
   });
 });
 </script>

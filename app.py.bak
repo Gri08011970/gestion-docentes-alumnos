@@ -13,7 +13,7 @@ from collections import defaultdict
 from datetime import datetime, date, timedelta, timezone
 from urllib.parse import quote,urlencode, urlparse, parse_qs
 
-# 1.2. Librerías de Terceros (Flask, Mongo, Utilidades) 
+# 1.2. Librerías de Terceros (Flask, Mongo, Utilidades)
 from flask import (
     Flask, render_template, request, redirect,
     url_for, jsonify, abort, send_file, flash
@@ -1458,7 +1458,7 @@ def docente_inasistencias_anuales(id):
         if not f:
             continue
         causa = (ins.get("causa") or "").strip()
-        faltas_por_fecha[(f.month, f.day)] = _color_for_causa(causa) 
+        faltas_por_fecha[(f.month, f.day)] = _color_for_causa(causa)
 
     # Calendario anual: grilla L-V completa (SET4)
     meses_data = []
@@ -2628,9 +2628,7 @@ def api_asignaturas_escala():
 @app.route("/api/alumnos_por_curso")
 def api_alumnos_por_curso():
     curso = (request.args.get("curso") or "").strip()
-    # Normalizamos símbolo de grado (º vs °) y espacios
-    curso_norm = curso.replace("º", "°").replace("°", "°").strip()
-    if not curso_norm:
+    if not curso:
         return jsonify([])
 
     alumnos = []
@@ -3013,49 +3011,6 @@ def listas_estudiantes_view():
     if not mongo_ping_ok():
         return render_template("db_down.html"), 503
 
-    anio = int(request.args.get("anio", 2026))
-    curso_filtrado = (request.args.get("curso") or "").strip()
-
-    filtro_anio = {"$or": [
-        {"anio_lectivo": anio},
-        {"anio_lectivo": {"$exists": False}},
-        {"anio_lectivo": None},
-        {"anio_lectivo": ""},
-    ]}
-
-    q = {"activo": {"$ne": False}, **filtro_anio}
-    if curso_filtrado:
-        q["curso"] = curso_filtrado
-
-    alumnos = list(
-        COL_ALUMNOS.find(q).sort([("curso", 1), ("apellido", 1), ("nombre", 1)])
-    )
-
-    grupos = {}
-    for a in alumnos:
-        curso = (a.get("curso") or "").strip()
-        grupos.setdefault(curso, []).append(a)
-
-    todos = list(
-        COL_ALUMNOS.find({"activo": {"$ne": False}, **filtro_anio}, {"curso": 1}).sort([("curso", 1)])
-    )
-    cursos_unicos = sorted({(x.get("curso") or "").strip() for x in todos if (x.get("curso") or "").strip()}, key=ordenar_curso_key)
-
-    cursos_ordenados = sorted(grupos.keys(), key=ordenar_curso_key)
-
-    anios_disponibles = sorted({int(y) for y in COL_ALUMNOS.distinct("anio_lectivo") if str(y).isdigit()}) or [2025, 2026, 2027]
-
-    return render_template(
-        "listas.html",
-        grupos=grupos,
-        cursos_ordenados=cursos_ordenados,
-        cursos_unicos=cursos_unicos,
-        curso_filtrado=curso_filtrado,
-        anio=anio,
-        anios_disponibles=anios_disponibles
-    )
-
-
     curso_filtrado = (request.args.get("curso") or "").strip()
 
     q = {"activo": {"$ne": False}}
@@ -3210,12 +3165,10 @@ def asistencia_mensual(curso, year, month):
     ]
     mes_actual = f"{meses_es[current_date.month - 1].capitalize()} de {current_date.year}"
 
-        # ----------------------------------------------------------------------
+    # ----------------------------------------------------------------------
     #                          PROCESAR POST
     # ----------------------------------------------------------------------
     if request.method == 'POST':
-
-        hoy = date.today()
 
         for key, value in request.form.items():
             if not key.startswith('asistencia_'):
@@ -3223,34 +3176,20 @@ def asistencia_mensual(curso, year, month):
 
             try:
                 # asistencia_<alumno_id>_<YYYY-MM-DD>
-                parts = key.split('_', 2)  # <-- IMPORTANTE: solo 3 partes
+                parts = key.split('_')
                 alumno_id_str = parts[1]
                 asistencia_date_iso = parts[2]
-
-                # Parseo seguro de fecha
-                try:
-                    dia_dt = date.fromisoformat(asistencia_date_iso)
-                except ValueError:
-                    print(f"[WARN ASISTENCIA] Fecha inválida en key: {key}")
-                    continue
-
-                # ✅ BLOQUEO BACKEND: no permitir guardar días futuros
-                if dia_dt > hoy:
-                    # Si querés, podés loguearlo para ver cuándo pasa
-                    print(f"[INFO ASISTENCIA] Se ignoró día futuro {asistencia_date_iso} (hoy={hoy.isoformat()})")
-                    continue
-
-                estado = (value or "").upper().strip()
+                estado = value.upper().strip()
 
                 query = {
                     'alumno_id': ObjectId(alumno_id_str),
                     'fecha': asistencia_date_iso,
+                    
                 }
 
                 if estado in ['P', 'A', 'X']:
                     update = {'$set': {'estado': estado, "curso": curso}}
                     COL_ASISTENCIA.update_one(query, update, upsert=True)
-
                 elif estado == '':
                     COL_ASISTENCIA.delete_one(query)
 
@@ -3413,7 +3352,6 @@ def asistencia_mensual(curso, year, month):
         resumen_trimestre=resumen_trimestre,
         resumen_anual=resumen_anual,
         numero_trimestre=numero_trimestre,
-        hoy=date.today()
     )
 
 @app.route("/alumnos/<id>/mapa")
@@ -4064,101 +4002,25 @@ def legajo_actualizar(id):
 
 @app.route("/autorizados")
 def autorizados_cursos():
-    anio = int(request.args.get("anio", 2026))
-
-    filtro_anio = {"$or": [
-        {"anio_lectivo": anio},
-        {"anio_lectivo": {"$exists": False}},
-        {"anio_lectivo": None},
-        {"anio_lectivo": ""},
-    ]}
-
     cursos = sorted(
-        [c for c in COL_ALUMNOS.distinct("curso", {**filtro_activos(), **filtro_anio}) if c],
+        [c for c in COL_ALUMNOS.distinct("curso", filtro_activos()) if c],
         key=lambda x: str(x)
     )
-    # Para el selector: años presentes en la BD (fallback: últimos 3)
-    anios_disponibles = sorted({int(y) for y in COL_ALUMNOS.distinct("anio_lectivo") if str(y).isdigit()}) or [2025, 2026, 2027]
-
-    return render_template("autorizados_cursos.html", cursos=cursos, anio=anio, anios_disponibles=anios_disponibles)
-
+    return render_template("autorizados_cursos.html", cursos=cursos)
 
 @app.route("/autorizados/<curso>")
 def autorizados_curso(curso):
-    anio = int(request.args.get("anio", 2026))
-
-    filtro_anio = {"$or": [
-        {"anio_lectivo": anio},
-        {"anio_lectivo": {"$exists": False}},
-        {"anio_lectivo": None},
-        {"anio_lectivo": ""},
-    ]}
-
-    q_curso = {"curso": {"$regex": f"^{curso}$", "$options": "i"}}
-    alumnos = list(
-        COL_ALUMNOS.find({**filtro_activos(), **filtro_anio, **q_curso}).sort([("apellido", 1), ("nombre", 1)])
-    )
-
-    return render_template("autorizados_curso.html", curso=curso, alumnos=alumnos, anio=anio)
-
+    q = {"curso": {"$regex": f"^{curso}$", "$options": "i"}}
+    alumnos = list(COL_ALUMNOS.find({**filtro_activos(), **q}).sort([("apellido", 1), ("nombre", 1)]))
 
     return render_template("autorizados_curso.html", curso=curso, alumnos=alumnos)
 
 @app.route("/autorizados/alumno/<id>", methods=["GET", "POST"])
 def autorizados_alumno(id):
-    anio = int(request.args.get("anio", 2026))
-
     try:
         oid = ObjectId(id)
-    except Exception:
-        return "ID inválido", 400
-
-    a = COL_ALUMNOS.find_one({"_id": oid})
-    if not a:
-        return "Alumno no encontrado", 404
-
-    if request.method == "POST":
-        nombres = request.form.getlist("aut_nombre[]")
-        dnis = request.form.getlist("aut_dni[]")
-        fns = request.form.getlist("aut_fnac[]")
-        parents = request.form.getlist("aut_parentesco[]")
-        doms = request.form.getlist("aut_dom[]")
-        tels = request.form.getlist("aut_tel[]")
-
-        autorizados = []
-        today = date.today()
-        for i in range(len(nombres)):
-            nombre = (nombres[i] or "").strip()
-            dni = (dnis[i] or "").strip()
-            fn = (fns[i] or "").strip()
-
-            # Edad (si viene fecha nacimiento)
-            edad = None
-            if fn:
-                try:
-                    y, m, d = map(int, fn.split("-"))
-                    nac = date(y, m, d)
-                    edad = today.year - nac.year - ((today.month, today.day) < (nac.month, nac.day))
-                except Exception:
-                    edad = None
-
-            autorizados.append({
-                "nombre": nombre,
-                "dni": dni,
-                "fecha_nac": fn,
-                "edad": edad,
-                "parentesco": (parents[i] or "").strip(),
-                "domicilio": (doms[i] or "").strip(),
-                "telefono": (tels[i] or "").strip(),
-            })
-
-        COL_ALUMNOS.update_one({"_id": oid}, {"$set": {"autorizados": autorizados}})
-        return redirect(url_for("autorizados_curso", curso=a.get("curso", ""), anio=anio))
-
-    # GET
-    autorizados = a.get("autorizados") or []
-    return render_template("autorizados_alumno.html", alumno=a, autorizados=autorizados, anio=anio)
-
+    except:
+        abort(404)
 
     a = COL_ALUMNOS.find_one({"_id": oid})
     if not a:

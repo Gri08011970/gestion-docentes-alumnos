@@ -10,17 +10,27 @@
       Seleccionar un curso para ver y gestionar las personas autorizadas a retirar a los alumnos.
     </p>
   </div>
-  <div class="d-flex gap-2">
-      <a class="btn btn-outline-secondary" href="{{ url_for('listar_alumnos') }}">Volver a Estudiantes</a>
-      
-    </div>
+    <div class="col-12 col-md-4 d-flex gap-2 justify-content-md-end align-items-end">
+    <form method="get" class="d-flex gap-2 align-items-end">
+      <div>
+        <label class="form-label mb-1 small text-muted">Año lectivo</label>
+        <select class="form-select form-select-sm" name="anio" onchange="this.form.submit()">
+          {% for y in anios_disponibles %}
+            <option value="{{ y }}" {% if anio==y %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+
+    <a class="btn btn-outline-secondary" href="{{ url_for('listar_alumnos') }}">Volver a Estudiantes</a>
+  </div>
 </div>
 
 {% if cursos %}
   <div class="row g-3">
     {% for c in cursos %}
       <div class="col-6 col-sm-4 col-md-3 col-lg-2">
-        <a href="{{ url_for('autorizados_curso', curso=c) }}" class="text-decoration-none">
+        <a href="{{ url_for('autorizados_curso', curso=c, anio=anio) }}" class="text-decoration-none">
           <div class="card card-hover h-100 text-center py-3">
             <div class="fw-semibold fs-5">{{ c }}</div>
             <div class="small text-muted mt-1">

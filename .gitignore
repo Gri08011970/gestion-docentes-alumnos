@@ -8,4 +8,18 @@ instance/
 *.log
 .idea/
 .vscode/
+# Backups
+*.bak
+
+# Env alternativos
+config.env
+*.env
+
+# Archivos temporales / Office
+*.xlsx
+*.xls
+*.csv
+
+# Imagenes sueltas no usadas (opcional)
+*.jfif
 

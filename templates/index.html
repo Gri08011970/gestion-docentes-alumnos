@@ -1,5 +1,4 @@
-
-{% extends "base.html" %} 
+{% extends "base.html" %}
 
 {% block title %}Inicio · Gestión Escolar EP N° 91{% endblock %}
 
@@ -32,6 +31,7 @@
       </div>
     </section>
 
+    <!-- FILA 1 -->
     <div class="row g-4">
 
       <div class="col-12 col-lg-4" id="bloque-estudiantes">
@@ -51,7 +51,6 @@
               <li class="mb-1">• <a href="{{ url_for('listas_estudiantes') }}" class="text-decoration-none">Listas 2026</a></li>
               <li class="mb-1">• <a href="{{ url_for('prom_rec') }}" class="text-decoration-none">Prom/Rec</a></li>
               <li class="mb-1">• <a href="{{ url_for('matricula_2026_view') }}" class="text-decoration-none">Matrícula Inicial 2026</a></li>
-              
             </ul>
           </div>
         </div>
@@ -65,9 +64,12 @@
             <p class="card-text text-muted mb-3">
               Plantel docente, carga de inasistencias, historial de inasistencias y estados administrativos.
             </p>
-            <ul class="list-unstyled mb-0"></a>
-              <li class="mb-1">• <a href="{{ url_for('listar_docentes') }}" class="text-decoration-none">Listado de docentes <p style="font-size: 12px;">Cargo, Sit.Revista, Carga Horaria, Set 4, Inasistencias en calendrio</p></li>
-              <li class="mb-1">• <a href="{{ url_for('ver_inasistencias') }}" class="text-decoration-none">Carga de Inasistencias </a></li>
+            <ul class="list-unstyled mb-0">
+              <li class="mb-1">
+                • <a href="{{ url_for('listar_docentes') }}" class="text-decoration-none">Listado de docentes</a>
+                <p class="mb-0" style="font-size: 12px;">Cargo, Sit.Revista, Carga Horaria, Set 4, Inasistencias en calendrio</p>
+              </li>
+              <li class="mb-1">• <a href="{{ url_for('ver_inasistencias') }}" class="text-decoration-none">Carga de Inasistencias</a></li>
               <li class="mb-1">• <a href="{{ url_for('historial_inasistencias') }}" class="text-decoration-none">Historial de inasistencias</a></li>
               <li class="mb-1">• <a href="{{ url_for('estados_admin') }}" class="text-decoration-none">Estados administrativos</a></li>
             </ul>
@@ -84,7 +86,10 @@
               Organización del personal auxiliar: Horarios y Sectores.
             </p>
             <ul class="list-unstyled mb-0">
-              <li class="mb-1">• <a href="{{ url_for('listar_auxiliares') }}" class="text-decoration-none">Listado de auxiliares <p style="font-size: 12px;"> Cargo, Sit.Revista, Sectores, Carga Horaria, inasistencias</p> </a></li>
+              <li class="mb-1">
+                • <a href="{{ url_for('listar_auxiliares') }}" class="text-decoration-none">Listado de auxiliares</a>
+                <p class="mb-0" style="font-size: 12px;">Cargo, Sit.Revista, Sectores, Carga Horaria, inasistencias</p>
+              </li>
             </ul>
           </div>
         </div>
@@ -92,114 +97,214 @@
 
     </div>
 
+    <!-- FILA 2 (ARREGLADA: row REAL con 3 cols) -->
     <div class="row g-4 mt-1">
 
+      <!-- Resúmenes y Estadísticas -->
       <div class="col-12 col-lg-4">
-        <div class="p-3 rounded-3 shadow-sm h-100" style="background:#f3f9ff; font-size:0.9rem; border:2px solid #333;">
-          <div class="small text-uppercase text-muted mb-2">Núcleo de análisis</div>
-          <h5 class="mb-2">Resúmenes y Estadísticas</h5>
-          <ul class="small list-unstyled">
-            <li class="mb-2">📊 <a href="{{ url_for('resumen_edades') }}">Edades, nacionalidades y recursantes</a></li>
-            <li class="mb-2">🔄 <a href="{{ url_for('resumen_movimientos') }}">Movimientos (Altas/Bajas)</a></li>
-            <li class="mb-2">📅 <a href="{{ url_for('resumen_inasistencias') }}">Resumen inasistencias docentes</a></li>
-            <li class="mb-2">📉 <a href="{{ url_for('resumen_calificaciones') }}">Desaprobados por curso</a></li>
-          </ul>
+        <div class="card card-hover h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="badge-soft mb-2">Núcleo de análisis</div>
+                <h4 class="card-title fw-bold mb-2">Resúmenes y Estadísticas</h4>
+              </div>
+              <span class="badge rounded-pill text-bg-primary">📊</span>
+            </div>
+
+            <ul class="list-unstyled mb-0">
+              <li class="mb-2">• <a href="{{ url_for('resumen_edades') }}" class="text-decoration-none">Edades, nacionalidades y recursantes</a></li>
+              <li class="mb-2">• <a href="{{ url_for('resumen_movimientos') }}" class="text-decoration-none">Movimientos (Altas/Bajas)</a></li>
+              <li class="mb-2">• <a href="{{ url_for('resumen_inasistencias') }}" class="text-decoration-none">Resumen inasistencias docentes</a></li>
+              <li class="mb-2">• <a href="{{ url_for('resumen_calificaciones') }}" class="text-decoration-none">Desaprobados por curso</a></li>
+            </ul>
+          </div>
         </div>
       </div>
 
+      <!-- Planillas y Anexos -->
       <div class="col-12 col-lg-4">
-  <div class="p-3 rounded-3 shadow-sm h-100" style="background:#fff7f0; font-size:0.9rem; border:2px solid #333;">
-    <div class="small text-uppercase text-muted mb-2">Gestión administrativa</div>
-    <h5 class="mb-3">Planillas y Anexos</h5>
-    
-    <form action="{{ url_for('planilla_promocion') }}" method="GET" target="_blank" class="bg-white p-2 rounded border mb-3 shadow-sm">
-      <label class="fw-bold mb-1" style="font-size: 0.8rem;">GENERAR PLANILLA DE PROMOCIÓN:</label>
-      
-      <div class="d-flex gap-1 mb-2">
-        <select name="anio" class="form-select form-select-sm" title="Año Lectivo">
-          <option value="2025" selected>Ciclo 2025</option>
-          <option value="2026">Ciclo 2026</option>
-        </select>
-        
-        <select name="curso" class="form-select form-select-sm">
-          {% for i in range(1, 7) %}<option value="{{ i }}">{{ i }}° Año</option>{% endfor %}
-        </select>
+        <div class="card card-hover h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="badge-soft mb-2">Gestión administrativa</div>
+                <h4 class="card-title fw-bold mb-2">Planillas y Anexos</h4>
+              </div>
+              <span class="badge rounded-pill text-bg-warning">📝</span>
+            </div>
 
-        <select name="seccion" class="form-select form-select-sm">
-          <option value="A">A</option>
-          <option value="B" selected>B</option>
-        </select>
-      </div>
+            <form action="{{ url_for('planilla_promocion') }}" method="GET" target="_blank"
+                  class="bg-white p-2 rounded border mb-3 shadow-sm">
+              <label class="fw-bold mb-1" style="font-size: 0.8rem;">GENERAR PLANILLA DE PROMOCIÓN:</label>
 
-      <select name="turno" class="form-select form-select-sm mb-2">
-        <option value="T.M.">Mañana</option>
-        <option value="T.T." selected>Tarde</option>
-      </select>
+              <div class="d-flex gap-1 mb-2">
+                <select name="anio" class="form-select form-select-sm" title="Año Lectivo">
+                  <option value="2025" selected>Ciclo 2025</option>
+                  <option value="2026">Ciclo 2026</option>
+                </select>
 
-      <button type="submit" class="btn btn-warning btn-sm w-100 fw-bold">
-         <i class="fas fa-print me-1"></i> Ver Planilla de Promoción
-      </button>
-    </form>
+                <select name="curso" class="form-select form-select-sm">
+                  {% for i in range(1, 7) %}<option value="{{ i }}">{{ i }}° Año</option>{% endfor %}
+                </select>
 
-    <ul class="small mb-0 list-unstyled">
-      <li class="mb-2">📋 <a href="{{ url_for('prom_rec') }}">Promovidos y Recursantes</a></li>
-      <li class="mb-2">📦 <a href="{{ url_for('entrega_mercaderia') }}">Entrega de Mercadería (SAE)</a></li>
-      <li class="mb-2">📝 <a href="{{ url_for('listar_docentes') }}">Set 4 (Generar por  Docente)</a></li>
-      <li class="mb-1">🚌 <a href="{{ url_for('salidas.listado_salidas') }}">Resumen de salidas y estados de Anexos</a></li>
-      <li class="mb-1">🚌 <a href="{{ url_for('anexos_index') }}">Generar anexos-salidas educativas</a></li>
-      <li class="mb-2"> <a href="#"></a>Proyección de Matrícula (En construcción)</a></li>
-    </ul>
-  </div>
-</div>
-     
-      <div class="col-12 col-lg-4">
-        <div class="p-3 rounded-3 shadow-sm h-100" style="background:#f3f9ff; font-size:0.9rem; border:2px solid #333;">
-          <div class="badge-soft mb-2">EOE</div>
-          <h5 class="mb-2">Equipo de orienación escolar</h5>
-          <ul class="list-unstyled mb-0">
-            <li class="mb-1">•<a href="{{ url_for('eoe_ausentismo') }}">Control de ausentismo crítico</a></li>
-            <li class="mb-1">• <a href="{{ url_for('eoe_judiciales') }}">Judiciales-Acompañantes</a></li>
-            <li class="mb-1">• <a href="{{ url_for('mapa_recorridos') }}">Actas de visitas domiciliarias</a></li>
-          </ul>
+                <select name="seccion" class="form-select form-select-sm">
+                  <option value="A">A</option>
+                  <option value="B" selected>B</option>
+                </select>
+              </div>
+
+              <select name="turno" class="form-select form-select-sm mb-2">
+                <option value="T.M.">Mañana</option>
+                <option value="T.T." selected>Tarde</option>
+              </select>
+
+              <button type="submit" class="btn btn-warning btn-sm w-100 fw-bold">
+                <i class="fas fa-print me-1"></i> Ver Planilla de Promoción
+              </button>
+            </form>
+
+            <ul class="list-unstyled mb-0">
+              <li class="mb-2">• <a href="{{ url_for('prom_rec') }}" class="text-decoration-none">Promovidos y Recursantes</a></li>
+              <li class="mb-2">• <a href="{{ url_for('entrega_mercaderia') }}" class="text-decoration-none">Entrega de Mercadería (SAE)</a></li>
+              <li class="mb-2">• <a href="{{ url_for('listar_docentes') }}" class="text-decoration-none">Set 4 (Generar por Docente)</a></li>
+              <li class="mb-1">• <a href="{{ url_for('salidas.listado_salidas') }}" class="text-decoration-none">Resumen de salidas y estados de Anexos</a></li>
+              <li class="mb-1">• <a href="{{ url_for('anexos_index') }}" class="text-decoration-none">Generar anexos-salidas educativas</a></li>
+              <li class="mb-2">• <span class="text-muted">Proyección de Matrícula (En construcción)</span></li>
+            </ul>
+          </div>
         </div>
       </div>
- </div>
- <div class="row g-4 mt-1">
 
+      <!-- EOE (con mini portadita interna) -->
       <div class="col-12 col-lg-4">
-  <div class="card shadow-sm h-100 border-2" style="border-color:#0d6efd33;">
-    <div class="card-body" style="background:#f3f9ff;">
-      <div class="d-flex justify-content-between align-items-start">
-        <div>
-          <div class="small text-uppercase text-muted mb-1">Certificados en archivo</div>
-          <h5 class="mb-1">Certificados para entregar</h5>
-          <div class="small text-muted">1970 – Hoy</div>
+        <div class="card card-hover h-100">
+          <div class="card-body">
+
+            <!-- mini portada -->
+            <div class="p-3 rounded-3 border mb-3" style="background:#f3fbff; border-color:#0dcaf033;">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="badge-soft mb-2">EOE</div>
+                  <h4 class="card-title fw-bold mb-1">Equipo de orientación escolar</h4>
+                  <div class="small text-muted">Seguimiento · Alertas críticas · Documentación</div>
+                </div>
+                <span class="badge rounded-pill text-bg-info">🧩</span>
+              </div>
+            </div>
+
+            <ul class="list-unstyled mb-0">
+              <li class="mb-2">• <a href="{{ url_for('eoe_ausentismo') }}" class="text-decoration-none">Control de ausentismo crítico</a></li>
+              <li class="mb-2">• <a href="{{ url_for('eoe_judiciales') }}" class="text-decoration-none">Judiciales-Acompañantes</a></li>
+              <li class="mb-2">• <a href="{{ url_for('mapa_recorridos') }}" class="text-decoration-none">Actas de visitas domiciliarias</a></li>
+            </ul>
+
+          </div>
         </div>
-        <span class="badge rounded-pill text-bg-primary">📄</span>
       </div>
 
-      <hr class="my-3">
+    </div>
 
-      <div class="d-grid gap-2">
-        <a class="btn btn-outline-primary"
-           href="{{ url_for('certificados_pendientes') }}">
-          Ver listado
-        </a>
+  <!-- FILA 3 -->
+<div class="row g-4 mt-1">
 
-        <!-- Va directo a abrir el modal "Nuevo certificado" -->
-        <a class="btn btn-primary"
-           href="{{ url_for('certificados_pendientes') }}?nuevo=1">
-          + Cargar nuevo certificado
-        </a>
-      </div>
+  <!-- Certificados para entregar -->
+  <div class="col-12 col-lg-4">
+    <div class="card card-hover h-100 card-soft-primary">
+      <div class="card-body">
 
-      <div class="mt-3 small text-muted">
-        Tip: podés buscar por apellido o DNI.
+        <div class="card-soft-header">
+          <div>
+            <div class="small text-uppercase text-muted">Certificados en archivo</div>
+            <h5 class="mb-1">Certificados para entregar</h5>
+            <div class="small text-muted">1970 – Hoy</div>
+          </div>
+          <span class="badge rounded-pill bg-primary-subtle text-primary">📄</span>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="d-grid gap-2">
+          <a class="btn btn-outline-primary"
+             href="{{ url_for('certificados_pendientes') }}">
+            Ver listado
+          </a>
+
+          <a class="btn btn-primary"
+             href="{{ url_for('certificados_pendientes') }}?nuevo=1">
+            + Cargar nuevo certificado
+          </a>
+        </div>
+
+        <div class="mt-3 small text-muted">
+          Tip: podés buscar por apellido o DNI.
+        </div>
       </div>
     </div>
   </div>
-</div>
 
+  <!-- Certificados de finalización por año -->
+  <div class="col-12 col-lg-4">
+    <div class="card card-hover h-100 card-soft-secondary">
+      <div class="card-body">
+
+        <div class="card-soft-header">
+          <div>
+            <div class="small text-uppercase text-muted">Modelos oficiales</div>
+            <h5 class="mb-1">Certificados de finalización por año</h5>
+            <div class="small text-muted">Según año de egreso</div>
+          </div>
+          <span class="badge rounded-pill bg-secondary-subtle text-secondary">🎓</span>
+        </div>
+
+        <hr class="my-3">
+
+        <p class="text-muted mb-3" style="font-size:0.9rem;">
+          Aquí se replicarán los modelos oficiales de certificados de finalización
+          según el año de egreso del alumno.
+        </p>
+
+        <div class="alert alert-light border text-muted small mb-0">
+          🚧 Módulo en construcción.<br>
+          Próximamente: plantillas por año con formato oficial.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formularios de uso frecuente -->
+  <div class="col-12 col-lg-4">
+    <div class="card card-hover h-100 card-soft-success">
+      <div class="card-body">
+
+        <div class="card-soft-header">
+          <div>
+            <div class="small text-uppercase text-muted">Documentación habitual</div>
+            <h5 class="mb-1">Formularios de uso frecuente</h5>
+            <div class="small text-muted">Constancias y notas</div>
+          </div>
+          <span class="badge rounded-pill bg-success-subtle text-success">🗂️</span>
+        </div>
+
+        <hr class="my-3">
+
+        <ul class="list-unstyled mb-0 small">
+          <li class="mb-2">• Constancia de alumno regular</li>
+          <li class="mb-2">• Constancia de alumno / pases</li>
+          <li class="mb-2">• Constancias generales</li>
+          <li class="mb-2">• Constancia de título en trámite</li>
+          <li class="mb-2">• Formulario causas particulares · Docentes</li>
+          <li class="mb-1">• Formulario causas particulares · Auxiliares</li>
+        </ul>
+
+        <div class="mt-3 text-muted small">
+          Próximamente descargables y autocompletables.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
 
     <div class="text-center text-muted mt-4" style="font-size:0.8rem;">
       Uso interno institucional EP N° 91. La información es confidencial y se resguarda según la normativa vigente.

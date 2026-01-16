@@ -237,11 +237,15 @@
 
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("nuevo") === "1") {
+         const modal = document.getElementById("modalNuevo");
+      if (modal) new bootstrap.Modal(modal).show();
+     }
     // Precargar modal Editar
     const modalEditar = document.getElementById("modalEditar");
     if (modalEditar) {
-      modalEditar.addEventListener("show.bs.modal", function (event) {
+      modalEditar.addEventListener("show.bs.modal", function (event) { 
         const btn = event.relatedTarget;
         if (!btn) return; 
 

@@ -603,3 +603,49 @@ body {
   }
 .modal { z-index: 2000 !important; }
 .modal-backdrop { z-index: 1990 !important; }
+/* === Cards suaves fila 3 === */
+
+.card-soft-primary {
+  background: #f3f9ff;
+  border: 1px solid #0d6efd33;
+}
+
+.card-soft-secondary {
+  background: #f6f5fa;
+  border: 1px solid #6f42c133;
+}
+
+.card-soft-success {
+  background: #f3faf6;
+  border: 1px solid #19875433;
+}
+
+/* Header interno */
+.card-soft-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: rgba(255,255,255,0.7);
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.6rem;
+}
+
+/* Badge ícono */
+.card-soft-header .badge {
+  font-size: 0.9rem;
+  padding: 0.4em 0.55em;
+}
+/* Hover suave para tarjetas del home */
+.card-hover {
+  transition: all 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+/* Franja superior tipo tarjeta institucional */
+.card-soft-header {
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+}

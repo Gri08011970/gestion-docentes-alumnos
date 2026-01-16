@@ -1210,6 +1210,18 @@ def _contar_por_bucket_aux_anio(auxiliar_id, referencia_fecha):
 
     return cont, meses_particulares
 
+def calc_fecha_limite_salida(fecha_salida_str, zona):
+    f = _parse_date(fecha_salida_str)
+    if not f:
+        return None
+    z = (zona or "").strip().lower()
+    if z == "distrito":
+        delta = 10
+    elif z == "caba":
+        delta = 30
+    else:
+        delta = 15
+    return (f - timedelta(days=delta)).strftime("%Y-%m-%d")
 
 
 
@@ -3587,6 +3599,7 @@ def resumen_edades():
         cursos=cursos,
         ref_fecha=ref_fecha,
     )
+
 @app.route("/resumen/nacionalidades")
 def resumen_nacionalidades():
     """
@@ -3896,7 +3909,6 @@ def borrar_movimiento(id):
         return redirect(url_for("resumen_movimientos", anio=anio))
     return redirect(url_for("resumen_movimientos"))
 
-
 @app.get("/resumen/movimientos/exportar.xlsx")
 def exportar_movimientos_excel():
     anio_param = (request.args.get("anio") or "").strip()
@@ -3947,6 +3959,7 @@ def exportar_movimientos_excel():
         download_name=f"movimientos_{anio}.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
 @app.route("/planillas/promocion")
 def planilla_promocion():
     # 1. Obtenemos los parámetros de la URL
@@ -4035,6 +4048,7 @@ def legajos_curso(curso):
         alumnos=alumnos,
         campos=LEG_CAMPOS,
     )
+
 @app.route("/legajos/<id>/actualizar", methods=["POST"])
 def legajo_actualizar(id):
     try:
@@ -4078,7 +4092,6 @@ def autorizados_cursos():
     anios_disponibles = sorted({int(y) for y in COL_ALUMNOS.distinct("anio_lectivo") if str(y).isdigit()}) or [2025, 2026, 2027]
 
     return render_template("autorizados_cursos.html", cursos=cursos, anio=anio, anios_disponibles=anios_disponibles)
-
 
 @app.route("/autorizados/<curso>")
 def autorizados_curso(curso):
@@ -4153,56 +4166,6 @@ def autorizados_alumno(id):
     autorizados = a.get("autorizados") or []
     return render_template("autorizados_alumno.html", alumno=a, autorizados=autorizados, anio=anio)
 
-
-    a = COL_ALUMNOS.find_one({"_id": oid})
-    if not a:
-        abort(404)
-
-    if request.method == "POST":
-        nombres = request.form.getlist("aut_nombre[]")
-        dnis = request.form.getlist("aut_dni[]")
-        fns = request.form.getlist("aut_fnac[]")
-        parents = request.form.getlist("aut_parentesco[]")
-        doms = request.form.getlist("aut_dom[]")
-        tels = request.form.getlist("aut_tel[]")
-
-        autorizados = []
-        today = date.today()
-
-        for i in range(len(nombres)):
-            nombre = (nombres[i] or "").strip()
-            if not nombre:
-                continue
-
-            dni = (dnis[i] or "").strip()
-            fn = (fns[i] or "").strip()
-            edad = None
-            if fn:
-                try:
-                    y, m, d = map(int, fn.split("-"))
-                    nac = date(y, m, d)
-                    edad = today.year - nac.year - ((today.month, today.day) < (nac.month, nac.day))
-                except Exception:
-                    edad = None
-
-            autorizados.append({
-                "nombre": nombre,
-                "dni": dni,
-                "fecha_nac": fn,
-                "edad": edad,
-                "parentesco": (parents[i] or "").strip(),
-                "domicilio": (doms[i] or "").strip(),
-                "telefono": (tels[i] or "").strip(),
-            })
-
-        COL_ALUMNOS.update_one({"_id": oid}, {"$set": {"autorizados": autorizados}})
-        return redirect(url_for("autorizados_curso", curso=a.get("curso","")))
-
-    # GET
-    autorizados = a.get("autorizados") or []
-    return render_template("autorizados_alumno.html", alumno=a, autorizados=autorizados)
-
-
 @app.route("/certificados", methods=["GET", "POST"])
 def certificados_pendientes():
     # Alta de nuevo certificado (desde el modal)
@@ -4268,6 +4231,7 @@ def certificados_pendientes():
         q=q,
         ver=ver,
     )
+
 @app.route("/certificados/<id>/editar", methods=["POST"])
 def editar_certificado(id):
     try:
@@ -4369,6 +4333,7 @@ def mapa_recorridos():
         q=q,
         es_eoe=True
     )
+
 @app.route("/certificados/<id>/entregado", methods=["POST"])
 def marcar_certificado_entregado(id):
     try:
@@ -4390,7 +4355,6 @@ def marcar_certificado_entregado(id):
     q = request.form.get("q") or ""
     ver = request.form.get("ver") or "pendientes"
     return redirect(url_for("certificados_pendientes", q=q, ver=ver))
-
 
 @app.route("/mapa/recorridos/visitas", methods=["POST"])
 def mapa_recorridos_visitas():
@@ -4423,20 +4387,7 @@ def mapa_recorridos_visitas():
         fecha=hoy,
     )
 
-
 # ----------------- ESTADOS ADMINISTRATIVOS -----------------
-def calc_fecha_limite_salida(fecha_salida_str, zona):
-    f = _parse_date(fecha_salida_str)
-    if not f:
-        return None
-    z = (zona or "").strip().lower()
-    if z == "distrito":
-        delta = 10
-    elif z == "caba":
-        delta = 30
-    else:
-        delta = 15
-    return (f - timedelta(days=delta)).strftime("%Y-%m-%d")
 
 @app.route("/estados_admin")
 def estados_admin():

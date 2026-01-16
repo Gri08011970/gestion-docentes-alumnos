@@ -1,68 +1,124 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container mt-4">
-    <h3>Control de Ausentismo (EOE)</h3>
-   
-    <div class="card mb-3 p-3 no-print">
-  <form method="GET" class="row g-2 align-items-end">
+  <h3 class="mb-3">Control de Ausentismo (EOE)</h3> 
 
-    <div class="col-md-4">
-      <label class="form-label mb-1">Filtrar por Curso</label>
-      <select class="form-select" name="curso" id="cursoSelect">
-        <option value="">TODOS</option>
-        {% for c in cursos %}
-          <option value="{{ c }}" {% if curso_sel == c %}selected{% endif %}>{{ c }}</option>
-        {% endfor %}
-      </select>
-    </div>
+  <div class="card mb-3 p-3 no-print">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label mb-1">Filtrar por Curso</label>
+        <select class="form-select" name="curso" id="cursoSelect">
+          <option value="">TODOS</option>
+          {% for c in cursos %}
+            <option value="{{ c }}" {% if curso_sel == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-    <div class="col-md-3">
-      <label class="form-label mb-1">Año</label>
-      <select class="form-select" name="anio" id="anioSelect">
-        {% for a in anios %}
-          <option value="{{ a }}" {% if anio_sel == a %}selected{% endif %}>{{ a }}</option>
-        {% endfor %}
-      </select>
-    </div>
+      <div class="col-md-3">
+        <label class="form-label mb-1">Año</label>
+        <select class="form-select" name="anio" id="anioSelect">
+          {% for a in anios %}
+            <option value="{{ a }}" {% if anio_sel == a %}selected{% endif %}>{{ a }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-    <div class="col-md-2">
-      <button type="submit" class="btn btn-primary w-100">Aplicar</button>
-    </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Aplicar</button>
+      </div>
+    </form>
+  </div>
 
-  </form>
-</div>
-
-   
-    <table class="table table-hover">
+  {% if alumnos and alumnos|length > 0 %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
         <thead>
-            <tr>
-                <th>Fecha</th>
-                <th>Curso</th>
-                <th>Estudiante</th>
-                <th>Inasistencias</th>
-                <th>Acciones Realizadas</th>
-                <th>Ver Más</th>
-            </tr>
+          <tr>
+            <th>Fecha</th>
+            <th>Curso</th>
+            <th>Estudiante</th>
+            <th>Inasistencias</th>
+            <th>Acciones Realizadas</th>
+            <th class="text-nowrap">Ver Más</th>
+          </tr>
         </thead>
         <tbody>
-            {% for alu in alumnos %}
-            <tr>
-                <td>{{ hoy }}</td>
-                <td>{{ alu.curso }}</td>
-                <td>{{ alu.apellido }}, {{ alu.nombre }}</td>
-                <td>
-    <span class="badge {% if alu.alerta_texto != 'Sin alerta crítica' %}bg-danger{% else %}bg-secondary{% endif %}">
-        {{ alu.total_faltas }} — {{ alu.alerta_texto }}
-    </span>
-                </td>
-                <td><input type="text" class="form-control form-control-sm" placeholder="Entrevista, llamado..."></td>
-                <td>
-                    <a href="{{ url_for('asistencia_mensual', curso=alu.curso, month=hoy_mes, year=hoy_anio) }}" 
-                     class="btn btn-sm btn-outline-primary">Detalle</a>
-                </td>
-            </tr>
-            {% endfor %}
+          {% for alu in alumnos %}
+          <tr>
+            <td class="text-nowrap">{{ hoy }}</td>
+            <td>{{ alu.curso }}</td>
+            <td>{{ alu.apellido }}, {{ alu.nombre }}</td>
+
+            <td>
+              {% set tiene_alerta = (alu.alerta_texto != 'Sin alerta') %}
+              <span class="badge {% if tiene_alerta %}bg-danger{% else %}bg-secondary{% endif %}">
+                {{ alu.total_faltas }} — {{ alu.alerta_texto }}
+              </span>
+            </td>
+
+            <td style="min-width: 360px;">
+              <form method="POST" action="{{ url_for('guardar_accion_ausentismo') }}" class="d-flex gap-2">
+                <input type="hidden" name="alumno_id" value="{{ alu._id }}">
+                <input type="hidden" name="anio" value="{{ anio_sel }}">
+                <input type="hidden" name="mes" value="{{ hoy_mes }}">
+                <input type="hidden" name="curso_sel" value="{{ curso_sel }}">
+
+                <input
+                  type="text"
+                  class="form-control form-control-sm accion-input"
+                  name="accion"
+                  value="{{ alu.accion_realizada or '' }}"
+                  placeholder="Entrevista, llamado, visita..."
+                  readonly
+                >
+
+                <button type="button" class="btn btn-sm btn-outline-secondary btn-editar">
+                  Editar
+                </button>
+
+                <button type="submit" class="btn btn-sm btn-success">
+                  Guardar
+                </button>
+              </form>
+            </td>
+
+            <td class="text-nowrap">
+              <a href="{{ url_for('asistencia_mensual', curso=alu.curso, month=hoy_mes, year=hoy_anio) }}"
+                 class="btn btn-sm btn-outline-primary">
+                Detalle
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
         </tbody>
-    </table>
+      </table>
+    </div>
+
+  {% else %}
+    <div class="alert alert-info">
+      No hay alumnos para mostrar con los filtros seleccionados.
+    </div>
+  {% endif %}
 </div>
+
+<script>
+document.addEventListener("click", function(e) {
+  const btn = e.target.closest(".btn-editar");
+  if (!btn) return;
+
+  const form = btn.closest("form");
+  const input = form.querySelector(".accion-input");
+
+  const ahoraReadonly = input.hasAttribute("readonly");
+  if (ahoraReadonly) {
+    input.removeAttribute("readonly");
+    input.focus();
+    btn.textContent = "Bloquear";
+  } else {
+    input.setAttribute("readonly", "readonly");
+    btn.textContent = "Editar";
+  }
+});
+</script>
 {% endblock %}

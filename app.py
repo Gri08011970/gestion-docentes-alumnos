@@ -412,11 +412,10 @@ def _es_art(c_norm: str) -> bool:
         return True
     return False
 
-
 def normalizar_curso(curso: str) -> str:
     """
     Normaliza curso a formato consistente: '1°A', '2°B', etc.
-    Acepta entradas tipo '1A', '1°A', '1 A', '1A°', '1ºA'.
+    Acepta entradas tipo '1A', '1°A', '1 A', '1A°', '1ºA', '1°A°'.
     """
     if not curso:
         return ""
@@ -425,21 +424,58 @@ def normalizar_curso(curso: str) -> str:
     c = c.replace("º", "°")
     c = c.replace(" ", "")
 
-    # casos tipo "1A°" -> "1°A"
-    c = c.replace("°", "")  # lo sacamos y lo ponemos bien
+    # ✅ parche: si viene "4°B°" o "4°B°°" etc → "4°B"
+    c = re.sub(r"°+$", "", c)
+
+    # sacamos el símbolo para reconstruirlo prolijo
+    c = c.replace("°", "")
+
+    # intentamos patrón normal: NUM + LETRA
     m = re.match(r"^(\d+)([A-Z])$", c)
     if m:
         return f"{m.group(1)}°{m.group(2)}"
 
-    # si viene algo raro, lo devolvemos prolijo lo más posible
-    # intenta rescatar "1°A" aunque haya quedado con símbolos
-    c = re.sub(r"[^0-9A-Z]", "", c)
-    m = re.match(r"^(\d+)([A-Z])$", c)
+    # rescate si hay símbolos raros
+    c2 = re.sub(r"[^0-9A-Z]", "", c)
+    m = re.match(r"^(\d+)([A-Z])$", c2)
     if m:
         return f"{m.group(1)}°{m.group(2)}"
 
-    return curso.strip()
+    return str(curso).strip()
 
+def obtener_alerta_ausentismo(alumno_id, mes, anio):
+    asistencia = COL_ASISTENCIAS.find_one({
+        "alumno_id": ObjectId(alumno_id),
+        "month": int(mes),
+        "year": int(anio)
+    })
+
+    if not asistencia:
+        return None, 0, ""
+
+    dias = asistencia.get("dias", {})
+    valores = list(dias.values())
+
+    total_inasistencias = valores.count('A')
+
+    max_seguidas = 0
+    contador = 0
+    for v in valores:
+        if v == 'A':
+            contador += 1
+            max_seguidas = max(max_seguidas, contador)
+        else:
+            contador = 0
+
+    if max_seguidas >= 3:
+        alerta = "3 o más seguidas"
+    elif total_inasistencias >= 5:
+        alerta = "5 o más alternadas"
+    else:
+        alerta = None  
+
+    accion = asistencia.get("accion_realizada", "")
+    return alerta, total_inasistencias, accion
 
 
 def _causa_bucket(causa_norm: str) -> str:
@@ -1211,7 +1247,7 @@ def _contar_por_bucket_aux_anio(auxiliar_id, referencia_fecha):
     return cont, meses_particulares
 
 def calc_fecha_limite_salida(fecha_salida_str, zona):
-    f = _parse_date(fecha_salida_str)
+    f = _parse_date(fecha_salida_str) 
     if not f:
         return None
     z = (zona or "").strip().lower()
@@ -2032,7 +2068,15 @@ def listar_alumnos():
             a["edad_30jun"] = ""
 
     # Cursos para el combo
-    cursos = sorted([c for c in app.mongo.alumnos.distinct("curso") if c])
+    cursos = sorted([
+    c for c in app.mongo.alumnos.distinct("curso", { 
+        "anio_lectivo": anio_busqueda,
+        "$or": [
+            {"fecha_salida": {"$in": [None, "", False]}},
+            {"fecha_salida": {"$exists": False}}
+        ]
+    }) if c
+])
 
     # ----------------- RENDER -----------------
     return render_template(
@@ -2054,7 +2098,8 @@ def nuevo_alumno():
     # --- AGREGAR ESTO PARA EL CURSO Y AÑO ---
     curso_nro = data.pop("curso", "").strip()      # Sacamos el "3"
     seccion_letra = data.pop("seccion", "").strip() # Sacamos el "A"
-    data["curso"] = f"{curso_nro}°{seccion_letra}" # Guardamos "3°A"
+    data["curso"] = normalizar_curso(f"{curso_nro}°{seccion_letra}")
+# Guardamos "3°A"
     
     # Capturamos el año del selector del modal y lo hacemos número
     data["anio_lectivo"] = int(data.get("anio_lectivo", 2025))
@@ -2139,7 +2184,7 @@ def nuevo_alumno():
 def editar_alumno(id):
     alumno = COL_ALUMNOS.find_one({"_id": ObjectId(id)})
     if not alumno:
-        abort(404)
+        abort(404) 
 
     updates_form = request.form.to_dict()
 
@@ -2148,7 +2193,8 @@ def editar_alumno(id):
     curso_nro = updates_form.pop("curso", "").strip()
     seccion_letra = updates_form.pop("seccion", "").strip()
     if curso_nro and seccion_letra:
-        set_fields["curso"] = f"{curso_nro}°{seccion_letra}"
+        set_fields["curso"] = normalizar_curso(f"{curso_nro}°{seccion_letra}")
+
     
     # Guardar el año lectivo si viene en el form
     if "anio_lectivo" in updates_form:
@@ -2499,7 +2545,6 @@ def matricula_2026_preview():
             "nombre": a.get("nombre", ""),
 
             "dni": a.get("dni", ""),
-
             "curso_actual": curso_actual,
 
             "curso_nuevo": curso_nuevo,
@@ -2549,10 +2594,6 @@ def matricula_2026_preview():
         }
 
     })
-
-
-
-
 
 @app.post("/estudiantes/matricula_2026/aplicar", endpoint="matricula_2026_aplicar")
 
@@ -2776,7 +2817,7 @@ def api_calificaciones_upsert():
     try:
         anio = int(data.get("anio") or datetime.now().year)
     except Exception:
-        anio = datetime.now().year
+        anio = datetime.now().year 
 
     # trimestre
     try:
@@ -2833,77 +2874,96 @@ def api_calificaciones_delete(id):
     COL_CALIFICACIONES.delete_one({"_id": ObjectId(id)})
     return jsonify({"status":"ok"})
 
-def obtener_alerta_ausentismo(alumno_id, mes, anio):
-    asistencia = COL_ASISTENCIAS.find_one({"alumno_id": ObjectId(alumno_id), "month": int(mes), "year": int(anio)})
-    if not asistencia:
-        return None, 0
-
-    dias = asistencia.get("dias", {})
-    valores = list(dias.values()) # Ej: ['P', 'A', 'A', 'A', 'P']
-    
-    total_inasistencias = valores.count('A')
-    
-    # Lógica de seguidas
-    max_seguidas = 0
-    contador = 0
-    for v in valores:
-        if v == 'A':
-            contador += 1
-            max_seguidas = max(max_seguidas, contador)
-        else:
-            contador = 0
-            
-    if max_seguidas >= 3:
-        return "3 o más seguidas", total_inasistencias
-    if total_inasistencias >= 5:
-        return "5 o más alternadas", total_inasistencias
-        
-    return None, total_inasistencias
-
-@app.route('/eoe/ausentismo')
+@app.route("/eoe/ausentismo")
 def eoe_ausentismo():
     hoy = datetime.now()
     mes_actual = hoy.month
-    anio_actual = hoy.year
+    anio_actual = hoy.year 
 
-    curso_sel = request.args.get('curso', '')
+    # filtros
+    curso_sel_raw = request.args.get("curso", "").strip()
+    curso_sel = normalizar_curso(curso_sel_raw)
 
-    # NUEVO: año seleccionado
-    anio_sel = request.args.get('anio', str(anio_actual))
+    anio_sel = request.args.get("anio", str(anio_actual))
     try:
         anio_sel_int = int(anio_sel)
     except Exception:
         anio_sel_int = anio_actual
 
-    # para el selector de años (últimos 6)
+    # selector de años
     anios = list(range(anio_actual, anio_actual - 6, -1))
 
-    cursos = sorted(COL_ALUMNOS.distinct("curso"))
+    # base: SOLO alumnos del año seleccionado y NO históricos
+    # (si además tenés un campo tipo estado/activo, acá se suma)
+    query_base = {
+    "anio_lectivo": anio_sel_int,
+    # Activo: sin fecha_salida
+    "$or": [
+        {"fecha_salida": {"$in": [None, "", False]}},
+        {"fecha_salida": {"$exists": False}}
+    ],
+    # y por las dudas, si existe historico, que no sea True
+    "historico": {"$ne": True}
+}
 
-    query = {"historico": {"$ne": True}}
+    # cursos para el combo: SOLO del año seleccionado
+    cursos_raw = COL_ALUMNOS.distinct("curso", query_base)
+    cursos_norm = sorted({normalizar_curso(c) for c in cursos_raw if normalizar_curso(c)})
+
+    # query final
+    query = dict(query_base)
+
     if curso_sel:
-        query["curso"] = curso_sel
+        # tolerante: si en DB hay "4°B" y "4°B°", matcheamos ambos
+        query["curso"] = {"$in": [curso_sel, curso_sel + "°"]}
 
     alumnos_raw = list(COL_ALUMNOS.find(query).sort([("apellido", 1), ("nombre", 1)]))
-    alumnos_con_datos = []
 
+    alumnos_con_datos = []
     for alu in alumnos_raw:
-        alerta, total_faltas = obtener_alerta_ausentismo(str(alu["_id"]), mes_actual, anio_sel_int)
+        alerta, total_faltas, accion = obtener_alerta_ausentismo(str(alu["_id"]), mes_actual, anio_sel_int)
+
+        alu["curso"] = normalizar_curso(alu.get("curso", ""))
         alu["total_faltas"] = total_faltas
-        alu["alerta_texto"] = alerta if alerta else "Sin alerta"
+        alu["alerta_texto"] = alerta or "Sin alerta"
+        alu["accion_realizada"] = accion or ""
         alumnos_con_datos.append(alu)
 
     return render_template(
         "ausentismo.html",
-        alumnos=alumnos_con_datos,
-        cursos=cursos, 
-        curso_sel=curso_sel,
-        anios=anios,                 # NUEVO
-        anio_sel=anio_sel_int,       # NUEVO
-        hoy=hoy.strftime('%d/%m/%Y'),
+        alumnos=alumnos_con_datos, 
+        cursos=cursos_norm,
+        curso_sel=curso_sel,           # normalizado
+        anios=anios,
+        anio_sel=anio_sel_int,
+        hoy=hoy.strftime("%d/%m/%Y"),
         hoy_mes=mes_actual,
-        hoy_anio=anio_sel_int        # IMPORTANTE: usar el seleccionado
+        hoy_anio=anio_sel_int
     )
+
+
+@app.route("/eoe/guardar_accion", methods=["POST"])
+def guardar_accion_ausentismo():
+    alumno_id = request.form["alumno_id"]
+    anio = int(request.form["anio"])
+    mes = int(request.form["mes"])
+    accion = request.form.get("accion", "").strip()
+
+    COL_ASISTENCIAS.update_one(
+        {
+            "alumno_id": ObjectId(alumno_id),
+            "year": anio,
+            "month": mes
+        },
+        {
+            "$set": {"accion_realizada": accion}
+        },
+        upsert=True
+    )
+
+    # volver al listado conservando filtros
+    curso = request.form.get("curso_sel", "")
+    return redirect(url_for("eoe_ausentismo", anio=anio, curso=curso))
 
 @app.route('/eoe/judiciales')
 def eoe_judiciales():

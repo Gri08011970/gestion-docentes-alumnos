@@ -218,9 +218,43 @@
       </a>
       <ul class="dropdown-menu" aria-labelledby="navPlanillas">
         <li>
-          <a class="dropdown-item" href="{{ url_for('anexos_index') }}">
-            Generar anexos – Salidas educativas
-          </a>
+           <form action="{{ url_for('planilla_promocion') }}" method="GET" target="_blank" class="bg-white p-2 rounded border mb-3 shadow-sm">
+      <label class="fw-bold mb-1" style="font-size: 0.8rem;">GENERAR PLANILLA DE PROMOCIÓN:</label>
+      
+      <div class="d-flex gap-1 mb-2">
+        <select name="anio" class="form-select form-select-sm" title="Año Lectivo">
+          <option value="2025" selected>Ciclo 2025</option>
+          <option value="2026">Ciclo 2026</option>
+        </select>
+        
+        <select name="curso" class="form-select form-select-sm">
+          {% for i in range(1, 7) %}<option value="{{ i }}">{{ i }}° Año</option>{% endfor %}
+        </select>
+
+        <select name="seccion" class="form-select form-select-sm">
+          <option value="A">A</option>
+          <option value="B" selected>B</option>
+        </select>
+      </div>
+
+      <select name="turno" class="form-select form-select-sm mb-2">
+        <option value="T.M.">Mañana</option>
+        <option value="T.T." selected>Tarde</option>
+      </select>
+
+      <button type="submit" class="btn btn-warning btn-sm w-100 fw-bold">
+         <i class="fas fa-print me-1"></i> Ver Planilla de Promoción
+      </button>
+    </form>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{{ url_for('prom_rec') }}">Promovidos y Recursantes</a>
+        </li>
+        <li>
+           <a class="dropdown-item" href="{{ url_for('entrega_mercaderia') }}">Entrega de Mercadería (SAE)</a>
+        </li>
+        <li> 
+           <a class="dropdown-item" href="{{ url_for('listar_docentes') }}">Set 4 (Generar por  Docente)</a>
         </li>
         <li>
           <a class="dropdown-item" href="{{ url_for('salidas.listado_salidas') }}">
@@ -228,11 +262,11 @@
           </a>
         </li>
         <li>
-          <a class="dropdown-item" href="{{ url_for('listar_docentes') }}">
-            Set 4 — Generar por docente
+          <a class="dropdown-item" href="{{ url_for('anexos_index') }}">
+            Generar anexos – Salidas educativas
           </a>
         </li>
-        <li><a class="dropdown-item" href="{{ url_for('planilla_promocion', curso='4', seccion='B') }}">Planilla de Promoción</a></li>
+        
         <li>
           <a class="dropdown-item text-muted" href="#">
             Proyección de matrícula — En construcción
@@ -244,7 +278,7 @@
     <!-- Certificados -->
     <li class="nav-item">
       <a class="nav-link" href="{{ url_for('certificados_pendientes') }}">
-        Certificados sin entregar
+        Certificados para entregar
       </a>
     </li>
 

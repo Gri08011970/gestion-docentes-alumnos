@@ -15,7 +15,7 @@ from urllib.parse import quote,urlencode, urlparse, parse_qs
 
 # 1.2. Librerías de Terceros (Flask, Mongo, Utilidades) 
 from flask import (
-    Flask, render_template, request, redirect,
+    Flask, render_template, request, redirect, 
     url_for, jsonify, abort, send_file, flash
 )
 from flask_pymongo import PyMongo
@@ -411,6 +411,34 @@ def _es_art(c_norm: str) -> bool:
     if "licencia art" in c or "por art" in c or "art." in c:
         return True
     return False
+
+
+def normalizar_curso(curso: str) -> str:
+    """
+    Normaliza curso a formato consistente: '1°A', '2°B', etc.
+    Acepta entradas tipo '1A', '1°A', '1 A', '1A°', '1ºA'.
+    """
+    if not curso:
+        return ""
+
+    c = str(curso).strip().upper()
+    c = c.replace("º", "°")
+    c = c.replace(" ", "")
+
+    # casos tipo "1A°" -> "1°A"
+    c = c.replace("°", "")  # lo sacamos y lo ponemos bien
+    m = re.match(r"^(\d+)([A-Z])$", c)
+    if m:
+        return f"{m.group(1)}°{m.group(2)}"
+
+    # si viene algo raro, lo devolvemos prolijo lo más posible
+    # intenta rescatar "1°A" aunque haya quedado con símbolos
+    c = re.sub(r"[^0-9A-Z]", "", c)
+    m = re.match(r"^(\d+)([A-Z])$", c)
+    if m:
+        return f"{m.group(1)}°{m.group(2)}"
+
+    return curso.strip()
 
 
 
@@ -3056,37 +3084,6 @@ def listas_estudiantes_view():
     )
 
 
-    curso_filtrado = (request.args.get("curso") or "").strip()
-
-    q = {"activo": {"$ne": False}}
-    if curso_filtrado:
-        q["curso"] = curso_filtrado
-
-    alumnos = list(
-        COL_ALUMNOS.find(q).sort([("curso", 1), ("apellido", 1), ("nombre", 1)])
-    )
-
-    grupos = {}
-    for a in alumnos:
-        curso = (a.get("curso") or "").strip()
-        grupos.setdefault(curso, []).append(a)
-
-    todos = list(
-        COL_ALUMNOS.find({"activo": {"$ne": False}}, {"curso": 1}).sort([("curso", 1)])
-    )
-    cursos_unicos = sorted({(x.get("curso") or "").strip() for x in todos if (x.get("curso") or "").strip()}, key=ordenar_curso_key)
-
-    cursos_ordenados = sorted(grupos.keys(), key=ordenar_curso_key)
-
-    return render_template(
-        "listas.html",
-        grupos=grupos,
-        cursos_ordenados=cursos_ordenados,
-        cursos_unicos=cursos_unicos,
-        curso_filtrado=curso_filtrado
-    )
-
-
 @app.get("/estudiantes/prom_rec", endpoint="prom_rec")
 def prom_rec_view():
     if not mongo_ping_ok():
@@ -3383,7 +3380,7 @@ def asistencia_mensual(curso, year, month):
     for reg in year_asist:
         aid = str(reg['alumno_id'])
         estado = reg.get('estado', '')
-        if estado not in ('P', 'A'):
+        if estado not in ('P', 'A'): 
             continue
         info = resumen_anual.setdefault(aid, {'P': 0, 'A': 0, 'D': 0})
         info[estado] += 1
@@ -4101,9 +4098,6 @@ def autorizados_curso(curso):
 
     return render_template("autorizados_curso.html", curso=curso, alumnos=alumnos, anio=anio)
 
-
-    return render_template("autorizados_curso.html", curso=curso, alumnos=alumnos)
-
 @app.route("/autorizados/alumno/<id>", methods=["GET", "POST"])
 def autorizados_alumno(id):
     anio = int(request.args.get("anio", 2026))
@@ -4231,6 +4225,9 @@ def certificados_pendientes():
             "anio_promocion": anio_promocion,
             "observaciones": observaciones,
             "fecha_carga": datetime.utcnow(),
+            "entregado": False,
+            "fecha_entrega": None,
+
         }
 
         COL_CERTIFICADOS.insert_one(doc)
@@ -4240,13 +4237,24 @@ def certificados_pendientes():
 
     # ---------------- GET ----------------
     q = (request.args.get("q") or "").strip()
+    ver = (request.args.get("ver") or "pendientes").strip().lower()  # pendientes | todos | entregados
+
     filtro = {}
+
+# Por defecto: pendientes (no entregados)  
+    if ver == "pendientes":
+       filtro["$or"] = [{"entregado": {"$exists": False}}, {"entregado": False}]
+    elif ver == "entregados":
+        filtro["entregado"] = True
+# ver == "todos" => sin filtro de entregado
+
     if q:
-        regex = {"$regex": q, "$options": "i"}
-        filtro = {"$or": [
-            {"apellido": regex},
-            {"dni": regex},
-        ]}
+       regex = {"$regex": q, "$options": "i"}
+       qf = {"$or": [{"apellido": regex}, {"dni": regex}]}
+       if filtro:
+          filtro = {"$and": [filtro, qf]}
+       else:
+           filtro = qf
 
     certificados = list(
         COL_CERTIFICADOS
@@ -4258,7 +4266,37 @@ def certificados_pendientes():
         "certificados_list.html",
         certificados=certificados,
         q=q,
+        ver=ver,
     )
+@app.route("/certificados/<id>/editar", methods=["POST"])
+def editar_certificado(id):
+    try:
+        apellido = (request.form.get("apellido") or "").strip().upper()
+        nombre = (request.form.get("nombre") or "").strip().upper()
+        dni = (request.form.get("dni") or "").strip()
+        anio_promocion_raw = (request.form.get("anio_promocion") or "").strip()
+        observaciones = (request.form.get("observaciones") or "").strip()
+
+        try:
+            anio_promocion = int(anio_promocion_raw)
+        except ValueError:
+            anio_promocion = None
+
+        COL_CERTIFICADOS.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {
+                "apellido": apellido,
+                "nombre": nombre,
+                "dni": dni,
+                "anio_promocion": anio_promocion,
+                "observaciones": observaciones,
+            }}
+        )
+        
+    except Exception as e:
+        print("[ERROR editar_certificado]", e)
+
+    return redirect(url_for("certificados_pendientes"))
 
 @app.route("/certificados/<id>/eliminar", methods=["POST"])
 def eliminar_certificado(id):
@@ -4331,6 +4369,27 @@ def mapa_recorridos():
         q=q,
         es_eoe=True
     )
+@app.route("/certificados/<id>/entregado", methods=["POST"])
+def marcar_certificado_entregado(id):
+    try:
+        entregado = (request.form.get("entregado") == "1")
+
+        if entregado:
+            fecha_entrega = datetime.utcnow()
+        else:
+            fecha_entrega = None
+
+        COL_CERTIFICADOS.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {"entregado": entregado, "fecha_entrega": fecha_entrega}}
+        )
+    except Exception as e:
+        print("[ERROR marcar_certificado_entregado]", e)
+
+    # volvemos a la lista manteniendo filtros
+    q = request.form.get("q") or ""
+    ver = request.form.get("ver") or "pendientes"
+    return redirect(url_for("certificados_pendientes", q=q, ver=ver))
 
 
 @app.route("/mapa/recorridos/visitas", methods=["POST"])
@@ -5000,7 +5059,7 @@ def anexos_render():
     return render_template(tmpl, **ctx)
 
 
-# ----------------- Main -----------------
+# ----------------- Main ----------------- 
 if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))

@@ -65,29 +65,14 @@
             Editar
           </button>
 
-          <div class="btn-group">
-            <button type="button" class="btn btn-sm btn-outline-dark dropdown-toggle" data-bs-toggle="dropdown">
-              Imprimir
-            </button>
-            <ul class="dropdown-menu shadow">
-              <li>
-                <a class="dropdown-item" href="/docentes/{{ d._id }}/set4?anio=2025" target="_blank">
+          
+          <a class="dropdown-item" href="/docentes/{{ d._id }}/set4?anio=2025" target="_blank">
                   📄 Planilla S.E.T. 4
-                </a>
-              </li>
-              <li>
-                <a class="dropdown-item" href="{{ url_for('docente_inasistencias_anuales', id=d._id) }}" target="_blank">
+          </a>
+          <a class="dropdown-item" href="{{ url_for('docente_inasistencias_anuales', id=d._id) }}" target="_blank">
                   📅 Calendario Anual
                 </a>
-              </li>
-            </ul>
-          </div>
-
-          <a href="{{ url_for('docente_inasistencias_anuales', id=d['_id']) }}"
-             class="btn btn-sm btn-outline-secondary">
-             Faltas
-          </a>
-
+          
           <form action="{{ url_for('eliminar_docente', id=d['_id']) }}"
                 method="post"
                 class="m-0"

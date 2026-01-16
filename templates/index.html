@@ -144,24 +144,62 @@
     <ul class="small mb-0 list-unstyled">
       <li class="mb-2">📋 <a href="{{ url_for('prom_rec') }}">Promovidos y Recursantes</a></li>
       <li class="mb-2">📦 <a href="{{ url_for('entrega_mercaderia') }}">Entrega de Mercadería (SAE)</a></li>
-      <li class="mb-2">📝 <a href="{{ url_for('listar_docentes') }}">Set 4 (Calificación Docente)</a></li>
-      <li class="mb-1">🚌 <a href="{{ url_for('salidas.listado_salidas') }}">Salidas educativas (Anexos)</a></li>
+      <li class="mb-2">📝 <a href="{{ url_for('listar_docentes') }}">Set 4 (Generar por  Docente)</a></li>
+      <li class="mb-1">🚌 <a href="{{ url_for('salidas.listado_salidas') }}">Resumen de salidas y estados de Anexos</a></li>
+      <li class="mb-1">🚌 <a href="{{ url_for('anexos_index') }}">Generar anexos-salidas educativas</a></li>
+      <li class="mb-2"> <a href="#"></a>Proyección de Matrícula (En construcción)</a></li>
     </ul>
   </div>
 </div>
      
       <div class="col-12 col-lg-4">
         <div class="p-3 rounded-3 shadow-sm h-100" style="background:#f3f9ff; font-size:0.9rem; border:2px solid #333;">
-          <div class="small text-uppercase text-muted mb-2">EOE</div>
+          <div class="badge-soft mb-2">EOE</div>
           <h5 class="mb-2">Equipo de orienación escolar</h5>
-          <ul class="small list-unstyled">
-            <li class="mb-2"> <a href="{{ url_for('eoe_ausentismo') }}">Control de ausentismo crítico</a></li>
-            <li class="mb-2"> <a href="{{ url_for('eoe_judiciales') }}">Judiciales-Acompañantes</a></li>
-            <li class="mb-2"> <a href="{{ url_for('mapa_recorridos') }}">Actas de visitas domiciliarias</a></li>
+          <ul class="list-unstyled mb-0">
+            <li class="mb-1">•<a href="{{ url_for('eoe_ausentismo') }}">Control de ausentismo crítico</a></li>
+            <li class="mb-1">• <a href="{{ url_for('eoe_judiciales') }}">Judiciales-Acompañantes</a></li>
+            <li class="mb-1">• <a href="{{ url_for('mapa_recorridos') }}">Actas de visitas domiciliarias</a></li>
           </ul>
         </div>
       </div>
  </div>
+ <div class="row g-4 mt-1">
+
+      <div class="col-12 col-lg-4">
+  <div class="card shadow-sm h-100 border-2" style="border-color:#0d6efd33;">
+    <div class="card-body" style="background:#f3f9ff;">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="small text-uppercase text-muted mb-1">Certificados en archivo</div>
+          <h5 class="mb-1">Certificados para entregar</h5>
+          <div class="small text-muted">1970 – Hoy</div>
+        </div>
+        <span class="badge rounded-pill text-bg-primary">📄</span>
+      </div>
+
+      <hr class="my-3">
+
+      <div class="d-grid gap-2">
+        <a class="btn btn-outline-primary"
+           href="{{ url_for('certificados_pendientes') }}">
+          Ver listado
+        </a>
+
+        <!-- Va directo a abrir el modal "Nuevo certificado" -->
+        <a class="btn btn-primary"
+           href="{{ url_for('certificados_pendientes') }}?nuevo=1">
+          + Cargar nuevo certificado
+        </a>
+      </div>
+
+      <div class="mt-3 small text-muted">
+        Tip: podés buscar por apellido o DNI.
+      </div>
+    </div>
+  </div>
+</div>
+
 
     <div class="text-center text-muted mt-4" style="font-size:0.8rem;">
       Uso interno institucional EP N° 91. La información es confidencial y se resguarda según la normativa vigente.
